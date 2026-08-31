@@ -33,7 +33,7 @@ export function useTheme() {
 
   const toggle = useCallback(() => setChoice(isDark ? 'light' : 'dark'), [isDark])
 
-  return { isDark, toggle }
+  return { choice, setChoice, isDark, toggle }
 }
 
 /** จอกว้างพอเป็น "โต๊ะทำงาน" หรือยัง

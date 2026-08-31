@@ -44,3 +44,23 @@ export const IconClose = () => (
     <path d="m6 6 12 12M18 6 6 18" />
   </svg>
 )
+
+export const IconOverview = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" {...base}>
+    <path d="M4 19V10M9.3 19V5M14.7 19v-6M20 19V8" />
+  </svg>
+)
+
+export const IconSettings = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" {...base}>
+    <circle cx="12" cy="12" r="3.2" />
+    <path d="M12 2.6v2.6M12 18.8v2.6M21.4 12h-2.6M5.2 12H2.6M18.6 5.4l-1.8 1.8M7.2 16.8l-1.8 1.8M18.6 18.6l-1.8-1.8M7.2 7.2 5.4 5.4" />
+  </svg>
+)
+
+export const IconUndo = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" {...base}>
+    <path d="M3 7v6h6" />
+    <path d="M3.5 13a9 9 0 1 0 2.1-9.4L3 7" />
+  </svg>
+)

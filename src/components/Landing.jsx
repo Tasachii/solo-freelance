@@ -1,45 +1,34 @@
 import { navigate } from '../router.js'
+import { IconSun, IconMoon } from './Icons.jsx'
 
-const POINTS = [
-  {
-    t: 'เช็คชื่อแตะเดียวทุกคาบ',
-    d: 'ลืมนับครั้งเรียน 1 ครั้ง = สอนฟรี 400 บาท ระบบนับให้ ไม่ต้องจำเอง',
-  },
-  {
-    t: 'บิลเข้า LINE ผู้ปกครองอัตโนมัติ',
-    d: 'สิ้นเดือนคิดเงินจากครั้งที่สอนจริง ส่งพร้อม QR PromptPay ของคุณเอง',
-  },
-  {
-    t: 'ระบบทวงแทน คุณไม่ต้องทวงเอง',
-    d: 'คนที่ทวงคือระบบ ไม่ใช่ครู ความสัมพันธ์กับผู้ปกครองเลยไม่เสีย',
-  },
-]
+const POINTS = ['เช็คชื่อแตะเดียวทุกคาบ', 'บิลเข้า LINE ผู้ปกครองอัตโนมัติ', 'ระบบทวงแทน คุณไม่ต้องทวงเอง']
 
-export default function Landing() {
+export default function Landing({ isDark, onToggleTheme }) {
   return (
     <div className="land">
       <div className="land__inner">
-      <div className="land__body">
-        <span className="land__tag rise">เดโม · ข้อมูลสมมติทั้งหมด</span>
+        <div className="land__topbar rise">
+          <span className="land__tag">เดโม · ข้อมูลสมมติ</span>
+          <button
+            className="hd__btn"
+            onClick={onToggleTheme}
+            aria-label={isDark ? 'ใช้โหมดสว่าง' : 'ใช้โหมดมืด'}
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' }}
+          >
+            {isDark ? <IconSun /> : <IconMoon />}
+          </button>
+        </div>
 
         <h1 className="land__logo rise d1">
           ติวได้<em>ตังค์</em>
         </h1>
-
         <p className="land__lead rise d2">ปิดบิลสิ้นเดือนใน 5 นาที ไม่ใช่ 5 ชั่วโมง</p>
-        <p className="land__sub rise d2">
-          ระบบหลังบ้านสำหรับติวเตอร์เดี่ยวที่มีนักเรียน 30–80 คน
-          เก็บครบทุกครั้งที่สอน เก็บเงินได้ตรงเวลา โดยไม่ต้องเป็นคนทวงเอง
-        </p>
 
         <ul className="land__list">
           {POINTS.map((p, i) => (
-            <li className={`land__item rise d${i + 3}`} key={p.t}>
+            <li className={`land__item rise d${i + 3}`} key={p}>
               <span className="land__num">{i + 1}</span>
-              <div className="land__txt">
-                <b>{p.t}</b>
-                <i>{p.d}</i>
-              </div>
+              {p}
             </li>
           ))}
         </ul>
@@ -48,24 +37,17 @@ export default function Landing() {
           <button className="btn btn--cta btn--block" onClick={() => navigate('/app')}>
             ลองกดเล่นเดโม →
           </button>
-          <p className="land__note">
-            ระบบไม่แตะเงินของคุณ — ผู้ปกครองโอนเข้าบัญชีคุณโดยตรง
-            <br />
-            ระบบทำหน้าที่แค่ตรวจสลิปและบันทึกให้เท่านั้น
-          </p>
+          <p className="land__note">ระบบไม่แตะเงิน — โอนเข้าบัญชีคุณโดยตรง</p>
         </div>
       </div>
 
       <div className="land__foot">
         <p>
-          ทำโดย<b>ทีมนิสิต KU</b> เพื่อ validation — ถ้าคุณเป็นติวเตอร์และอยากคุยกับเรา
-          เราอยากฟังว่าสิ้นเดือนของคุณเป็นยังไง
+          ทีมนิสิต KU · เดโม ข้อมูลสมมติทั้งหมด ·{' '}
+          <a href="#" onClick={(e) => e.preventDefault()}>
+            ทักเราทาง LINE
+          </a>
         </p>
-        <a className="btn btn--ink btn--block" href="#" onClick={(e) => e.preventDefault()}>
-          ทักเราทาง LINE
-        </a>
-        <p className="disclaimer">เดโม · ข้อมูลสมมติทั้งหมด · ไม่มีการเก็บข้อมูลจริง</p>
-      </div>
       </div>
     </div>
   )

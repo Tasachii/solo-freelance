@@ -2,7 +2,7 @@ import Sheet from './Sheet.jsx'
 import { STUDENTS, TUTOR } from '../data.js'
 import { baht, billOf } from '../state.js'
 
-/** จำลองหน้าแชท LINE ที่ผู้ปกครองจะเห็น — ใช้ น้องแพรว เป็นตัวอย่าง */
+/** จำลองแชท LINE ที่ผู้ปกครองจะเห็น — ใช้ น้องแพรว เป็นตัวอย่าง */
 export default function LineBillSheet({ state, onClose, onConfirm }) {
   const sample = STUDENTS.find((s) => s.id === 's2') || STUDENTS[0]
   const { times, rate, amount } = billOf(sample, state)
@@ -19,48 +19,26 @@ export default function LineBillSheet({ state, onClose, onConfirm }) {
       }
     >
       <div className="line-chat">
-        <div className="line-chat__day">
-          <span>30 กันยายน</span>
-        </div>
+        <div className="line-chat__day"><span>30 กันยายน</span></div>
 
         <div className="bub">
           <div className="bub__hd">ใบแจ้งค่าเรียน · {TUTOR.month}</div>
           {sample.nick} ({sample.subject} {sample.grade})
           <div style={{ marginTop: 9 }}>
-            <div className="bub__row">
-              <span>เรียนแล้ว</span>
-              <span>{times} ครั้ง</span>
-            </div>
-            <div className="bub__row">
-              <span>ครั้งละ</span>
-              <span>{baht(rate)} บาท</span>
-            </div>
-            <div className="bub__tot">
-              <span>รวม</span>
-              <span>{baht(amount)} บาท</span>
-            </div>
+            <div className="bub__row"><span>เรียนแล้ว</span><span>{times} ครั้ง</span></div>
+            <div className="bub__row"><span>ครั้งละ</span><span>{baht(rate)} บาท</span></div>
+            <div className="bub__tot"><span>รวม</span><span>{baht(amount)} บาท</span></div>
           </div>
 
           <div className="qr">
             <div className="qr__box" aria-hidden="true" />
             <div className="qr__t">
               <b>สแกนจ่าย PromptPay</b>
-              <span>
-                {TUTOR.bankLine}
-                <br />
-                เข้าบัญชี{TUTOR.name}โดยตรง
-              </span>
+              <span>{TUTOR.bankLine}</span>
             </div>
           </div>
 
-          <div className="bub__foot">
-            โอนแล้วแนบสลิปในแชทนี้ได้เลยครับ ระบบจะตรวจให้อัตโนมัติ
-          </div>
-        </div>
-
-        <div className="bub">
-          ถ้ามีข้อสงสัยเรื่องจำนวนครั้ง ทักถามได้เลยนะครับ
-          {'\n'}ระบบแนบวันที่เรียนทั้งหมดไว้ให้ตรวจสอบด้วยครับ
+          <div className="bub__foot">โอนแล้วแนบสลิปในแชทนี้ได้เลยครับ ระบบตรวจให้อัตโนมัติ</div>
         </div>
       </div>
 
@@ -73,15 +51,10 @@ export default function LineBillSheet({ state, onClose, onConfirm }) {
         </ul>
       </div>
 
-      <div className="hint" style={{ marginLeft: 0, marginRight: 0 }}>
+      <p className="hint">
         <span className="hint__ico">🔒</span>
-        <span>
-          QR เป็น PromptPay <b>ของคุณเอง</b> เงินวิ่งตรงเข้าบัญชีคุณ
-          ระบบไม่ได้เป็นตัวกลางรับโอนและไม่แตะเงินสักบาท
-        </span>
-      </div>
-
-      <p className="disclaimer">เดโม · ข้อมูลสมมติทั้งหมด</p>
+        <span>QR เป็น PromptPay <b>ของคุณเอง</b> เงินวิ่งตรงเข้าบัญชีคุณ</span>
+      </p>
     </Sheet>
   )
 }

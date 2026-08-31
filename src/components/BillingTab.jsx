@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { MONTH, TYPE_LABEL, STATUS_LABEL } from '../data.js'
+import { TYPE_LABEL, STATUS_LABEL } from '../data.js'
+import { longMonth } from '../dates.js'
 import { baht, billOf, totals } from '../state.js'
 import { EmptyState } from './Field.jsx'
 
@@ -11,6 +12,7 @@ const FILTERS = [
 ]
 
 function Action({ s, status, onSlip, onRemind, onUndoPaid }) {
+  if (status === 'none') return <span className="bill__none">—</span>
   if (status === 'pending')
     return <button className="btn btn--ghost btn--sm" onClick={() => onSlip(s)}>ดูสลิป</button>
   if (status === 'overdue')
@@ -22,12 +24,13 @@ function Action({ s, status, onSlip, onRemind, onUndoPaid }) {
   )
 }
 
-export default function BillingTab({ state, onSlip, onRemind, onUndoPaid, onSendAll, desk }) {
+export default function BillingTab({ state, period, onSlip, onRemind, onUndoPaid, onSendAll, desk }) {
+  const MONTH = longMonth(period)
   const [filter, setFilter] = useState('all')
-  const { total, paid, outstanding } = totals(state)
+  const { total, paid, outstanding } = totals(state, period)
   const pct = total > 0 ? (paid / total) * 100 : 0
-  const unpaid = state.students.filter((s) => state.status[s.id] !== 'paid').length
-  const shown = state.students.filter((s) => filter === 'all' || state.status[s.id] === filter)
+  const unpaid = state.students.filter((s) => billOf(s, state, period).status !== 'paid').length
+  const shown = state.students.filter((s) => filter === 'all' || billOf(s, state, period).status === filter)
 
   const ctaNote = (
     <>งานสิ้นเดือน 5–10 ชั่วโมง เหลือปุ่มเดียว · <b>ระบบเป็นคนทวง ไม่ใช่คุณ</b></>
@@ -69,7 +72,7 @@ export default function BillingTab({ state, onSlip, onRemind, onUndoPaid, onSend
             </thead>
             <tbody>
               {shown.map((s) => {
-                const { times, rate, amount, status } = billOf(s, state)
+                const { times, amount, status, uniformRate, mixedRates } = billOf(s, state, period)
                 return (
                   <tr key={s.id}>
                     <td>
@@ -77,7 +80,7 @@ export default function BillingTab({ state, onSlip, onRemind, onUndoPaid, onSend
                       <div className="tbl__meta">{s.grade} · {s.subject} · {s.parent}</div>
                     </td>
                     <td style={{ fontSize: 13.5, color: 'var(--muted)' }}>{TYPE_LABEL[s.type]}</td>
-                    <td className="tbl__r" style={{ fontSize: 13.5, color: 'var(--muted)' }}>{times} × {baht(rate)}</td>
+                    <td className="tbl__r" style={{ fontSize: 13.5, color: 'var(--muted)' }}>{mixedRates ? `${times} ครั้ง · หลายเรท` : `${times} × ${baht(uniformRate ?? 0)}`}</td>
                     <td className="tbl__r tbl__amt">{baht(amount)}</td>
                     <td><span className={`pill pill--${status}`}>{STATUS_LABEL[status]}</span></td>
                     <td className="tbl__act">
@@ -117,12 +120,12 @@ export default function BillingTab({ state, onSlip, onRemind, onUndoPaid, onSend
 
       <div className="card rise d2">
         {shown.map((s) => {
-          const { times, rate, amount, status } = billOf(s, state)
+          const { times, amount, status, uniformRate, mixedRates } = billOf(s, state, period)
           return (
             <div className="bill" key={s.id}>
               <div className="bill__main">
                 <div className="bill__name">{s.nick}</div>
-                <div className="bill__calc">{times} ครั้ง × {baht(rate)} = <b>{baht(amount)} บาท</b></div>
+                <div className="bill__calc">{mixedRates ? `${times} ครั้ง (หลายเรท)` : `${times} ครั้ง × ${baht(uniformRate ?? 0)}`} = <b>{baht(amount)} บาท</b></div>
               </div>
               <div className="bill__act">
                 <span className={`pill pill--${status}`}>{STATUS_LABEL[status]}</span>

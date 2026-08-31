@@ -53,7 +53,7 @@ export default function ExpenseSheet({ expense, onClose, onSave, onDelete }) {
         label="หมวด" value={f.category} onChange={set('category')}
         options={EXPENSE_CATEGORIES.map((c) => ({ value: c, label: c }))}
       />
-      <TextField label="วันที่" value={f.date} onChange={set('date')} placeholder="เช่น 28 ก.ย." error={err.date} />
+      <TextField label="วันที่" type="date" value={f.date} onChange={set('date')} error={err.date} />
       <TextField label="โน้ต" value={f.note} onChange={set('note')} placeholder="เช่น ค่าแท็กซี่ไปบ้านนักเรียน" />
     </Sheet>
   )

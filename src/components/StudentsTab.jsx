@@ -10,29 +10,32 @@ const FILTERS = [
   { id: 'paid', label: 'จ่ายแล้ว' },
 ]
 
-export default function StudentsTab({ state, onOpen, onAdd, desk }) {
+export default function StudentsTab({ state, period, onOpen, onAdd, desk }) {
   const [q, setQ] = useState('')
   const [filter, setFilter] = useState('all')
 
-  const taught = state.students.reduce((n, s) => n + billOf(s, state).times, 0)
+  const taught = state.students.reduce((n, s) => n + billOf(s, state, period).times, 0)
 
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase()
     return state.students.filter((s) => {
-      if (filter !== 'all' && state.status[s.id] !== filter) return false
+      if (filter !== 'all' && billOf(s, state, period).status !== filter) return false
       if (!needle) return true
       return [s.nick, s.parent, s.subject, s.grade].join(' ').toLowerCase().includes(needle)
     })
-  }, [state.students, state.status, q, filter])
+  }, [state, period, q, filter])
 
   const counts = useMemo(() => {
     const c = { all: state.students.length, overdue: 0, pending: 0, paid: 0 }
-    for (const s of state.students) c[state.status[s.id]] = (c[state.status[s.id]] || 0) + 1
+    for (const s of state.students) {
+      const st = billOf(s, state, period).status
+      c[st] = (c[st] || 0) + 1
+    }
     return c
-  }, [state.students, state.status])
+  }, [state, period])
 
   const cards = shown.map((s, i) => {
-    const { times, status } = billOf(s, state)
+    const { times, status } = billOf(s, state, period)
     const pct = s.plan > 0 ? Math.min(100, Math.round((times / s.plan) * 100)) : 0
     return (
       <button className={`card stu rise d${Math.min(i + 1, 6)}`} key={s.id} onClick={() => onOpen(s)}>

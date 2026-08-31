@@ -976,3 +976,59 @@ button:focus-visible, a:focus-visible {
 }
 .toast__btn:hover { background: rgba(255,255,255,.26); }
 .toast__btn svg { width: 14px; height: 14px; }
+
+/* ═══ การแจ้งเตือน ════════════════════════════════════════════════ */
+
+.notif { display: flex; gap: 11px; align-items: flex-start; width: 100%; text-align: left; padding: 12px 2px; transition: background .16s; }
+.notif + .notif { border-top: 1px solid var(--border); }
+.notif:hover { background: var(--surface-2); }
+.notif__ico { flex: none; font-size: 16px; line-height: 1.4; }
+.notif__main { flex: 1; min-width: 0; }
+.notif__txt { display: block; font-size: 13.5px; line-height: 1.5; }
+.notif__at { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.notif__dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--cta); margin-top: 6px; }
+.notif--new .notif__txt { font-weight: 600; }
+
+.logitem { align-items: center; }
+.logitem .btn { flex: none; }
+
+/* จุดแดงบนปุ่มกระดิ่ง */
+.hd__btn { position: relative; }
+.hd__btn .tab__dot { top: 4px; right: 4px; border-color: var(--brand); }
+
+.schedrow { display: flex; gap: 8px; align-items: center; margin-bottom: 7px; }
+.schedrow .fld__input { flex: 1; min-width: 0; }
+.schedrow__x {
+  flex: none; width: 38px; height: 38px; border-radius: var(--r-btn);
+  background: var(--surface-2); color: var(--muted); font-size: 13px;
+}
+.schedrow__x:hover { color: var(--bad); }
+
+.slip--bad::before { background: repeating-linear-gradient(90deg, var(--bad) 0 8px, transparent 8px 16px); opacity: .5; }
+.mismatch {
+  background: var(--bad-soft); border-radius: var(--r-card);
+  padding: 13px 15px; margin-top: 12px;
+}
+.mismatch__hd { font-size: 14px; font-weight: 700; color: var(--bad); margin-bottom: 6px; }
+.mismatch .kv { border-color: color-mix(in srgb, var(--bad) 22%, transparent); }
+.mismatch .kv span { color: color-mix(in srgb, var(--bad) 78%, var(--text)); }
+.mismatch__why { margin: 8px 0 0; font-size: 12.5px; line-height: 1.5; color: color-mix(in srgb, var(--bad) 78%, var(--text)); }
+
+.pill--none { background: var(--surface-2); color: var(--muted); }
+.av--none { background: var(--surface-2); color: var(--muted); }
+.bill__none { color: var(--muted); font-size: 14px; }
+.dates__rate { font-size: 10.5px; color: var(--muted); margin-left: 3px; }
+
+/* ═══ สลับเดือน ═══════════════════════════════════════════════════ */
+
+.monthnav { display: inline-flex; align-items: center; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px; }
+.monthnav__b { width: 32px; height: 32px; border-radius: 999px; color: var(--muted); font-size: 17px; line-height: 1; transition: background .16s, color .16s; }
+.monthnav__b:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
+.monthnav__b:disabled { opacity: .3; cursor: default; }
+.monthnav__l { font-size: 13.5px; font-weight: 600; padding: 0 6px; min-width: 8.5em; text-align: center; }
+
+.themebtn__n, .row__n {
+  background: var(--cta); color: var(--on-cta);
+  border-radius: 999px; padding: 1px 7px;
+  font-size: 11.5px; font-weight: 700; margin-left: auto;
+}

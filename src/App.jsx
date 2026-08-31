@@ -1,8 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useRoute, navigate } from './router.js'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, navigate } from './router.js'
 import { useTheme, useIsDesk } from './theme.js'
-import { useDemoState, totals, baht, uid, logged, buildCsv, rateOf, recordsOf } from './state.js'
-import { MONTH, TODAY } from './data.js'
+import {
+  useDemoState, totals, baht, uid, logged, inboxed, buildCsv, buildBackup, parseBackup,
+  rateOf, recordsIn, sessionsOn, statusOf,
+} from './state.js'
+import { TODAY, TODAY_PERIOD, FIRST_PERIOD, SEND_DELAY_MS } from './data.js'
+import { longMonth, shiftPeriod, shortDate } from './dates.js'
 
 import Landing from './components/Landing.jsx'
 import OverviewTab from './components/OverviewTab.jsx'
@@ -21,25 +25,28 @@ import RemindSheet from './components/RemindSheet.jsx'
 import LineBillSheet from './components/LineBillSheet.jsx'
 import HelpSheet from './components/HelpSheet.jsx'
 import ActivitySheet from './components/ActivitySheet.jsx'
+import InboxSheet from './components/InboxSheet.jsx'
+import HistorySheet from './components/HistorySheet.jsx'
 import {
   IconOverview, IconToday, IconStudents, IconBilling, IconSettings,
-  IconSun, IconMoon, IconClose, IconUndo,
+  IconSun, IconMoon, IconClose, IconUndo, IconBell,
 } from './components/Icons.jsx'
 
 const TABS = [
-  { id: 'overview', label: 'ภาพรวม', title: 'ภาพรวม', Icon: IconOverview },
-  { id: 'today', label: 'วันนี้', title: 'คาบสอนวันนี้', Icon: IconToday },
-  { id: 'students', label: 'นักเรียน', title: 'นักเรียน', Icon: IconStudents },
-  { id: 'billing', label: 'บิล', title: 'บิลสิ้นเดือน', Icon: IconBilling },
-  { id: 'settings', label: 'ตั้งค่า', title: 'ตั้งค่า', Icon: IconSettings },
+  { id: 'overview', label: 'ภาพรวม', title: 'ภาพรวม', Icon: IconOverview, periodic: true },
+  { id: 'today', label: 'วันนี้', title: 'คาบสอนวันนี้', Icon: IconToday, periodic: false },
+  { id: 'students', label: 'นักเรียน', title: 'นักเรียน', Icon: IconStudents, periodic: true },
+  { id: 'billing', label: 'บิล', title: 'บิลสิ้นเดือน', Icon: IconBilling, periodic: true },
+  { id: 'settings', label: 'ตั้งค่า', title: 'ตั้งค่า', Icon: IconSettings, periodic: false },
 ]
+const TAB_IDS = TABS.map((t) => t.id)
 
 export default function App() {
-  const route = useRoute()
+  const { route, tab } = useLocation()
   const theme = useTheme()
   const isDesk = useIsDesk()
 
-  if (route === '/app') return <AppShell theme={theme} isDesk={isDesk} />
+  if (route === '/app') return <AppShell theme={theme} isDesk={isDesk} urlTab={tab} />
   if (route === '/') return <Landing isDark={theme.isDark} onToggleTheme={theme.toggle} />
   return <NotFound />
 }
@@ -58,38 +65,28 @@ function NotFound() {
   )
 }
 
-function AppShell({ theme, isDesk }) {
-  const { state, setState, reset, clear } = useDemoState()
-  const [tab, setTab] = useState('today')
+function AppShell({ theme, isDesk, urlTab }) {
+  const { state, setState, commit, undo, reset, clear, replace } = useDemoState()
+  const [period, setPeriod] = useState(TODAY_PERIOD)
   const [sheet, setSheet] = useState(null)
   const [toast, setToast] = useState(null)
-  const undoRef = useRef(null)
   const seq = useRef(0)
+  const fileRef = useRef(null)
+
+  const tab = TAB_IDS.includes(urlTab) ? urlTab : 'today'
+  const setTab = useCallback((id) => navigate(`/app/${id}`), [])
+  useEffect(() => { if (!TAB_IDS.includes(urlTab)) navigate('/app/today') }, [urlTab])
 
   const close = useCallback(() => setSheet(null), [])
-
-  // ── ทุก action ที่เปลี่ยนข้อมูลวิ่งผ่านตรงนี้ เพื่อให้ undo ได้ทุกอัน ──
-  const run = useCallback((mutate, text, undoable = true) => {
-    setState((prev) => {
-      if (undoable) undoRef.current = prev
-      return mutate(prev)
-    })
+  const say = useCallback((text, extra = {}) => {
     seq.current += 1
-    setToast({ id: seq.current, text, undo: undoable })
-  }, [setState])
-
-  const undo = useCallback(() => {
-    const prev = undoRef.current
-    if (!prev) return
-    undoRef.current = null
-    setState(prev)
-    seq.current += 1
-    setToast({ id: seq.current, text: 'ย้อนกลับแล้ว', undo: false })
-  }, [setState])
+    setToast({ id: seq.current, text, ...extra })
+  }, [])
 
   useEffect(() => {
     if (!toast) return
-    const t = setTimeout(() => setToast(null), toast.undo ? 6000 : 2600)
+    const ms = toast.cancel ? SEND_DELAY_MS : toast.undo ? 6000 : 2600
+    const t = setTimeout(() => setToast(null), ms)
     return () => clearTimeout(t)
   }, [toast])
 
@@ -97,64 +94,107 @@ function AppShell({ theme, isDesk }) {
     document.documentElement.setAttribute('data-fs', state.settings.display.fontScale)
   }, [state.settings.display.fontScale])
 
-  // ── การเช็คชื่อ ──
-  const checkIn = (session) =>
-    run(
-      (s) => ({
-        ...s,
-        sessionState: { ...s.sessionState, [session.id]: 'attended' },
-        records: {
-          ...s.records,
-          [session.studentId]: [
-            ...(s.records[session.studentId] || []),
-            { id: uid('r'), date: TODAY, kind: 'attended', sessionId: session.id },
-          ],
-        },
-      }),
-      'เช็คชื่อแล้ว · นับเข้าบิลให้แล้ว',
-    )
+  /** ทำสิ่งที่ย้อนได้ + เด้ง toast พร้อมปุ่มเลิกทำ */
+  const act = useCallback((mutate, label, toastText) => {
+    commit(mutate, label)
+    say(toastText ?? label, { undo: true })
+  }, [commit, say])
 
-  const markLeave = (session) =>
-    run(
-      (s) => ({ ...s, sessionState: { ...s.sessionState, [session.id]: 'leave' } }),
-      'บันทึกว่าลา · ไม่นับเงิน',
-    )
-
-  /** เปลี่ยนสถานะคาบที่กดไปแล้ว — ต้องซิงก์กับรายการครั้งเรียนด้วย */
-  const setSessionStatus = (session, next) => {
+  const doUndo = useCallback((n = 0) => {
+    const label = undo(n)
     close()
-    run((s) => {
-      const list = (s.records[session.studentId] || []).filter((r) => r.sessionId !== session.id)
+    say(label ? `ย้อนกลับ: ${label}` : 'ย้อนกลับแล้ว')
+  }, [undo, close, say])
+
+  // ── กล่องส่งออก: หน่วง 6 วิ ให้ยกเลิกทัน แล้วค่อยส่งจริง ──
+  useEffect(() => {
+    if (!state.outbox.length) return
+    const timer = setInterval(() => {
+      const now = Date.now()
+      const due = state.outbox.filter((o) => o.sendAt <= now)
+      if (!due.length) return
+      setState((s) => {
+        let next = { ...s, outbox: s.outbox.filter((o) => o.sendAt > now) }
+        for (const o of due) {
+          next = { ...next, activity: logged(next, o.log) }
+          if (o.notify) next = { ...next, inbox: inboxed(next, o.notify) }
+        }
+        return next
+      })
+    }, 500)
+    return () => clearInterval(timer)
+  }, [state.outbox, setState])
+
+  const queueSend = useCallback((item, toastText, label) => {
+    const id = uid('o')
+    commit((s) => ({ ...s, outbox: [...s.outbox, { id, sendAt: Date.now() + SEND_DELAY_MS, ...item }] }), label)
+    close()
+    say(toastText, { cancel: id })
+  }, [commit, close, say])
+
+  const cancelSend = useCallback((id) => {
+    setState((s) => ({ ...s, outbox: s.outbox.filter((o) => o.id !== id) }))
+    say('ยกเลิกการส่งแล้ว ยังไม่มีใครได้รับ')
+  }, [setState, say])
+
+  // ── เช็คชื่อ ──
+  const checkIn = (c) => {
+    const st = state.students.find((s) => s.id === c.studentId)
+    act((s) => ({
+      ...s,
+      sessionState: { ...s.sessionState, [c.id]: 'attended' },
+      records: {
+        ...s.records,
+        [c.studentId]: [...(s.records[c.studentId] || []), {
+          id: uid('r'), date: c.date, kind: 'attended', rate: rateOf(st, s), sessionId: c.id,
+        }],
+      },
+    }), `เช็คชื่อ ${st?.nick ?? ''}`, 'เช็คชื่อแล้ว · นับเข้าบิลให้แล้ว')
+  }
+
+  const markLeave = (c) => {
+    const st = state.students.find((s) => s.id === c.studentId)
+    act((s) => ({ ...s, sessionState: { ...s.sessionState, [c.id]: 'leave' } }),
+      `บันทึกลา ${st?.nick ?? ''}`, 'บันทึกว่าลา · ไม่นับเงิน')
+  }
+
+  const setSessionStatus = (c, next) => {
+    close()
+    const st = state.students.find((s) => s.id === c.studentId)
+    act((s) => {
+      const list = (s.records[c.studentId] || []).filter((r) => r.sessionId !== c.id)
       if (next === 'attended') {
-        list.push({ id: uid('r'), date: TODAY, kind: 'attended', sessionId: session.id })
+        list.push({ id: uid('r'), date: c.date, kind: 'attended', rate: rateOf(st, s), sessionId: c.id })
       }
-      return {
-        ...s,
-        sessionState: { ...s.sessionState, [session.id]: next },
-        records: { ...s.records, [session.studentId]: list },
-      }
-    }, next === 'attended' ? 'เปลี่ยนเป็นมาเรียนแล้ว' : next === 'leave' ? 'เปลี่ยนเป็นลาแล้ว' : 'ย้อนกลับเป็นยังไม่ได้เช็ค')
+      return { ...s, sessionState: { ...s.sessionState, [c.id]: next }, records: { ...s.records, [c.studentId]: list } }
+    }, `แก้สถานะ ${st?.nick ?? ''}`,
+      next === 'attended' ? 'เปลี่ยนเป็นมาเรียนแล้ว' : next === 'leave' ? 'เปลี่ยนเป็นลาแล้ว' : 'ย้อนเป็นยังไม่ได้เช็ค')
+  }
+
+  const addTodaySession = ({ studentId, time }) => {
+    close()
+    const st = state.students.find((s) => s.id === studentId)
+    act((s) => ({ ...s, extraSessions: [...s.extraSessions, { id: uid('x'), date: TODAY, studentId, time }] }),
+      `เพิ่มคาบพิเศษ ${st?.nick ?? ''}`, 'เพิ่มเข้าตารางวันนี้แล้ว')
   }
 
   const addPastSession = ({ studentId, date }) => {
     close()
-    run((s) => ({
+    const st = state.students.find((s) => s.id === studentId)
+    act((s) => ({
       ...s,
-      records: {
-        ...s.records,
-        [studentId]: [...(s.records[studentId] || []), { id: uid('r'), date, kind: 'attended', sessionId: null }],
-      },
-    }), 'บันทึกคาบย้อนหลังแล้ว')
+      records: { ...s.records, [studentId]: [...(s.records[studentId] || []), {
+        id: uid('r'), date, kind: 'attended', rate: rateOf(st, s), sessionId: null,
+      }] },
+    }), `บันทึกย้อนหลัง ${st?.nick ?? ''}`, 'บันทึกคาบย้อนหลังแล้ว')
   }
 
   const removeRecord = (student, record) =>
-    run((s) => ({
+    act((s) => ({
       ...s,
-      records: { ...s.records, [student.id]: recordsOf(s, student.id).filter((r) => r.id !== record.id) },
-      sessionState: record.sessionId
-        ? { ...s.sessionState, [record.sessionId]: 'todo' }
-        : s.sessionState,
-    }), `ลบวันที่ ${record.date} แล้ว`)
+      records: { ...s.records, [student.id]: (s.records[student.id] || []).filter((r) => r.id !== record.id) },
+      sessionState: record.sessionId ? { ...s.sessionState, [record.sessionId]: 'todo' } : s.sessionState,
+    }), `ลบครั้งเรียน ${student.nick} ${shortDate(record.date)}`, `ลบวันที่ ${shortDate(record.date)} แล้ว`)
 
   // ── นักเรียน ──
   const saveStudent = (data) => {
@@ -162,154 +202,157 @@ function AppShell({ theme, isDesk }) {
     const isNew = !state.students.some((s) => s.id === data.id)
     if (isNew) {
       const id = uid('s')
-      run((s) => ({
-        ...s,
-        students: [...s.students, { ...data, id }],
-        status: { ...s.status, [id]: 'pending' },
-        records: { ...s.records, [id]: [] },
-      }), `เพิ่ม${data.nick}แล้ว`)
+      act((s) => ({ ...s, students: [...s.students, { ...data, id }], records: { ...s.records, [id]: [] } }),
+        `เพิ่ม ${data.nick}`, `เพิ่ม${data.nick}แล้ว`)
     } else {
-      run((s) => ({
-        ...s,
-        students: s.students.map((x) => (x.id === data.id ? { ...x, ...data } : x)),
-      }), `บันทึกข้อมูล${data.nick}แล้ว`)
+      act((s) => ({ ...s, students: s.students.map((x) => (x.id === data.id ? { ...x, ...data } : x)) }),
+        `แก้ไข ${data.nick}`, `บันทึกข้อมูล${data.nick}แล้ว`)
     }
   }
 
   const deleteStudent = (student) => {
     close()
-    run((s) => {
+    act((s) => {
       const { [student.id]: _r, ...records } = s.records
-      const { [student.id]: _st, ...status } = s.status
       return {
         ...s,
         students: s.students.filter((x) => x.id !== student.id),
         records,
-        status,
-        sessions: s.sessions.filter((c) => c.studentId !== student.id),
+        extraSessions: s.extraSessions.filter((e) => e.studentId !== student.id),
       }
-    }, `ลบ${student.nick}แล้ว`)
+    }, `ลบ ${student.nick}`, `ลบ${student.nick}แล้ว`)
   }
 
   // ── บิล ──
+  const setStatus = (student, next, label, toastText) =>
+    act((s) => ({ ...s, status: { ...s.status, [period]: { ...(s.status[period] || {}), [student.id]: next } } }),
+      label, toastText)
+
   const confirmSlip = (student) => {
     close()
-    run((s) => ({ ...s, status: { ...s.status, [student.id]: 'paid' } }), `รับยอดของ${student.nick}แล้ว`)
+    setStatus(student, 'paid', `รับยอด ${student.nick}`, `รับยอดของ${student.nick}แล้ว`)
   }
+  const undoPaid = (student) => setStatus(student, 'pending', `ยกเลิกรับยอด ${student.nick}`, `ยกเลิกการรับยอดของ${student.nick}`)
 
-  const undoPaid = (student) =>
-    run((s) => ({ ...s, status: { ...s.status, [student.id]: 'pending' } }), `ยกเลิกการรับยอดของ${student.nick}`)
+  const remindDiff = (student, diff) => {
+    queueSend({
+      kind: 'remind',
+      log: `ทวงส่วนต่าง ${baht(diff)} บาท ของ${student.nick} ถึง${student.parent}`,
+      notify: { kind: 'sent', studentId: student.id, text: `ส่งข้อความทวงส่วนต่างถึง${student.parent}แล้ว` },
+    }, `จะส่งใน 6 วินาที · ทวงส่วนต่าง ${baht(diff)} บาท`, `ทวงส่วนต่าง ${student.nick}`)
+  }
 
   const sendRemind = (student) => {
-    close()
-    run((s) => ({
-      ...s,
-      reminded: { ...s.reminded, [student.id]: (s.reminded[student.id] || 0) + 1 },
-      activity: logged(s, `ทวงค่าเรียนของ${student.nick} ถึง${student.parent}`),
-    }), `ส่งแล้ว · ทวงซ้ำอีกใน ${state.settings.dunning.everyDays} วัน`, false)
+    commit((s) => ({ ...s, reminded: { ...s.reminded, [student.id]: (s.reminded[student.id] || 0) + 1 } }), `ทวง ${student.nick}`)
+    queueSend({
+      kind: 'remind',
+      log: `ทวงค่าเรียนของ${student.nick} ถึง${student.parent}`,
+      notify: { kind: 'sent', studentId: student.id, text: `ส่งข้อความทวงถึง${student.parent}แล้ว` },
+    }, 'จะส่งใน 6 วินาที', `ทวง ${student.nick}`)
   }
 
-  const sendProgress = (student) => {
-    close()
-    run((s) => ({
-      ...s,
-      activity: logged(s, `ส่งสรุปพัฒนาการของ${student.nick} ถึง${student.parent}`),
-    }), `ส่งสรุปให้${student.parent}แล้ว`, false)
-  }
+  const sendProgress = (student) =>
+    queueSend({
+      kind: 'progress',
+      log: `ส่งสรุปพัฒนาการของ${student.nick} ถึง${student.parent}`,
+      notify: { kind: 'sent', studentId: student.id, text: `ส่งสรุปพัฒนาการถึง${student.parent}แล้ว` },
+    }, 'จะส่งใน 6 วินาที', `ส่งสรุป ${student.nick}`)
 
-  const sendAllBills = () => {
-    close()
-    run((s) => ({
-      ...s,
-      billsSent: true,
-      activity: logged(s, `ส่งบิลเดือน${MONTH} เข้า LINE ผู้ปกครอง ${s.students.length} คน`),
-    }), `ส่งบิลครบ ${state.students.length} คนแล้ว`, false)
-  }
+  const sendAllBills = () =>
+    queueSend({
+      kind: 'bill',
+      log: `ส่งบิลเดือน${longMonth(period)} เข้า LINE ผู้ปกครอง ${state.students.length} คน`,
+      notify: { kind: 'sent', text: `ส่งบิลเข้า LINE ครบ ${state.students.length} คนแล้ว` },
+    }, `จะส่งใน 6 วินาที · ${state.students.length} คน`, 'ส่งบิลทุกคน')
 
   // ── รายจ่าย ──
   const saveExpense = (data) => {
     close()
     const isNew = !state.expenses.some((e) => e.id === data.id)
-    run((s) => ({
+    act((s) => ({
       ...s,
       expenses: isNew ? [{ ...data, id: uid('e') }, ...s.expenses] : s.expenses.map((e) => (e.id === data.id ? data : e)),
-    }), isNew ? `บันทึกรายจ่าย ${baht(data.amount)} บาทแล้ว` : 'แก้ไขรายจ่ายแล้ว')
+    }), isNew ? `บันทึกรายจ่าย ${baht(data.amount)}` : 'แก้ไขรายจ่าย',
+      isNew ? `บันทึกรายจ่าย ${baht(data.amount)} บาทแล้ว` : 'แก้ไขรายจ่ายแล้ว')
   }
-
   const deleteExpense = (expense) => {
     close()
-    run((s) => ({ ...s, expenses: s.expenses.filter((e) => e.id !== expense.id) }), 'ลบรายจ่ายแล้ว')
+    act((s) => ({ ...s, expenses: s.expenses.filter((e) => e.id !== expense.id) }), 'ลบรายจ่าย', 'ลบรายจ่ายแล้ว')
   }
 
   // ── ข้อมูล ──
+  const download = (text, name, type) => {
+    const blob = new Blob([text], { type })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = name
+    document.body.appendChild(a); a.click(); a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
   const exportCsv = () => {
+    try { download(buildCsv(state, period), `tutordai-${period}.csv`, 'text/csv;charset=utf-8'); say('ดาวน์โหลด CSV แล้ว') }
+    catch { say('ดาวน์โหลดไม่สำเร็จ ลองอีกครั้งครับ') }
+  }
+  const exportBackup = () => {
+    try { download(buildBackup(state), `tutordai-backup-${period}.json`, 'application/json'); say('สำรองข้อมูลแล้ว') }
+    catch { say('สำรองข้อมูลไม่สำเร็จ') }
+  }
+  const importBackup = async (file) => {
     try {
-      const blob = new Blob([buildCsv(state)], { type: 'text/csv;charset=utf-8' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `tutordai-${MONTH.replace(/\s/g, '')}.csv`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
-      seq.current += 1
-      setToast({ id: seq.current, text: 'ดาวน์โหลดไฟล์ CSV แล้ว', undo: false })
-    } catch {
-      seq.current += 1
-      setToast({ id: seq.current, text: 'ดาวน์โหลดไม่สำเร็จ ลองอีกครั้งครับ', undo: false })
+      const next = parseBackup(await file.text())
+      replace(next)
+      say('กู้คืนข้อมูลเรียบร้อย')
+    } catch (e) {
+      say(e.message || 'กู้คืนไม่สำเร็จ')
     }
   }
 
-  const doReset = () => {
-    close()
-    undoRef.current = state
-    reset()
-    setTab('today')
-    seq.current += 1
-    setToast({ id: seq.current, text: 'รีเซ็ตข้อมูลแล้ว', undo: true })
-  }
-
-  const doClear = () => {
-    close()
-    undoRef.current = state
-    clear()
-    setTab('students')
-    seq.current += 1
-    setToast({ id: seq.current, text: 'ล้างข้อมูลแล้ว', undo: true })
-  }
-
+  const doReset = () => { close(); reset(); setPeriod(TODAY_PERIOD); say('รีเซ็ตข้อมูลแล้ว') }
+  const doClear = () => { close(); clear(); setTab('students'); say('ล้างข้อมูลแล้ว') }
   const setSettings = (settings) => setState((s) => ({ ...s, settings }))
+  const markAllRead = () => setState((s) => ({ ...s, inbox: s.inbox.map((i) => ({ ...i, read: true })) }))
 
-  // ── ตัวเลขที่ใช้บนหัวและจุดแจ้งเตือน ──
-  const { total, paid, outstanding } = totals(state)
-  const sessionsLeft = state.sessions.filter((c) => state.sessionState[c.id] === 'todo').length
-  const unpaidCount = state.students.filter((s) => state.status[s.id] !== 'paid').length
+  // ── ตัวเลขบนหัว ──
+  const { total, paid, outstanding } = totals(state, period)
+  const sessions = useMemo(() => sessionsOn(state, TODAY), [state])
+  const sessionsLeft = sessions.filter((c) => !state.sessionState[c.id] || state.sessionState[c.id] === 'todo').length
+  const unpaidCount = state.students.filter((s) => statusOf(state, period, s) === 'overdue' || statusOf(state, period, s) === 'pending').length
+  const unread = state.inbox.filter((i) => !i.read).length
   const dots = { overview: false, today: sessionsLeft > 0, students: false, billing: unpaidCount > 0, settings: false }
+  const active = TABS.find((t) => t.id === tab)
 
   const open = (kind, extra) => setSheet({ kind, ...extra })
+
+  const monthNav = active?.periodic ? (
+    <div className="monthnav">
+      <button className="monthnav__b" onClick={() => setPeriod((p) => shiftPeriod(p, -1))}
+        disabled={period <= FIRST_PERIOD} aria-label="เดือนก่อนหน้า">‹</button>
+      <span className="monthnav__l">{longMonth(period)}</span>
+      <button className="monthnav__b" onClick={() => setPeriod((p) => shiftPeriod(p, 1))}
+        disabled={period >= TODAY_PERIOD} aria-label="เดือนถัดไป">›</button>
+    </div>
+  ) : null
 
   const pane = (
     <>
       {tab === 'overview' && (
-        <OverviewTab state={state} desk={isDesk}
+        <OverviewTab state={state} period={period} desk={isDesk}
           onAddExpense={() => open('expense', { expense: null })}
           onEditExpense={(e) => open('expense', { expense: e })}
           onOpenStudent={(s) => open('student', { student: s })} />
       )}
       {tab === 'today' && (
-        <TodayTab state={state} desk={isDesk}
-          onCheckIn={checkIn} onLeave={markLeave}
+        <TodayTab state={state} desk={isDesk} onCheckIn={checkIn} onLeave={markLeave}
           onEditSession={(c) => open('attendance', { session: c })}
           onAddSession={() => open('addSession')} />
       )}
       {tab === 'students' && (
-        <StudentsTab state={state} desk={isDesk}
+        <StudentsTab state={state} period={period} desk={isDesk}
           onOpen={(s) => open('student', { student: s })}
           onAdd={() => open('studentEdit', { student: null })} />
       )}
       {tab === 'billing' && (
-        <BillingTab state={state} desk={isDesk}
+        <BillingTab state={state} period={period} desk={isDesk}
           onSlip={(s) => open('slip', { student: s })}
           onRemind={(s) => open('remind', { student: s })}
           onUndoPaid={undoPaid}
@@ -318,11 +361,11 @@ function AppShell({ theme, isDesk }) {
       {tab === 'settings' && (
         <SettingsTab state={state} onChange={setSettings}
           theme={theme.choice} onTheme={theme.setChoice}
-          onExport={exportCsv}
-          onClearData={() => open('confirmClear')}
-          onReset={() => open('confirmReset')}
-          onHelp={() => open('help')}
-          onActivity={() => open('activity')} />
+          onExport={exportCsv} onBackup={exportBackup}
+          onImport={() => fileRef.current?.click()}
+          onClearData={() => open('confirmClear')} onReset={() => open('confirmReset')}
+          onHelp={() => open('help')} onActivity={() => open('activity')}
+          onHistory={() => open('history')} onInbox={() => open('inbox')} unread={unread} />
       )}
     </>
   )
@@ -331,69 +374,69 @@ function AppShell({ theme, isDesk }) {
     <>
       {sheet?.kind === 'student' && (
         <StudentSheet student={state.students.find((s) => s.id === sheet.student.id) || sheet.student}
-          state={state} onClose={close} onSendProgress={sendProgress}
-          onEdit={(s) => open('studentEdit', { student: s })}
-          onRemoveRecord={removeRecord} />
+          state={state} period={period} onClose={close} onSendProgress={sendProgress}
+          onEdit={(s) => open('studentEdit', { student: s })} onRemoveRecord={removeRecord} />
       )}
       {sheet?.kind === 'studentEdit' && (
-        <StudentEditSheet student={sheet.student} state={state} onClose={close}
-          onSave={saveStudent} onDelete={deleteStudent} />
+        <StudentEditSheet student={sheet.student} state={state} onClose={close} onSave={saveStudent} onDelete={deleteStudent} />
       )}
       {sheet?.kind === 'attendance' && (
         <AttendanceSheet session={sheet.session} state={state} onClose={close} onSet={setSessionStatus} />
       )}
       {sheet?.kind === 'addSession' && (
-        <AddSessionSheet state={state} onClose={close} onAdd={addPastSession} />
+        <AddSessionSheet state={state} onClose={close} onAddToday={addTodaySession} onAddPast={addPastSession} />
       )}
       {sheet?.kind === 'expense' && (
         <ExpenseSheet expense={sheet.expense} onClose={close} onSave={saveExpense} onDelete={deleteExpense} />
       )}
       {sheet?.kind === 'slip' && (
-        <SlipSheet student={sheet.student} state={state} onClose={close} onConfirm={confirmSlip} />
+        <SlipSheet student={sheet.student} state={state} period={period} onClose={close}
+          onConfirm={confirmSlip} onRemindDiff={remindDiff} />
       )}
       {sheet?.kind === 'remind' && (
-        <RemindSheet student={sheet.student} state={state} onClose={close} onSend={sendRemind} />
+        <RemindSheet student={sheet.student} state={state} period={period} onClose={close} onSend={sendRemind} />
       )}
-      {sheet?.kind === 'line' && <LineBillSheet state={state} onClose={close} onConfirm={sendAllBills} />}
+      {sheet?.kind === 'line' && <LineBillSheet state={state} period={period} onClose={close} onConfirm={sendAllBills} />}
       {sheet?.kind === 'help' && <HelpSheet onClose={close} />}
       {sheet?.kind === 'activity' && <ActivitySheet state={state} onClose={close} />}
+      {sheet?.kind === 'inbox' && (
+        <InboxSheet state={state} onClose={close} onMarkAllRead={markAllRead}
+          onOpenStudent={(s) => open('student', { student: s })} />
+      )}
+      {sheet?.kind === 'history' && <HistorySheet state={state} onClose={close} onUndoTo={doUndo} />}
 
       {sheet?.kind === 'confirmClear' && (
         <Sheet title="เริ่มจากศูนย์?" sub="ลบข้อมูลตัวอย่างทั้งหมด" onClose={close}
-          footer={
-            <>
-              <button className="btn btn--cta btn--block" onClick={doClear}>ลบข้อมูลตัวอย่าง</button>
-              <button className="reset" onClick={close}>ยกเลิก</button>
-            </>
-          }>
+          footer={<><button className="btn btn--cta btn--block" onClick={doClear}>ลบข้อมูลตัวอย่าง</button>
+            <button className="reset" onClick={close}>ยกเลิก</button></>}>
           <p className="msg">
-            นักเรียน คาบสอน ประวัติเรียน และรายจ่ายทั้งหมดจะถูกลบ เพื่อให้คุณใส่ข้อมูลจริงของตัวเองได้
-            {'\n\n'}การตั้งค่า (ชื่อ บัญชี เรท) จะถูกเก็บไว้ · กด "เลิกทำ" ในแถบด้านล่างเพื่อย้อนกลับได้ทันที
+            นักเรียน ตารางเรียน ประวัติเรียน และรายจ่ายทั้งหมดจะถูกลบ เพื่อให้คุณใส่ข้อมูลจริงของตัวเอง
+            {'\n\n'}การตั้งค่า (ชื่อ บัญชี เรท) จะถูกเก็บไว้ · สำรองข้อมูลก่อนได้ที่ปุ่มด้านบน
           </p>
         </Sheet>
       )}
       {sheet?.kind === 'confirmReset' && (
         <Sheet title="รีเซ็ตข้อมูลเดโม?" sub="กลับไปเป็นข้อมูลตัวอย่างตั้งต้น" onClose={close}
-          footer={
-            <>
-              <button className="btn btn--danger btn--block" onClick={doReset}>รีเซ็ตทั้งหมด</button>
-              <button className="reset" onClick={close}>ยกเลิก</button>
-            </>
-          }>
-          <p className="msg">
-            ทุกอย่างจะกลับไปเป็นข้อมูลตัวอย่างตั้งต้น รวมถึงการตั้งค่าที่คุณแก้ไว้
-            {'\n\n'}กด "เลิกทำ" ในแถบด้านล่างเพื่อย้อนกลับได้ทันที
-          </p>
+          footer={<><button className="btn btn--danger btn--block" onClick={doReset}>รีเซ็ตทั้งหมด</button>
+            <button className="reset" onClick={close}>ยกเลิก</button></>}>
+          <p className="msg">ทุกอย่างจะกลับไปเป็นข้อมูลตัวอย่างตั้งต้น รวมถึงการตั้งค่าที่คุณแก้ไว้</p>
         </Sheet>
       )}
+
+      <input ref={fileRef} type="file" accept="application/json,.json" hidden
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) importBackup(f); e.target.value = '' }} />
 
       {toast && (
         <div className="toast" role="status" key={toast.id}>
           <span className="toast__txt">{toast.text}</span>
-          {toast.undo && (
-            <button className="toast__btn" onClick={undo}>
-              <IconUndo />
-              เลิกทำ
+          {toast.cancel && (
+            <button className="toast__btn" onClick={() => { cancelSend(toast.cancel); setToast(null) }}>
+              ยกเลิกการส่ง
+            </button>
+          )}
+          {toast.undo && !toast.cancel && (
+            <button className="toast__btn" onClick={() => { doUndo(0); setToast(null) }}>
+              <IconUndo />เลิกทำ
             </button>
           )}
         </div>
@@ -401,35 +444,33 @@ function AppShell({ theme, isDesk }) {
     </>
   )
 
-  const active = TABS.find((t) => t.id === tab)
-
   if (isDesk) {
     return (
       <div className="desk">
         <aside className="desk__side">
           <div className="desk__brand">
             <b>ติวได้<em>ตังค์</em></b>
-            <span>{state.settings.profile.name} · {MONTH}</span>
+            <span>{state.settings.profile.name}</span>
           </div>
           <nav className="desk__nav">
             {TABS.map(({ id, label, Icon }) => (
               <button key={id} className={`desk__navbtn${tab === id ? ' desk__navbtn--on' : ''}`}
                 onClick={() => setTab(id)} aria-current={tab === id ? 'page' : undefined}>
-                <Icon />
-                {label}
+                <Icon />{label}
                 {dots[id] && tab !== id && <span className="desk__navdot" />}
               </button>
             ))}
           </nav>
           <div className="desk__sidefoot">
+            <button className="themebtn" onClick={() => open('inbox')}>
+              <IconBell />การแจ้งเตือน
+              {unread > 0 && <span className="themebtn__n">{unread}</span>}
+            </button>
+            <button className="themebtn" onClick={() => open('history')}><IconUndo />ประวัติการแก้ไข</button>
             <button className="themebtn" onClick={theme.toggle}>
-              {theme.isDark ? <IconSun /> : <IconMoon />}
-              {theme.isDark ? 'โหมดสว่าง' : 'โหมดมืด'}
+              {theme.isDark ? <IconSun /> : <IconMoon />}{theme.isDark ? 'โหมดสว่าง' : 'โหมดมืด'}
             </button>
-            <button className="themebtn" onClick={() => navigate('/')}>
-              <IconClose />
-              ออกจากเดโม
-            </button>
+            <button className="themebtn" onClick={() => navigate('/')}><IconClose />ออกจากเดโม</button>
             <p className="disclaimer" style={{ marginTop: 8 }}>เดโม · ข้อมูลสมมติทั้งหมด</p>
           </div>
         </aside>
@@ -438,8 +479,9 @@ function AppShell({ theme, isDesk }) {
           <div className="desk__bar">
             <div>
               <h1 className="desk__h1">{active.title}</h1>
-              <div className="desk__sub">สวัสดี {state.settings.profile.name} · เดือน{MONTH}</div>
+              <div className="desk__sub">สวัสดี {state.settings.profile.name} · วันนี้ {shortDate(TODAY)}</div>
             </div>
+            {monthNav}
           </div>
 
           <div className="stats">
@@ -470,16 +512,17 @@ function AppShell({ theme, isDesk }) {
         <div className="hd__top">
           <div>
             <div className="hd__hi">สวัสดี {state.settings.profile.name}</div>
-            <div className="hd__month">{MONTH}</div>
+            <div className="hd__month">วันนี้ {shortDate(TODAY)}</div>
           </div>
           <div className="hd__acts">
-            <button className="hd__btn" onClick={theme.toggle}
-              aria-label={theme.isDark ? 'ใช้โหมดสว่าง' : 'ใช้โหมดมืด'}>
+            <button className="hd__btn" onClick={() => open('inbox')} aria-label={`การแจ้งเตือน ${unread} รายการใหม่`}>
+              <IconBell />
+              {unread > 0 && <span className="tab__dot" />}
+            </button>
+            <button className="hd__btn" onClick={theme.toggle} aria-label={theme.isDark ? 'ใช้โหมดสว่าง' : 'ใช้โหมดมืด'}>
               {theme.isDark ? <IconSun /> : <IconMoon />}
             </button>
-            <button className="hd__btn" onClick={() => navigate('/')} aria-label="ออกจากเดโม">
-              <IconClose />
-            </button>
+            <button className="hd__btn" onClick={() => navigate('/')} aria-label="ออกจากเดโม"><IconClose /></button>
           </div>
         </div>
         <div className="hd__money">
@@ -487,14 +530,12 @@ function AppShell({ theme, isDesk }) {
             <div className="hd__label">ยังไม่เข้าบัญชี</div>
             <div className="hd__amt">{baht(outstanding)}<small>บาท</small></div>
           </div>
-          <div className="hd__side">
-            ค่าเรียนเดือนนี้
-            <b>{baht(total)}</b>
-          </div>
+          <div className="hd__side">ค่าเรียนเดือนนี้<b>{baht(total)}</b></div>
         </div>
       </header>
 
       <main className="scroll">
+        {monthNav && <div className="pane" style={{ paddingBottom: 0 }}>{monthNav}</div>}
         {tab === 'settings' ? <div className="pane">{pane}</div> : pane}
         <footer className="appfoot">
           <p className="disclaimer" style={{ margin: 0 }}>เดโม · ข้อมูลสมมติทั้งหมด</p>
@@ -513,7 +554,6 @@ function AppShell({ theme, isDesk }) {
           </button>
         ))}
       </nav>
-
       {overlays}
     </div>
   )

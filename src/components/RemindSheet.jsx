@@ -1,10 +1,10 @@
 import Sheet from './Sheet.jsx'
-import { MONTH } from '../data.js'
 import { baht, billOf } from '../state.js'
+import { longMonth } from '../dates.js'
 
 /** ข้อความทวงเปลี่ยนตามโทนที่ตั้งไว้ในหน้าตั้งค่า */
-function compose(tone, { tutor, student, times, rate, amount }) {
-  const head = `เรียน ${student.parent}\nค่าเรียนของ${student.nick} เดือน${MONTH}\n${times} ครั้ง × ${baht(rate)} = ${baht(amount)} บาท`
+function compose(tone, { tutor, student, times, amount, month }) {
+  const head = `เรียน ${student.parent}\nค่าเรียนของ${student.nick} เดือน${month}\n${times} ครั้ง รวม ${baht(amount)} บาท`
   const sign = '\n\n— ข้อความนี้ส่งโดยระบบอัตโนมัติ'
 
   if (tone === 'soft')
@@ -28,14 +28,14 @@ function compose(tone, { tutor, student, times, rate, amount }) {
   )
 }
 
-export default function RemindSheet({ student, state, onClose, onSend }) {
-  const { times, rate, amount } = billOf(student, state)
+export default function RemindSheet({ student, state, period, onClose, onSend }) {
+  const { times, amount } = billOf(student, state, period)
   const d = state.settings.dunning
   const tutor = state.settings.profile.publicName || state.settings.profile.name
   const sentTimes = state.reminded[student.id] || 0
   const atLimit = sentTimes >= d.maxTimes
 
-  const text = compose(d.tone, { tutor, student, times, rate, amount })
+  const text = compose(d.tone, { tutor, student, times, amount, month: longMonth(period) })
 
   return (
     <Sheet

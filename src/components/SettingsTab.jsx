@@ -5,7 +5,8 @@ import { baht, initialOf } from '../state.js'
 const BANKS = ['ธ.กสิกรไทย', 'ธ.ไทยพาณิชย์', 'ธ.กรุงเทพ', 'ธ.กรุงไทย', 'ธ.กรุงศรีอยุธยา', 'ธ.ทหารไทยธนชาต', 'พร้อมเพย์อย่างเดียว']
 
 export default function SettingsTab({
-  state, onChange, theme, onTheme, onExport, onClearData, onReset, onHelp, onActivity,
+  state, onChange, theme, onTheme, onExport, onBackup, onImport,
+  onClearData, onReset, onHelp, onActivity, onHistory, onInbox, unread,
 }) {
   const s = state.settings
   const put = (section, patch) => onChange({ ...s, [section]: { ...s[section], ...patch } })
@@ -138,6 +139,14 @@ export default function SettingsTab({
 
       <Group title="ข้อมูลของคุณ" desc="ข้อมูลทั้งหมดอยู่ในเบราว์เซอร์เครื่องนี้เท่านั้น ไม่ถูกส่งไปที่ไหน">
         <div className="rows">
+          <button className="row" onClick={onInbox}>
+            <span className="row__main"><b>การแจ้งเตือน</b><span>สลิปที่ผู้ปกครองแนบมา และสิ่งที่ระบบทำแทนคุณ</span></span>
+            <span className="row__go">{unread > 0 ? <span className="row__n">{unread}</span> : '›'}</span>
+          </button>
+          <button className="row" onClick={onHistory}>
+            <span className="row__main"><b>ประวัติการแก้ไข</b><span>ย้อนกลับได้หลายขั้น ไม่ใช่แค่ขั้นล่าสุด</span></span>
+            <span className="row__go">↺</span>
+          </button>
           <button className="row" onClick={onActivity}>
             <span className="row__main"><b>ประวัติการส่งข้อความ</b><span>ดูว่าระบบส่งอะไรถึงใครไปแล้วบ้าง</span></span>
             <span className="row__go">›</span>
@@ -145,6 +154,14 @@ export default function SettingsTab({
           <button className="row" onClick={onExport}>
             <span className="row__main"><b>ดาวน์โหลดข้อมูล (CSV)</b><span>เปิดใน Excel หรือ Google Sheets ได้เลย</span></span>
             <span className="row__go">↓</span>
+          </button>
+          <button className="row" onClick={onBackup}>
+            <span className="row__main"><b>สำรองข้อมูล (JSON)</b><span>เก็บไฟล์ไว้ กู้คืนกลับมาได้ทั้งหมด</span></span>
+            <span className="row__go">↓</span>
+          </button>
+          <button className="row" onClick={onImport}>
+            <span className="row__main"><b>กู้คืนจากไฟล์สำรอง</b><span>เลือกไฟล์ .json ที่เคยสำรองไว้</span></span>
+            <span className="row__go">↑</span>
           </button>
           <button className="row" onClick={onClearData}>
             <span className="row__main"><b>เริ่มจากศูนย์</b><span>ลบข้อมูลตัวอย่าง เพื่อใส่นักเรียนจริงของคุณ</span></span>

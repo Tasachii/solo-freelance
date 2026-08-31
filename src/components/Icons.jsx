@@ -64,3 +64,10 @@ export const IconUndo = () => (
     <path d="M3.5 13a9 9 0 1 0 2.1-9.4L3 7" />
   </svg>
 )
+
+export const IconBell = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" {...base}>
+    <path d="M18 8.4a6 6 0 1 0-12 0c0 6-2.4 7.4-2.4 7.4h16.8S18 14.4 18 8.4" />
+    <path d="M13.7 19.6a2 2 0 0 1-3.4 0" />
+  </svg>
+)

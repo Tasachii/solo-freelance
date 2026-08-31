@@ -1,10 +1,11 @@
 import Sheet from './Sheet.jsx'
-import { MONTH } from '../data.js'
 import { baht, billOf } from '../state.js'
+import { longMonth } from '../dates.js'
 import { EmptyState } from './Field.jsx'
 
 /** จำลองแชท LINE ที่ผู้ปกครองจะเห็น */
-export default function LineBillSheet({ state, onClose, onConfirm }) {
+export default function LineBillSheet({ state, period, onClose, onConfirm }) {
+  const MONTH = longMonth(period)
   const sample = state.students[0]
   if (!sample) {
     return (
@@ -14,7 +15,7 @@ export default function LineBillSheet({ state, onClose, onConfirm }) {
     )
   }
 
-  const { times, rate, amount } = billOf(sample, state)
+  const { times, amount, uniformRate, mixedRates } = billOf(sample, state, period)
   const { accountName, accountNo, promptpay } = state.settings.payout
   const tutor = state.settings.profile.publicName || state.settings.profile.name
 
@@ -36,7 +37,7 @@ export default function LineBillSheet({ state, onClose, onConfirm }) {
           {sample.nick} ({sample.subject} {sample.grade})
           <div style={{ marginTop: 9 }}>
             <div className="bub__row"><span>เรียนแล้ว</span><span>{times} ครั้ง</span></div>
-            <div className="bub__row"><span>ครั้งละ</span><span>{baht(rate)} บาท</span></div>
+            {!mixedRates && <div className="bub__row"><span>ครั้งละ</span><span>{baht(uniformRate ?? 0)} บาท</span></div>}
             <div className="bub__tot"><span>รวม</span><span>{baht(amount)} บาท</span></div>
           </div>
           <div className="qr">

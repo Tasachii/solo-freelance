@@ -1,5 +1,5 @@
-import { INCOME_HISTORY, MONTH } from '../data.js'
-import { baht, totals, expenseTotal, netMonth, needsAttention, initialOf } from '../state.js'
+import { baht, totals, expenseTotal, netMonth, needsAttention, initialOf, incomeSeries, expensesIn } from '../state.js'
+import { longMonth, shortMonth, shortDate } from '../dates.js'
 import { EmptyState } from './Field.jsx'
 
 function Sparkline({ points }) {
@@ -24,17 +24,19 @@ function Sparkline({ points }) {
   )
 }
 
-export default function OverviewTab({ state, onAddExpense, onEditExpense, onOpenStudent, desk }) {
-  const { total, paid, outstanding } = totals(state)
-  const spent = expenseTotal(state)
-  const net = netMonth(state)
-  const watch = needsAttention(state)
+export default function OverviewTab({ state, period, onAddExpense, onEditExpense, onOpenStudent, desk }) {
+  const MONTH = longMonth(period)
+  const { total, paid, outstanding } = totals(state, period)
+  const spent = expenseTotal(state, period)
+  const net = netMonth(state, period)
+  const watch = needsAttention(state, period)
 
-  const lastMonth = INCOME_HISTORY[INCOME_HISTORY.length - 1].amount
+  const months = incomeSeries(state, period)
+  const lastMonth = months[months.length - 2]?.amount ?? 0
   const diff = total - lastMonth
   const pct = lastMonth > 0 ? Math.round((diff / lastMonth) * 100) : 0
-  const series = [...INCOME_HISTORY.map((m) => m.amount), total]
-  const labels = [...INCOME_HISTORY.map((m) => m.month), 'ก.ย.']
+  const series = months.map((m) => m.amount)
+  const labels = months.map((m) => shortMonth(m.period))
 
   const trendCard = (
     <div className="card trend rise">
@@ -47,7 +49,7 @@ export default function OverviewTab({ state, onAddExpense, onEditExpense, onOpen
           </div>
         </div>
         <div className="trend__prev">
-          {INCOME_HISTORY[INCOME_HISTORY.length - 1].month}
+          {labels[labels.length - 2]}
           <b>{baht(lastMonth)}</b>
         </div>
       </div>
@@ -89,16 +91,16 @@ export default function OverviewTab({ state, onAddExpense, onEditExpense, onOpen
         <h3>รายจ่ายเดือนนี้</h3>
         <button className="btn btn--ghost btn--sm" onClick={onAddExpense}>+ บันทึก</button>
       </div>
-      {state.expenses.length === 0 ? (
+      {expensesIn(state, period).length === 0 ? (
         <EmptyState icon="🧾" title="ยังไม่มีรายจ่าย"
           desc="ค่าเดินทาง ค่าปริ้นชีท ค่าเช่าห้อง — บันทึกไว้จะเห็นว่าเหลือจริงเท่าไหร่" />
       ) : (
-        state.expenses.map((e) => (
+        expensesIn(state, period).map((e) => (
           <button className="exp" key={e.id} onClick={() => onEditExpense(e)}>
             <span className="exp__cat">{e.category}</span>
             <span className="exp__main">
               <span className="exp__note">{e.note || e.category}</span>
-              <span className="exp__date">{e.date}</span>
+              <span className="exp__date">{shortDate(e.date)}</span>
             </span>
             <span className="exp__amt">−{baht(e.amount)}</span>
           </button>

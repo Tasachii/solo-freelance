@@ -18,6 +18,7 @@ const POINTS = [
 export default function Landing() {
   return (
     <div className="land">
+      <div className="land__inner">
       <div className="land__body">
         <span className="land__tag rise">เดโม · ข้อมูลสมมติทั้งหมด</span>
 
@@ -35,10 +36,10 @@ export default function Landing() {
           {POINTS.map((p, i) => (
             <li className={`land__item rise d${i + 3}`} key={p.t}>
               <span className="land__num">{i + 1}</span>
-              <span>
+              <div className="land__txt">
                 <b>{p.t}</b>
-                <span>{p.d}</span>
-              </span>
+                <i>{p.d}</i>
+              </div>
             </li>
           ))}
         </ul>
@@ -64,6 +65,7 @@ export default function Landing() {
           ทักเราทาง LINE
         </a>
         <p className="disclaimer">เดโม · ข้อมูลสมมติทั้งหมด · ไม่มีการเก็บข้อมูลจริง</p>
+      </div>
       </div>
     </div>
   )

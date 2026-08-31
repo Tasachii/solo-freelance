@@ -28,8 +28,8 @@ export default function TodayTab({ state, onCheckIn, onLeave }) {
       </div>
 
       <div className="card rise">
-        {blocks.map((block, bi) => (
-          <div key={block.time}>
+        {blocks.map((block) => (
+          <div className="tblock" key={block.time}>
             {block.items.length > 1 && (
               <div className="groupmark">คาบกลุ่ม · {block.items.length} คน เรียนพร้อมกัน</div>
             )}
@@ -69,7 +69,6 @@ export default function TodayTab({ state, onCheckIn, onLeave }) {
                 </div>
               )
             })}
-            {bi < blocks.length - 1 && null}
           </div>
         ))}
       </div>

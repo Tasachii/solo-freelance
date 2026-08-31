@@ -66,7 +66,7 @@ npm run preview   # เปิด build ที่ได้เพื่อตร�
 - Vite + React 18, plain CSS (ไม่ใช้ UI library และไม่ใช้ Tailwind)
 - State เป็น React state ล้วน persist ลง `localStorage` key `tutordai-demo-v1`
 - HashRouter เขียนเอง เพราะ GitHub Pages ไม่มี SPA fallback
-- Font: Anuphan (Google Fonts)
+- Font: Anuphan (Google Fonts) แบบ self-host — ตัด render-blocking request ข้าม origin
 - ไม่มี backend, ไม่มี API จริง, ไม่มี analytics, ไม่มีระบบ login
 
 ## Deploy

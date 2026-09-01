@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   freshState, emptyState, billOf, totals, statusOf, sessionsOn, needsAttention,
   incomeSeries, expenseTotal, netMonth, buildBackup, parseBackup, initialOf, baht, recordsIn,
-  openTasks, minutesSaved, humanMinutes,
+  openTasks, minutesSaved, humanMinutes, addRecord, setReceived, receivedOf,
 } from './state.js'
 import { DEFAULT_SETTINGS, TODAY, TODAY_PERIOD } from './data.js'
 import { shiftPeriod, weekday, shortDate, longMonth, shiftPeriod as sp } from './dates.js'
@@ -134,7 +134,7 @@ describe('สำรองและกู้คืนข้อมูล', () => {
     const s = freshState()
     const restored = parseBackup(buildBackup(s))
     expect(totals(restored, P)).toEqual(totals(s, P))
-    expect(restored.students).toHaveLength(6)
+    expect(restored.students).toHaveLength(s.students.length)
   })
 
   it('ปฏิเสธไฟล์ที่ไม่ใช่ของแอปนี้', () => {
@@ -183,5 +183,58 @@ describe('automation — ระบบทำแทน แล้วถามเฉ
     expect(minutesSaved(s)).toBeGreaterThan(0)
     expect(humanMinutes(62)).toBe('1 ชั่วโมง 2 นาที')
     expect(humanMinutes(45)).toBe('45 นาที')
+  })
+})
+
+describe('แพ็กจ่ายล่วงหน้า', () => {
+  it('ไม่สร้างบิลรายเดือน เพราะเก็บเงินไปแล้วตอนซื้อแพ็ก', () => {
+    const s = freshState()
+    const ing = s.students.find((x) => x.id === 's7')
+    const bill = billOf(ing, s, P)
+    expect(bill.status).toBe('prepaid')
+    expect(bill.amount).toBe(0)
+    expect(bill.times).toBeGreaterThan(0)
+  })
+
+  it('ยอดรวมของเดือนไม่ถูกกระทบจากนักเรียนแพ็ก', () => {
+    expect(totals(freshState(), P).total).toBe(11750)
+  })
+
+  it('เตือนเมื่อแพ็กใกล้หมด', () => {
+    const s = freshState()
+    const why = needsAttention(s, P).find((w) => w.student.id === 's7')?.why
+    expect(why).toMatch(/ใกล้หมดแพ็ก/)
+  })
+})
+
+describe('จ่ายบางส่วน — ระบบต้องรู้ว่ารับเงินมาเท่าไหร่จริง', () => {
+  it('เพิ่มครั้งเรียนหลังปิดยอด ค้างเฉพาะส่วนต่าง ไม่ใช่เปิดยอดใหม่ทั้งก้อน', () => {
+    const s = freshState()
+    const praew = s.students.find((x) => x.id === 's2')
+    expect(statusOf(s, P, praew)).toBe('paid')
+    const owedBefore = totals(s, P).outstanding
+
+    const next = addRecord(s, 's2', { id: 'r-extra', date: '2026-09-29', kind: 'attended', rate: 400, sessionId: null })
+    expect(billOf(praew, next, P).status).toBe('partial')
+    expect(totals(next, P).outstanding).toBe(owedBefore + 400)
+  })
+
+  it('รับยอดบางส่วนจากสลิปที่โอนขาด แล้วส่วนต่างยังค้างอยู่', () => {
+    const s = freshState()
+    const prang = s.students.find((x) => x.id === 's6')
+    const { amount } = billOf(prang, s, P)
+    const partial = setReceived(s, P, 's6', 1200)
+    expect(billOf(prang, partial, P).status).toBe('partial')
+    expect(receivedOf(partial, P, 's6')).toBe(1200)
+    expect(totals(partial, P).outstanding).toBe(totals(s, P).outstanding - 1200)
+    expect(amount).toBe(1600)
+  })
+
+  it('ยกเลิกรับยอดแล้วกลับไปค้างเต็มจำนวน', () => {
+    const s = freshState()
+    const phum = s.students.find((x) => x.id === 's1')
+    const undone = setReceived(s, P, 's1', 0)
+    expect(billOf(phum, undone, P).status).toBe('pending')
+    expect(totals(undone, P).paid).toBe(totals(s, P).paid - 2800)
   })
 })

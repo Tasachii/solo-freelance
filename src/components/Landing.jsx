@@ -3,7 +3,7 @@ import { IconSun, IconMoon } from './Icons.jsx'
 
 const POINTS = ['เช็คชื่อแตะเดียวทุกคาบ', 'บิลเข้า LINE ผู้ปกครองอัตโนมัติ', 'ระบบทวงแทน คุณไม่ต้องทวงเอง']
 
-export default function Landing({ isDark, onToggleTheme }) {
+export default function Landing({ isDark, onToggleTheme, onLead }) {
   return (
     <div className="land">
       <div className="land__inner">
@@ -38,6 +38,15 @@ export default function Landing({ isDark, onToggleTheme }) {
             ลองกดเล่นเดโม →
           </button>
           <p className="land__note">ระบบไม่แตะเงิน — โอนเข้าบัญชีคุณโดยตรง</p>
+          <button className="home__more" style={{ display: 'block', margin: '10px auto 0' }}
+            onClick={() => navigate('/pricing')}>
+            ดูราคา →
+          </button>
+        </div>
+
+        <div className="recruit rise d6">
+          <p className="recruit__t">ทีมนิสิต ม.เกษตรศาสตร์ กำลังหาติวเตอร์ 10 คนแรก มาลองใช้ฟรี 2 เดือน</p>
+          <button className="btn btn--ink btn--block" onClick={onLead}>สนใจร่วมทดลองใช้</button>
         </div>
       </div>
 

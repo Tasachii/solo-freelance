@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { TYPE_LABEL, LIFE_LABEL } from '../data.js'
-import { billOf, initialOf, baht } from '../state.js'
+import { billOf, initialOf, baht, packLeft } from '../state.js'
 import { TH_DAY_SHORT } from '../dates.js'
 import { EmptyState } from './Field.jsx'
 
@@ -44,6 +44,12 @@ export default function StudentsTab({ state, period, onOpen, onAdd }) {
             placeholder="ค้นหาชื่อ" aria-label="ค้นหานักเรียน" style={{ marginTop: 12 }} />
         )}
 
+        {state.students.some((x) => x.pack && packLeft(x) <= 3) && (
+          <p className="packwarn">
+            ⚠︎ {state.students.filter((x) => x.pack && packLeft(x) <= 3).map((x) => x.nick).join(', ')} ใกล้หมดแพ็ก ควรชวนต่อ
+          </p>
+        )}
+
         {shown.length === 0 ? (
           <p className="home__quiet" style={{ marginTop: 16 }}>ไม่พบชื่อนี้</p>
         ) : (
@@ -65,8 +71,19 @@ export default function StudentsTab({ state, period, onOpen, onAdd }) {
                       </span>
                     </span>
                     <span className="row2__side">
-                      <span className="row2__times">{times}/{s.plan}</span>
-                      <span className="row2__why">{baht(amount)}</span>
+                      {s.pack ? (
+                        <>
+                          <span className={`row2__times${packLeft(s) <= 3 ? ' is-low' : ''}`}>
+                            เหลือ {packLeft(s)}/{s.pack.size}
+                          </span>
+                          <span className="row2__why">แพ็กจ่ายล่วงหน้า</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="row2__times">{times}/{s.plan}</span>
+                          <span className="row2__why">{baht(amount)}</span>
+                        </>
+                      )}
                     </span>
                   </button>
                 </li>

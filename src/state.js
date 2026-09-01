@@ -16,11 +16,19 @@ export function freshState() {
   const records = seedRecords()
   // เดือนก่อนๆ ถือว่าเก็บเงินครบแล้ว เดือนปัจจุบันใช้สถานะจากบรีฟ
   const status = {}
+  const received = {}
+  const amountIn = (id, period) =>
+    (records[id] || []).filter((r) => periodOf(r.date) === period).reduce((n, r) => n + r.rate, 0)
+
   for (let i = 5; i >= 1; i--) {
     const p = shiftPeriod(TODAY_PERIOD, -i)
     status[p] = Object.fromEntries(SEED_STUDENTS.map((s) => [s.id, 'paid']))
+    received[p] = Object.fromEntries(SEED_STUDENTS.map((s) => [s.id, amountIn(s.id, p)]))
   }
   status[TODAY_PERIOD] = Object.fromEntries(SEED_STUDENTS.map((s) => [s.id, s.status]))
+  received[TODAY_PERIOD] = Object.fromEntries(
+    SEED_STUDENTS.map((s) => [s.id, s.status === 'paid' ? amountIn(s.id, TODAY_PERIOD) : 0]),
+  )
 
   return {
     v: SCHEMA,
@@ -28,6 +36,7 @@ export function freshState() {
     students,
     records,
     status,
+    received,
     sessionState: {},
     extraSessions: [],
     expenses: clone(SEED_EXPENSES),
@@ -35,6 +44,7 @@ export function freshState() {
     inbox: clone(SEED_INBOX),
     autoLog: clone(SEED_AUTOLOG),
     outbox: [],
+    makeups: {},
     activity: [],
     reminded: {},
     history: [],
@@ -45,8 +55,8 @@ export function emptyState(settings) {
   return {
     ...freshState(),
     settings: clone(settings || DEFAULT_SETTINGS),
-    students: [], records: {}, status: {}, sessionState: {}, extraSessions: [],
-    expenses: [], slips: {}, inbox: [], autoLog: [], outbox: [], activity: [], reminded: {}, history: [],
+    students: [], records: {}, status: {}, received: {}, sessionState: {}, extraSessions: [],
+    expenses: [], slips: {}, inbox: [], autoLog: [], outbox: [], makeups: {}, activity: [], reminded: {}, history: [],
   }
 }
 
@@ -123,8 +133,33 @@ export const recordsIn = (state, id, period) =>
   recordsOf(state, id).filter((r) => periodOf(r.date) === period && r.kind === 'attended')
 
 /** ยอดคิดจากราคาที่ติดมากับแต่ละครั้ง ไม่ใช่ราคาปัจจุบัน — ขึ้นราคาแล้วบิลเก่าจึงไม่ขยับ */
+/** เพิ่มครั้งเรียน — สถานะจ่ายคำนวณจากยอดที่รับจริงเทียบยอดบิล
+    จึงกลายเป็น "จ่ายบางส่วน" เองโดยไม่ต้องไปแก้ธงใดๆ */
+export function addRecord(s, studentId, record) {
+  return { ...s, records: { ...s.records, [studentId]: [...(s.records[studentId] || []), record] } }
+}
+
+/** บันทึกว่ารับเงินมาเท่าไหร่ */
+export function setReceived(s, period, studentId, amount) {
+  return {
+    ...s,
+    received: { ...s.received, [period]: { ...(s.received?.[period] || {}), [studentId]: amount } },
+    status: { ...s.status, [period]: { ...(s.status?.[period] || {}), [studentId]: amount > 0 ? 'paid' : 'pending' } },
+  }
+}
+
+export const receivedOf = (state, period, id) => state.received?.[period]?.[id] ?? 0
+
+export const packLeft = (student) =>
+  student.pack ? Math.max(0, student.pack.size - student.pack.used) : null
+
 export function billOf(student, state, period) {
   const list = recordsIn(state, student.id, period)
+  // แพ็กจ่ายล่วงหน้า: เก็บเงินไปแล้วตอนซื้อแพ็ก จึงไม่มีบิลรายเดือน
+  if (student.pack) {
+    return { times: list.length, amount: 0, uniformRate: null, mixedRates: false,
+      status: 'prepaid', packLeft: packLeft(student) }
+  }
   const amount = list.reduce((n, r) => n + (r.rate ?? rateOf(student, state)), 0)
   const rates = [...new Set(list.map((r) => r.rate))]
   return {
@@ -137,18 +172,23 @@ export function billOf(student, state, period) {
 }
 
 export function statusOf(state, period, student) {
-  const explicit = state.status?.[period]?.[student.id]
-  if (explicit) return explicit
+  if (student.pack) return 'prepaid'
   const list = recordsIn(state, student.id, period)
-  return list.length === 0 ? 'none' : 'pending'
+  const amount = list.reduce((n, r) => n + (r.rate ?? rateOf(student, state)), 0)
+  const got = receivedOf(state, period, student.id)
+
+  if (amount === 0 && got === 0) return 'none'
+  if (got >= amount && amount > 0) return 'paid'
+  if (got > 0) return 'partial'          // จ่ายมาบางส่วน — ยังค้างส่วนต่าง
+  return state.status?.[period]?.[student.id] || 'pending'
 }
 
 export function totals(state, period) {
   let total = 0, paid = 0
   for (const s of state.students) {
-    const { amount, status } = billOf(s, state, period)
+    const { amount } = billOf(s, state, period)
     total += amount
-    if (status === 'paid') paid += amount
+    paid += Math.min(receivedOf(state, period, s.id), amount)
   }
   return { total, paid, outstanding: total - paid }
 }
@@ -209,13 +249,25 @@ export function weekSchedule(state) {
   return days.map((list) => list.sort((a, b) => a.time.localeCompare(b.time)))
 }
 
+/** คาบชดเชยของเดือนนั้น แยกตามนักเรียน */
+export function makeupsIn(state, period) {
+  const out = {}
+  for (const m of Object.values(state.makeups || {})) {
+    if (periodOf(m.date) !== period) continue
+    ;(out[m.studentId] ||= []).push(m.date)
+  }
+  return out
+}
+
 /** นักเรียนที่ควรดูเป็นพิเศษ — ไม่นับคนที่เพิ่งเพิ่มเข้ามาและยังไม่เริ่มเรียน */
 export function needsAttention(state, period) {
   const out = []
   for (const s of state.students) {
     if (s.life !== 'active') continue
     const { times, status, amount } = billOf(s, state, period)
-    if (status === 'overdue') {
+    if (s.pack && packLeft(s) <= 3) {
+      out.push({ student: s, why: `ใกล้หมดแพ็ก เหลือ ${packLeft(s)}/${s.pack.size} ครั้ง`, tone: 'warn' })
+    } else if (status === 'overdue') {
       out.push({ student: s, why: `ค้างจ่าย ${baht(amount)} บาท`, tone: 'bad' })
     } else if (times > 0 && s.plan - times >= 2) {
       out.push({ student: s, why: `เรียน ${times}/${s.plan} ครั้ง ต่ำกว่าแผน`, tone: 'warn' })

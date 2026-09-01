@@ -79,7 +79,7 @@ export default function HomeTab({ state, period, onCheckIn, onLeave, onEditSessi
                     </span>
                   ) : (
                     <button className="row2__done" onClick={() => onEditSession(c)}>
-                      {status === 'attended' ? 'มาเรียน' : 'ลา'}
+                      {{ attended: 'มาเรียน', leave: 'ลา', leaveCharged: 'ลา · คิดเงิน', makeup: 'นัดชดเชย' }[status] || 'ลา'}
                     </button>
                   )}
                 </li>

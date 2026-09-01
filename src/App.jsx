@@ -3,7 +3,7 @@ import { useLocation, navigate } from './router.js'
 import { useTheme, useIsDesk } from './theme.js'
 import {
   useDemoState, totals, baht, uid, logged, inboxed, buildCsv, buildBackup, parseBackup,
-  rateOf, recordsIn, sessionsOn, statusOf,
+  rateOf, recordsIn, sessionsOn, statusOf, addRecord, setReceived, billOf,
 } from './state.js'
 import { TODAY, TODAY_PERIOD, FIRST_PERIOD, SEND_DELAY_MS } from './data.js'
 import { longMonth, shiftPeriod, shortDate } from './dates.js'
@@ -24,6 +24,10 @@ import SlipSheet from './components/SlipSheet.jsx'
 import RemindSheet from './components/RemindSheet.jsx'
 import LineBillSheet from './components/LineBillSheet.jsx'
 import HelpSheet from './components/HelpSheet.jsx'
+import LeadSheet from './components/LeadSheet.jsx'
+import LeaveSheet from './components/LeaveSheet.jsx'
+import PricingPage from './components/PricingPage.jsx'
+import ParentPreview from './components/ParentPreview.jsx'
 import ActivitySheet from './components/ActivitySheet.jsx'
 import InboxSheet from './components/InboxSheet.jsx'
 import HistorySheet from './components/HistorySheet.jsx'
@@ -44,9 +48,26 @@ export default function App() {
   const { route, tab } = useLocation()
   const theme = useTheme()
   const isDesk = useIsDesk()
+  const [lead, setLead] = useState(null)   // null | {plan}
 
-  if (route === '/app') return <AppShell theme={theme} isDesk={isDesk} urlTab={tab} />
-  if (route === '/') return <Landing isDark={theme.isDark} onToggleTheme={theme.toggle} />
+  const leadSheet = lead && <LeadSheet plan={lead.plan} onClose={() => setLead(null)} />
+
+  if (route === '/app') {
+    return <AppShell theme={theme} isDesk={isDesk} urlTab={tab} onLead={() => setLead({})} lead={leadSheet} />
+  }
+  if (route === '/pricing') {
+    return <>
+      <PricingPage onPick={(plan) => setLead({ plan })} />
+      {leadSheet}
+    </>
+  }
+  if (route === '/parent-preview') return <ParentPreview />
+  if (route === '/') {
+    return <>
+      <Landing isDark={theme.isDark} onToggleTheme={theme.toggle} onLead={() => setLead({})} />
+      {leadSheet}
+    </>
+  }
   return <NotFound />
 }
 
@@ -64,7 +85,7 @@ function NotFound() {
   )
 }
 
-function AppShell({ theme, isDesk, urlTab }) {
+function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
   const { state, setState, commit, undo, reset, clear, replace } = useDemoState()
   const [period, setPeriod] = useState(TODAY_PERIOD)
   const [sheet, setSheet] = useState(null)
@@ -140,21 +161,27 @@ function AppShell({ theme, isDesk, urlTab }) {
   const checkIn = (c) => {
     const st = state.students.find((s) => s.id === c.studentId)
     act((s) => ({
-      ...s,
+      ...addRecord(s, c.studentId, { id: uid('r'), date: c.date, kind: 'attended', rate: rateOf(st, s), sessionId: c.id }),
       sessionState: { ...s.sessionState, [c.id]: 'attended' },
-      records: {
-        ...s.records,
-        [c.studentId]: [...(s.records[c.studentId] || []), {
-          id: uid('r'), date: c.date, kind: 'attended', rate: rateOf(st, s), sessionId: c.id,
-        }],
-      },
     }), `เช็คชื่อ ${st?.nick ?? ''}`, 'เช็คชื่อแล้ว · นับเข้าบิลให้แล้ว')
   }
 
-  const markLeave = (c) => {
+  const markLeave = (c, kind = 'leave', makeupDate = null) => {
+    close()
     const st = state.students.find((s) => s.id === c.studentId)
-    act((s) => ({ ...s, sessionState: { ...s.sessionState, [c.id]: 'leave' } }),
-      `บันทึกลา ${st?.nick ?? ''}`, 'บันทึกว่าลา · ไม่นับเงิน')
+    const charged = kind === 'leaveCharged'
+    act((s) => {
+      let next = { ...s, sessionState: { ...s.sessionState, [c.id]: kind } }
+      if (charged) {
+        next = { ...addRecord(next, c.studentId, { id: uid('r'), date: c.date, kind: 'attended', rate: rateOf(st, s), sessionId: c.id }),
+          sessionState: next.sessionState }
+      }
+      if (kind === 'makeup' && makeupDate) {
+        next.makeups = { ...s.makeups, [c.id]: { studentId: c.studentId, date: makeupDate } }
+      }
+      return next
+    }, `บันทึกลา ${st?.nick ?? ''}`,
+      charged ? 'ลาแบบแจ้งช้า · คิดเงินตามปกติ' : kind === 'makeup' ? 'นัดชดเชยแล้ว' : 'ลา · ไม่คิดเงิน')
   }
 
   const setSessionStatus = (c, next) => {
@@ -180,12 +207,8 @@ function AppShell({ theme, isDesk, urlTab }) {
   const addPastSession = ({ studentId, date }) => {
     close()
     const st = state.students.find((s) => s.id === studentId)
-    act((s) => ({
-      ...s,
-      records: { ...s.records, [studentId]: [...(s.records[studentId] || []), {
-        id: uid('r'), date, kind: 'attended', rate: rateOf(st, s), sessionId: null,
-      }] },
-    }), `บันทึกย้อนหลัง ${st?.nick ?? ''}`, 'บันทึกคาบย้อนหลังแล้ว')
+    act((s) => addRecord(s, studentId, { id: uid('r'), date, kind: 'attended', rate: rateOf(st, s), sessionId: null }),
+      `บันทึกย้อนหลัง ${st?.nick ?? ''}`, 'บันทึกคาบย้อนหลังแล้ว')
   }
 
   const removeRecord = (student, record) =>
@@ -223,17 +246,21 @@ function AppShell({ theme, isDesk, urlTab }) {
   }
 
   // ── บิล ──
-  const setStatus = (student, next, label, toastText) =>
-    act((s) => ({ ...s, status: { ...s.status, [period]: { ...(s.status[period] || {}), [student.id]: next } } }),
-      label, toastText)
-
   const confirmSlip = (student) => {
     close()
-    setStatus(student, 'paid', `รับยอด ${student.nick}`, `รับยอดของ${student.nick}แล้ว`)
+    const { amount } = billOf(student, state, period)
+    act((s) => setReceived(s, period, student.id, amount),
+      `รับยอด ${student.nick}`, `รับยอดของ${student.nick}แล้ว`)
   }
-  const undoPaid = (student) => setStatus(student, 'pending', `ยกเลิกรับยอด ${student.nick}`, `ยกเลิกการรับยอดของ${student.nick}`)
+
+  const undoPaid = (student) =>
+    act((s) => setReceived(s, period, student.id, 0),
+      `ยกเลิกรับยอด ${student.nick}`, `ยกเลิกการรับยอดของ${student.nick}`)
 
   const remindDiff = (student, diff) => {
+    // รับเท่าที่โอนมาจริงไว้ก่อน ส่วนต่างยังค้างอยู่ในระบบ
+    const got = state.slips?.[student.id]?.paid ?? 0
+    commit((s) => setReceived(s, period, student.id, got), `รับยอดบางส่วน ${student.nick}`)
     queueSend({
       kind: 'remind',
       log: `ทวงส่วนต่าง ${baht(diff)} บาท ของ${student.nick} ถึง${student.parent}`,
@@ -341,7 +368,7 @@ function AppShell({ theme, isDesk, urlTab }) {
     <>
       {tab === 'home' && (
         <HomeTab state={state} period={period}
-          onCheckIn={checkIn} onLeave={markLeave}
+          onCheckIn={checkIn} onLeave={(c) => open('leave', { session: c })}
           onEditSession={(c) => open('attendance', { session: c })}
           onAddSession={() => open('addSession')}
           onTask={openTask} onSeeAll={() => open('activity')}
@@ -356,7 +383,8 @@ function AppShell({ theme, isDesk, urlTab }) {
         <MoneyTab state={state} period={period}
           onSlip={(s) => open('slip', { student: s })}
           onRemind={(s) => open('remind', { student: s })}
-          onUndoPaid={undoPaid} onSendAll={() => open('line')} />
+          onUndoPaid={undoPaid} onSendAll={() => open('line')}
+          onParentView={() => navigate('/parent-preview')} />
       )}
       {tab === 'overview' && (
         <OverviewTab state={state} period={period}
@@ -376,6 +404,9 @@ function AppShell({ theme, isDesk, urlTab }) {
       )}
       {sheet?.kind === 'studentEdit' && (
         <StudentEditSheet student={sheet.student} state={state} onClose={close} onSave={saveStudent} onDelete={deleteStudent} />
+      )}
+      {sheet?.kind === 'leave' && (
+        <LeaveSheet session={sheet.session} state={state} onClose={close} onPick={markLeave} />
       )}
       {sheet?.kind === 'attendance' && (
         <AttendanceSheet session={sheet.session} state={state} onClose={close} onSet={setSessionStatus} />
@@ -432,6 +463,12 @@ function AppShell({ theme, isDesk, urlTab }) {
 
       <input ref={fileRef} type="file" accept="application/json,.json" hidden
         onChange={(e) => { const f = e.target.files?.[0]; if (f) importBackup(f); e.target.value = '' }} />
+
+      <button className="fab" onClick={onLead}>
+        <span className="fab__heart" aria-hidden="true">✦</span>
+        สนใจใช้จริง
+      </button>
+      {lead}
 
       {toast && (
         <div className="toast" role="status" key={toast.id}>
@@ -523,6 +560,7 @@ function AppShell({ theme, isDesk, urlTab }) {
         {tab === 'settings' ? <div className="pane">{pane}</div> : pane}
         <footer className="appfoot">
           <p className="disclaimer" style={{ margin: 0 }}>เดโม · ข้อมูลสมมติทั้งหมด</p>
+          <button className="reset" onClick={() => open('confirmReset')}>รีเซ็ตข้อมูลเดโม</button>
         </footer>
       </main>
 

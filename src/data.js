@@ -7,7 +7,7 @@ export const TODAY_PERIOD = periodOf(TODAY)
 export const FIRST_PERIOD = shiftPeriod(TODAY_PERIOD, -5)
 
 export const TYPE_LABEL = { single: 'เดี่ยว', group: 'กลุ่ม' }
-export const STATUS_LABEL = { paid: 'จ่ายแล้ว', pending: 'รอสลิป', overdue: 'ค้างจ่าย', none: 'ยังไม่มียอด' }
+export const STATUS_LABEL = { paid: 'จ่ายแล้ว', pending: 'รอสลิป', overdue: 'ค้างจ่าย', none: 'ยังไม่มียอด', prepaid: 'จ่ายล่วงหน้า', partial: 'จ่ายบางส่วน' }
 export const LIFE_LABEL = { active: 'กำลังเรียน', paused: 'พักชั่วคราว', ended: 'จบคอร์ส' }
 
 export const AVATAR_COLORS = [
@@ -43,6 +43,8 @@ export const SEED_STUDENTS = [
     schedule: [{ day: 1, time: '17:00' }, { day: 4, time: '17:00' }], status: 'paid' },
   { id: 's5', nick: 'น้องเจได', grade: 'ม.5', subject: 'คณิต', type: 'group', parent: 'คุณพ่อเจได', plan: 4, life: 'active', rate: null,
     schedule: [{ day: 3, time: '18:00' }], status: 'overdue' },
+  { id: 's7', nick: 'น้องอิง', grade: 'ม.2', subject: 'อังกฤษ', type: 'single', parent: 'คุณแม่อิง', plan: 4, life: 'active', rate: null,
+    schedule: [{ day: 6, time: '13:00' }], status: 'prepaid', pack: { size: 10, used: 7 } },
   { id: 's6', nick: 'น้องปราง', grade: 'ม.3', subject: 'คณิต', type: 'single', parent: 'คุณแม่ปราง', plan: 4, life: 'active', rate: null,
     schedule: [{ day: 5, time: '16:00' }], status: 'pending' },
 ]
@@ -67,7 +69,7 @@ function seeded(seed) {
 }
 
 /** ครั้งที่เรียนของเดือนกันยายนถูกกำหนดให้ตรงกับตัวเลขในบรีฟเดิม */
-const SEP_TARGET = { s1: 7, s2: 8, s3: 4, s4: 6, s5: 3, s6: 4 }
+const SEP_TARGET = { s1: 7, s2: 8, s3: 4, s4: 6, s5: 3, s6: 4, s7: 4 }
 
 export function seedRecords() {
   const out = {}

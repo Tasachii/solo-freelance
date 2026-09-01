@@ -316,11 +316,11 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
   const exportCsv = () => {
-    try { download(buildCsv(state, period), `tutordai-${period}.csv`, 'text/csv;charset=utf-8'); say('ดาวน์โหลด CSV แล้ว') }
+    try { download(buildCsv(state, period), `solo-tutor-${period}.csv`, 'text/csv;charset=utf-8'); say('ดาวน์โหลด CSV แล้ว') }
     catch { say('ดาวน์โหลดไม่สำเร็จ ลองอีกครั้งครับ') }
   }
   const exportBackup = () => {
-    try { download(buildBackup(state), `tutordai-backup-${period}.json`, 'application/json'); say('สำรองข้อมูลแล้ว') }
+    try { download(buildBackup(state), `solo-tutor-backup-${period}.json`, 'application/json'); say('สำรองข้อมูลแล้ว') }
     catch { say('สำรองข้อมูลไม่สำเร็จ') }
   }
   const importBackup = async (file) => {
@@ -493,7 +493,7 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
       <div className="desk">
         <aside className="desk__side">
           <div className="desk__brand">
-            <b>ติวได้<em>ตังค์</em></b>
+            <b>Solo<em>Tutor</em></b>
             <span>{state.settings.profile.name}</span>
           </div>
           <nav className="desk__nav">
@@ -540,7 +540,7 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
     <div className="app">
       <header className="hd">
         <div className="hd__top">
-          <div className="hd__brand">ติวได้<em>ตังค์</em></div>
+          <div className="hd__brand">Solo<em>Tutor</em></div>
           <div className="hd__acts">
             <button className="hd__btn" onClick={() => open('inbox')} aria-label={`การแจ้งเตือน ${unread} รายการใหม่`}>
               <IconBell />

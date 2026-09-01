@@ -21,7 +21,7 @@ export default function Landing({ isDark, onToggleTheme, onLead }) {
       <div className="land__inner">
         <div className="land__col">
         <div className="land__brand">
-          <h1 className="land__logo rise d1">ติวได้<em>ตังค์</em></h1>
+          <h1 className="land__logo rise d1">Solo<em>Tutor</em></h1>
           <p className="land__lead rise d2">
             ปิดบิลสิ้นเดือนใน 5 นาที
             <br />

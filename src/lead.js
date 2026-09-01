@@ -41,7 +41,7 @@ export function markLeadSent() {
  */
 export async function submitLead(data) {
   if (!FORM_ENDPOINT) {
-    console.info('[tutordai] ยังไม่ได้ตั้ง FORM_ENDPOINT — ข้อมูลที่จะส่งคือ:', data)
+    console.info('[solo-tutor] ยังไม่ได้ตั้ง FORM_ENDPOINT — ข้อมูลที่จะส่งคือ:', data)
     await new Promise((r) => setTimeout(r, 600))
     return { ok: true, mode: 'console' }
   }

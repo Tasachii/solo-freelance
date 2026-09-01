@@ -137,6 +137,13 @@ describe('สำรองและกู้คืนข้อมูล', () => {
     expect(restored.students).toHaveLength(s.students.length)
   })
 
+  it('ยังกู้คืนไฟล์ที่สำรองไว้ก่อนเปลี่ยนชื่อแบรนด์ได้', () => {
+    const s = freshState()
+    const old = JSON.parse(buildBackup(s))
+    old.app = 'tutordai-demo'
+    expect(() => parseBackup(JSON.stringify(old))).not.toThrow()
+  })
+
   it('ปฏิเสธไฟล์ที่ไม่ใช่ของแอปนี้', () => {
     expect(() => parseBackup('{"app":"other"}')).toThrow(/ไม่ใช่ไฟล์สำรอง/)
     expect(() => parseBackup('ไม่ใช่ json')).toThrow(/JSON/)

@@ -12,7 +12,7 @@ export default function HelpSheet({ onClose }) {
           </div>
         ))}
       </div>
-      <p className="disclaimer">ติวได้ตังค์ · เวอร์ชัน {APP_VERSION} · เดโม · ข้อมูลสมมติทั้งหมด</p>
+      <p className="disclaimer">Solo Tutor · เวอร์ชัน {APP_VERSION} · เดโม · ข้อมูลสมมติทั้งหมด</p>
     </Sheet>
   )
 }

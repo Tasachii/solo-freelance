@@ -5,6 +5,7 @@ import {
 } from './data.js'
 import { periodOf, shiftPeriod, weekday, shortDate, longMonth } from './dates.js'
 
+// คงคีย์เดิมไว้ตอนเปลี่ยนชื่อแบรนด์ ไม่งั้นข้อมูลของคนที่เคยกดเล่นจะหายหมด
 export const STORAGE_KEY = 'tutordai-demo-v1'
 const SCHEMA = 3
 
@@ -350,14 +351,17 @@ export function buildCsv(state, period) {
 
 export function buildBackup(state) {
   const { history, ...rest } = state
-  return JSON.stringify({ app: 'tutordai-demo', v: SCHEMA, exportedAt: new Date().toISOString(), state: rest }, null, 2)
+  return JSON.stringify({ app: 'solo-tutor', v: SCHEMA, exportedAt: new Date().toISOString(), state: rest }, null, 2)
 }
 
 /** อ่านไฟล์สำรองกลับเข้ามา — ตรวจให้แน่ใจก่อนว่าเป็นไฟล์ของแอปนี้จริง */
 export function parseBackup(text) {
   let data
   try { data = JSON.parse(text) } catch { throw new Error('ไฟล์นี้ไม่ใช่ JSON ที่อ่านได้') }
-  if (data?.app !== 'tutordai-demo') throw new Error('ไฟล์นี้ไม่ใช่ไฟล์สำรองของติวได้ตังค์')
+  // รับไฟล์ที่ export ไว้ก่อนเปลี่ยนชื่อแบรนด์ด้วย จะได้ไม่ทิ้งคนที่เคยสำรองไว้
+  if (data?.app !== 'solo-tutor' && data?.app !== 'tutordai-demo') {
+    throw new Error('ไฟล์นี้ไม่ใช่ไฟล์สำรองของ Solo Tutor')
+  }
   if (data?.v !== SCHEMA) throw new Error(`ไฟล์สำรองเป็นเวอร์ชัน ${data?.v ?? '?'} แต่แอปใช้เวอร์ชัน ${SCHEMA}`)
   if (!Array.isArray(data?.state?.students)) throw new Error('ไฟล์สำรองไม่มีข้อมูลนักเรียน')
   return { ...freshState(), ...data.state, history: [] }

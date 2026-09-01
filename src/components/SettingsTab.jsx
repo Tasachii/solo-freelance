@@ -197,7 +197,7 @@ export default function SettingsTab({
           </a>
         </div>
         <p className="fld__hint" style={{ marginTop: 12, textAlign: 'center' }}>
-          ติวได้ตังค์ · เวอร์ชัน {APP_VERSION} · เดโม ข้อมูลสมมติทั้งหมด
+          Solo Tutor · เวอร์ชัน {APP_VERSION} · เดโม ข้อมูลสมมติทั้งหมด
           <br />
           เรทปัจจุบัน เดี่ยว {baht(s.rates.single)} · กลุ่ม {baht(s.rates.group)} บาท/ครั้ง
         </p>

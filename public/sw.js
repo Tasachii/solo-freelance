@@ -2,7 +2,7 @@
    หลักการ: หน้าเว็บเอาของใหม่ก่อนเสมอ (กันเดโมค้างเวอร์ชันเก่าตอน pitch)
    ส่วนไฟล์ asset มี hash ในชื่ออยู่แล้ว จึง cache ได้ยาวอย่างปลอดภัย */
 
-const VERSION = 'tutordai-v1'
+const VERSION = 'solo-tutor-v1'
 
 self.addEventListener('install', () => self.skipWaiting())
 

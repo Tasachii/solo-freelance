@@ -1,9 +1,9 @@
-# ติวได้ตังค์ — Tutor Admin (Demo)
+# Solo Tutor — ระบบหลังบ้านสำหรับติวเตอร์เดี่ยว
 
 เดโมกดเล่นได้ของระบบหลังบ้านสำหรับ **ติวเตอร์เดี่ยว** ที่มีนักเรียน 30–80 คน
 สร้างเพื่อใช้ตอน pitch และส่งให้ติวเตอร์จริงลองกดตอนสัมภาษณ์ validation
 
-**🔗 เปิดเดโม:** https://tasachii.github.io/tutordai-demo/
+**🔗 เปิดเดโม:** https://tasachii.github.io/solo-tutor/
 
 > เดโม · ข้อมูลสมมติทั้งหมด — ไม่มี backend ไม่มีการเก็บข้อมูลจริง
 > ข้อมูลที่กดเล่นถูกเก็บไว้ใน localStorage ของเครื่องผู้ใช้เท่านั้น
@@ -243,7 +243,7 @@ npm run preview   # เปิด build ที่ได้เพื่อตร�
 ## Stack
 
 - Vite + React 18, plain CSS (ไม่ใช้ UI library และไม่ใช้ Tailwind)
-- State เป็น React state ล้วน persist ลง `localStorage` key `tutordai-demo-v1`
+- State เป็น React state ล้วน persist ลง `localStorage` key `tutordai-demo-v1` (คงชื่อเดิมไว้ตอนเปลี่ยนแบรนด์ กันข้อมูลของคนที่เคยกดเล่นหาย)
 - HashRouter เขียนเอง เพราะ GitHub Pages ไม่มี SPA fallback
 - Font: Anuphan (Google Fonts) แบบ self-host — ตัด render-blocking request ข้าม origin
   Anuphan เป็น variable font ไฟล์เดียวครอบคลุมน้ำหนัก 400–700 เก็บเฉพาะ subset thai + latin
@@ -266,7 +266,7 @@ npm run preview   # เปิด build ที่ได้เพื่อตร�
 Push ขึ้น `main` แล้ว GitHub Actions จะ build ด้วย Node 20 และ deploy ไป GitHub Pages
 ให้อัตโนมัติ (`.github/workflows/deploy.yml`) โดยตั้ง Pages source = GitHub Actions
 
-`vite.config.js` ตั้ง `base: '/tutordai-demo/'` ให้ตรงกับชื่อ repo — ถ้าเปลี่ยนชื่อ repo
+`vite.config.js` ตั้ง `base: '/solo-tutor/'` ให้ตรงกับชื่อ repo — ถ้าเปลี่ยนชื่อ repo
 ต้องแก้ค่านี้ตาม ไม่งั้น asset จะ 404
 
 ## ข้อจำกัดที่ตั้งใจให้เป็น

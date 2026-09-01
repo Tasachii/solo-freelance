@@ -526,7 +526,7 @@ function AppShell({ theme, isDesk, urlTab }) {
         </footer>
       </main>
 
-      <nav className="tabs tabs--5">
+      <nav className="tabs tabs--compact">
         {TABS.map(({ id, label, Icon }) => (
           <button key={id} className={`tab${tab === id ? ' tab--on' : ''}`}
             onClick={() => setTab(id)} aria-current={tab === id ? 'page' : undefined}>

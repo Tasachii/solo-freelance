@@ -1099,6 +1099,9 @@ button:focus-visible, a:focus-visible {
 .home__quiet { margin: 0; font-size: 14.5px; color: var(--muted); }
 
 .rows2 { list-style: none; margin: 0; padding: 0; }
+/* หัวข้อแถวมีปุ่มสลับสูง 38px แถวแรกจึงต้องเว้นให้พ้น ไม่งั้นชนขอบปุ่ม */
+.home__row + .rows2,
+.home__row + .home__quiet { margin-top: 16px; }
 .row2 {
   display: flex; align-items: center; gap: 12px;
   padding: 13px 10px; margin-inline: -10px;

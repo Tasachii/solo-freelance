@@ -24,6 +24,7 @@ export default function HomeTab({ state, period, onCheckIn, onLeave, onEditSessi
         <p className="home__date">วัน{TH_DAY[weekday(TODAY)]}ที่ {d} {TH_MONTH[m - 1]}</p>
       </header>
 
+      <div className="home__main">
       <section className="home__money">
         <b>{baht(outstanding)}</b>
         <span>ยังไม่เข้าบัญชี</span>
@@ -89,6 +90,9 @@ export default function HomeTab({ state, period, onCheckIn, onLeave, onEditSessi
         )}
         {view === 'day' && <button className="home__more" onClick={onAddSession}>+ เพิ่มคาบ</button>}
       </section>
+      </div>
+
+      <div className="home__side">
 
       {otherTasks.length > 0 && (
         <section className="home__sec">
@@ -122,6 +126,7 @@ export default function HomeTab({ state, period, onCheckIn, onLeave, onEditSessi
         </p>
         <button className="home__more" onClick={onSeeAll}>ดูทั้งหมด</button>
       </section>
+      </div>
     </div>
   )
 }

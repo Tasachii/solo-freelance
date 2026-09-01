@@ -544,70 +544,137 @@ button:focus-visible, a:focus-visible {
   .sheet, .veil, .toast { animation-duration: .01ms; }
 }
 
-/* ═══ Landing ═════════════════════════════════════════════════════ */
+/* ═══ Landing ═══════════════════════════════════════════════════ */
 
 .land {
   min-height: 100dvh;
-  overflow-y: auto;
   display: flex; flex-direction: column;
+  overflow-y: auto; overflow-x: hidden;
   background:
-    radial-gradient(620px 420px at 84% -8%, color-mix(in srgb, var(--cta) 12%, transparent) 0%, transparent 70%),
+    radial-gradient(680px 460px at 50% -14%, color-mix(in srgb, var(--cta) 9%, transparent) 0%, transparent 68%),
     var(--bg);
 }
+
 .land__inner {
-  flex: 1; width: 100%; max-width: 480px;
-  margin: 0 auto; padding: 30px 22px 22px;
+  flex: 1; width: 100%; max-width: 460px;
+  margin: 0 auto; padding: 0 24px 30px;
   display: flex; flex-direction: column; justify-content: center;
 }
-.land__topbar {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; margin-bottom: 26px;
+.land__col { display: flex; flex-direction: column; }
+.land__peek { display: none; }
+
+.land__top {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; max-width: 460px; margin: 0 auto; padding: 18px 24px 0;
 }
-.land__tag {
-  font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--muted);
-  border: 1px solid var(--border); border-radius: 999px;
-  padding: 5px 12px; background: var(--surface);
+.land__tag { font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: .03em; }
+.land__theme {
+  width: 40px; height: 40px; border-radius: 11px; flex: none;
+  display: grid; place-items: center; color: var(--muted);
+  transition: background .16s, color .16s;
 }
-.land__logo { margin: 0; font-size: 38px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; }
+.land__theme:hover { background: var(--surface-2); color: var(--text); }
+.land__theme svg { width: 18px; height: 18px; }
+
+/* แบรนด์ได้อากาศหายใจ ไม่ให้ tagline ไปแย่งน้ำหนักกับโลโก้ */
+.land__brand { margin-top: 40px; }
+.land__logo { margin: 0; font-size: 46px; font-weight: 700; letter-spacing: -.045em; line-height: 1; }
 .land__logo em { font-style: normal; color: var(--cta); position: relative; }
 .land__logo em::after {
-  content: ''; position: absolute; left: -2px; right: -2px; bottom: 3px; height: 9px;
-  background: color-mix(in srgb, var(--cta) 20%, transparent);
+  content: ''; position: absolute; left: 0; right: 0; bottom: 4px; height: 10px;
+  background: color-mix(in srgb, var(--cta) 17%, transparent);
   border-radius: 3px; z-index: -1;
 }
-.land__lead { margin: 12px 0 0; font-size: 21px; font-weight: 600; line-height: 1.4; letter-spacing: -.015em; }
+.land__lead {
+  margin: 18px 0 0; font-size: 19px; font-weight: 500;
+  line-height: 1.5; letter-spacing: -.015em; color: var(--muted);
+}
 
-.land__list { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 7px; }
-.land__item {
-  display: flex; gap: 10px; align-items: center;
-  font-size: 15px; font-weight: 500;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--r-card); padding: 12px 14px;
+/* เส้นบาง ไม่ใช่กล่อง — ให้ตรงกับภาษาที่ใช้ในแอป */
+.land__list { list-style: none; margin: 34px 0 0; padding: 0; }
+.land__list li {
+  display: flex; gap: 11px; align-items: center;
+  padding: 14px 2px; font-size: 15.5px;
+  border-top: 1px solid var(--border);
 }
-.land__num {
-  flex: none; width: 23px; height: 23px; border-radius: 7px;
-  background: var(--primary); color: var(--on-primary);
-  display: grid; place-items: center; font-size: 12px; font-weight: 700;
+.land__list li:last-child { border-bottom: 1px solid var(--border); }
+.land__list span { color: var(--ok); font-size: 13px; flex: none; }
+
+.land__cta { margin-top: 30px; }
+.land__note { margin: 14px 0 0; font-size: 12.5px; color: var(--muted); text-align: center; line-height: 1.6; }
+.land__link {
+  color: var(--text); font-size: 12.5px; font-weight: 600;
+  text-decoration: underline; text-underline-offset: 3px; padding: 2px;
 }
-.land__cta { margin-top: 20px; }
-.land__note { margin: 12px 0 0; font-size: 12.5px; color: var(--muted); text-align: center; }
 
 .land__foot {
-  border-top: 1px solid var(--border); background: var(--surface);
-  padding: 14px 22px calc(14px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 20px 24px calc(20px + env(safe-area-inset-bottom));
   text-align: center;
 }
-.land__foot p { margin: 0; font-size: 12.5px; color: var(--muted); }
-.land__foot a { display: inline-block; padding: 11px 4px; min-height: 40px; color: var(--text); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.land__foot-t {
+  margin: 0 auto; max-width: 34ch;
+  font-size: 13.5px; line-height: 1.6; color: var(--muted);
+}
+.land__foot-t b { color: var(--text); font-weight: 700; white-space: nowrap; }
+.land__foot-btn {
+  margin-top: 10px; padding: 11px 8px; min-height: 40px;
+  font-size: 14px; font-weight: 600; color: var(--cta);
+}
 
 @media (min-width: 900px) {
-  .land__inner { max-width: 620px; padding: 40px 24px; }
-  .land__logo { font-size: 52px; }
-  .land__lead { font-size: 26px; margin-top: 14px; }
-  .land__list { grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 28px; }
-  .land__item { flex-direction: column; align-items: flex-start; gap: 9px; font-size: 14.5px; }
-  .land__inner { max-width: 860px; }
-  .land__cta { margin-top: 26px; max-width: 340px; }
+  .land__top { max-width: 1060px; padding: 22px 32px 0; }
+  .land__inner {
+    max-width: 1060px; padding: 0 32px 40px;
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 56px; align-items: center;
+  }
+  .land__col { justify-content: center; }
+  .land__logo { font-size: 56px; }
+  .land__lead { font-size: 21px; }
+  .land__brand { margin-top: 0; }
+  .land__list { margin-top: 28px; }
+  .land__note { text-align: left; }
+
+  /* ภาพตัวอย่างแอป — ตัดล่างด้วยการไล่จางให้เหมือนมองผ่านหน้าต่าง */
+  .land__peek { display: block; position: relative; }
+  .land__peek::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 90px;
+    background: linear-gradient(to bottom, transparent, var(--bg));
+    pointer-events: none; border-radius: 0 0 var(--r-card) var(--r-card);
+  }
+  .peek {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 18px; padding: 22px 22px 34px;
+    box-shadow: 0 24px 50px -24px rgba(11,14,12,.28);
+    max-height: 460px; overflow: hidden;
+  }
+  .peek__hd { font-size: 14px; font-weight: 600; color: var(--muted); }
+  .peek__big {
+    margin-top: 14px; font-size: 40px; font-weight: 700;
+    letter-spacing: -.04em; line-height: 1; color: var(--cta);
+    font-variant-numeric: tabular-nums;
+  }
+  .peek__big small { font-size: 15px; font-weight: 600; }
+  .peek__lbl { margin-top: 5px; font-size: 12.5px; color: var(--muted); }
+  .peek__sec {
+    margin-top: 24px; font-size: 11.5px; font-weight: 600;
+    color: var(--muted); letter-spacing: .04em;
+  }
+  .peek__row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 0; border-top: 1px solid var(--border);
+    font-size: 14px; margin-top: 8px;
+  }
+  .peek__row:first-of-type { margin-top: 8px; }
+  .peek__row b { font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .peek__btn {
+    margin-left: auto; background: var(--primary); color: var(--on-primary);
+    border-radius: 8px; padding: 5px 11px; font-size: 12px; font-weight: 600;
+  }
+  .peek__auto { display: flex; gap: 8px; margin-top: 9px; font-size: 13px; color: var(--muted); line-height: 1.45; }
+  .peek__auto i { font-style: normal; color: var(--ok); font-size: 11px; margin-top: 3px; }
 }
 
 /* ═══ โต๊ะทำงาน (เดสก์ท็อป ≥900px) ════════════════════════════════ */
@@ -1084,8 +1151,20 @@ button:focus-visible, a:focus-visible {
 .home__saved b { color: var(--ok); font-weight: 700; }
 
 @media (min-width: 900px) {
-  .home { max-width: 680px; padding: 8px 0 90px; }
+  .home { max-width: 760px; padding: 8px 0 90px; }
   .home__hd { display: none; }
+}
+
+/* จอกว้างจริง (โหมดที่ใช้พรีเซนต์) — แบ่งสองคอลัมน์ให้เห็นทั้งงานและสิ่งที่ระบบทำให้ในจอเดียว */
+@media (min-width: 1180px) {
+  .home {
+    max-width: 1160px;
+    display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+    gap: 0 48px; align-items: start;
+  }
+  .home__main, .home__side { min-width: 0; }
+  .home__side .home__sec:first-child { margin-top: 0; }
+  .home__money b { font-size: 52px; }
 }
 
 .split2 { display: flex; gap: 18px; margin-top: 12px; font-size: 13.5px; color: var(--muted); }

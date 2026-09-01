@@ -36,6 +36,7 @@ export default function OverviewTab({ state, period, onOpenStudent, onAddExpense
 
   return (
     <div className="home">
+      <div className="home__main">
       <section className="home__money">
         <b style={{ color: net >= 0 ? 'var(--ok)' : 'var(--bad)' }}>{baht(net)}</b>
         <span>เหลือจริงเดือน{longMonth(period)}</span>
@@ -62,6 +63,9 @@ export default function OverviewTab({ state, period, onOpenStudent, onAddExpense
           </b>
         </p>
       </section>
+      </div>
+
+      <div className="home__side">
 
       <section className="home__sec">
         <h2 className="home__lbl">ต้องดู</h2>
@@ -108,6 +112,7 @@ export default function OverviewTab({ state, period, onOpenStudent, onAddExpense
       <p className="home__quiet" style={{ fontSize: 12.5 }}>
         ค้างเก็บอยู่ {baht(outstanding)} บาท · ยังไม่นับรวมในเงินเหลือจริง
       </p>
+      </div>
     </div>
   )
 }

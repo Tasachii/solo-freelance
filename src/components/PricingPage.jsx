@@ -27,7 +27,7 @@ export default function PricingPage({ onPick }) {
       </header>
 
       <div className="page__body">
-        <div className="promo">ทดลองฟรี 2 เดือน — รับ 10 ที่แรก</div>
+        <div className="promo">ทดลองฟรี 2 เดือน — รับ 100 ที่แรก</div>
 
         <h1 className="page__h1">ราคา</h1>
         <p className="page__sub">เลือกได้ว่าจะทำเองหรือให้เราทำให้</p>

@@ -57,7 +57,7 @@ export default function LeadSheet({ plan, onClose }) {
   return (
     <Sheet
       title="อยากลองใช้กับนักเรียนจริงไหม"
-      sub="ทีมนิสิต ม.เกษตรศาสตร์ กำลังหาติวเตอร์ 10 คนแรกมาลองใช้ฟรี 2 เดือน"
+      sub="ทีมนิสิต ม.เกษตรศาสตร์ กำลังหาติวเตอร์ 100 คนแรกมาลองใช้ฟรี 2 เดือน"
       onClose={onClose}
       footer={
         <>

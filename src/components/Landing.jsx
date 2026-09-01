@@ -72,7 +72,7 @@ export default function Landing({ isDark, onToggleTheme, onLead }) {
 
       <footer className="land__foot rise d5">
         <p className="land__foot-t">
-          ทีมนิสิต ม.เกษตรศาสตร์ กำลังหาติวเตอร์ <b>10&nbsp;คนแรก</b> มาลองใช้ฟรี 2 เดือน
+          ทีมนิสิต ม.เกษตรศาสตร์ กำลังหาติวเตอร์ <b>100&nbsp;คนแรก</b> มาลองใช้ฟรี 2 เดือน
         </p>
         <button className="land__foot-btn" onClick={onLead}>สนใจร่วมทดลองใช้ →</button>
       </footer>

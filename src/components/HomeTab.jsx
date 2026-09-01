@@ -1,10 +1,12 @@
 import { TODAY } from '../data.js'
-import { baht, sessionsOn, minutesSaved, humanMinutes, openTasks, totals } from '../state.js'
+import { useState } from 'react'
+import { baht, sessionsOn, minutesSaved, humanMinutes, openTasks, totals, weekSchedule } from '../state.js'
 import { TH_DAY, weekday, parse } from '../dates.js'
 
 const TH_MONTH = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม']
 
-export default function HomeTab({ state, period, onCheckIn, onLeave, onEditSession, onAddSession, onTask, onSeeAll }) {
+export default function HomeTab({ state, period, onCheckIn, onLeave, onEditSession, onAddSession, onTask, onSeeAll, onOpenStudent }) {
+  const [view, setView] = useState('day')
   const sessions = sessionsOn(state, TODAY)
   const tasks = openTasks(state, period)
   const { outstanding } = totals(state, period)
@@ -13,6 +15,7 @@ export default function HomeTab({ state, period, onCheckIn, onLeave, onEditSessi
   const { d, m } = parse(TODAY)
   const find = (id) => state.students.find((s) => s.id === id)
   const otherTasks = tasks.filter((t) => t.kind !== 'checkin')
+  const todayIdx = weekday(TODAY)
 
   return (
     <div className="home">
@@ -27,10 +30,37 @@ export default function HomeTab({ state, period, onCheckIn, onLeave, onEditSessi
       </section>
 
       <section className="home__sec">
-        <h2 className="home__lbl">
-          {sessions.length ? `วันนี้มี ${sessions.length} คาบ` : 'วันนี้ไม่มีคาบ'}
-        </h2>
-        {sessions.length === 0 ? (
+        <div className="home__row">
+          <h2 className="home__lbl" style={{ margin: 0 }}>
+            {view === 'day'
+              ? (sessions.length ? `วันนี้มี ${sessions.length} คาบ` : 'วันนี้ไม่มีคาบ')
+              : 'ตารางประจำสัปดาห์'}
+          </h2>
+          <div className="viewtog" role="group" aria-label="มุมมอง">
+            <button className={view === 'day' ? 'is-on' : ''} onClick={() => setView('day')}>วันนี้</button>
+            <button className={view === 'week' ? 'is-on' : ''} onClick={() => setView('week')}>สัปดาห์</button>
+          </div>
+        </div>
+        {view === 'week' ? (
+          <ul className="week">
+            {weekSchedule(state).map((list, day) => (
+              <li className={`week__d${day === todayIdx ? ' week__d--now' : ''}`} key={day}>
+                <span className="week__day">{TH_DAY[day]}</span>
+                {list.length === 0 ? (
+                  <span className="week__free">ว่าง</span>
+                ) : (
+                  <span className="week__list">
+                    {list.map((x, i) => (
+                      <button className="week__item" key={i} onClick={() => onOpenStudent(x.student)}>
+                        <b>{x.time}</b> {x.student.nick}
+                      </button>
+                    ))}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : sessions.length === 0 ? (
           <p className="home__quiet">พักได้เลยครับ</p>
         ) : (
           <ul className="rows2">
@@ -57,7 +87,7 @@ export default function HomeTab({ state, period, onCheckIn, onLeave, onEditSessi
             })}
           </ul>
         )}
-        <button className="home__more" onClick={onAddSession}>+ เพิ่มคาบ</button>
+        {view === 'day' && <button className="home__more" onClick={onAddSession}>+ เพิ่มคาบ</button>}
       </section>
 
       {otherTasks.length > 0 && (

@@ -197,6 +197,18 @@ export function sessionsOn(state, date) {
   return [...fromSchedule, ...extra].sort((a, b) => a.time.localeCompare(b.time))
 }
 
+/** ตารางทั้งสัปดาห์ — ระบบจำแทนว่าวันไหนสอนใคร ไม่ต้องจำเอง */
+export function weekSchedule(state) {
+  const days = Array.from({ length: 7 }, () => [])
+  for (const st of state.students) {
+    if (st.life !== 'active') continue
+    for (const sl of st.schedule || []) {
+      if (days[sl.day]) days[sl.day].push({ time: sl.time, student: st })
+    }
+  }
+  return days.map((list) => list.sort((a, b) => a.time.localeCompare(b.time)))
+}
+
 /** นักเรียนที่ควรดูเป็นพิเศษ — ไม่นับคนที่เพิ่งเพิ่มเข้ามาและยังไม่เริ่มเรียน */
 export function needsAttention(state, period) {
   const out = []

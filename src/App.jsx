@@ -11,6 +11,7 @@ import { longMonth, shiftPeriod, shortDate } from './dates.js'
 import Landing from './components/Landing.jsx'
 import HomeTab from './components/HomeTab.jsx'
 import MoneyTab from './components/MoneyTab.jsx'
+import OverviewTab from './components/OverviewTab.jsx'
 import StudentsTab from './components/StudentsTab.jsx'
 import SettingsTab from './components/SettingsTab.jsx'
 import Sheet from './components/Sheet.jsx'
@@ -33,8 +34,9 @@ import {
 
 const TABS = [
   { id: 'home', label: 'วันนี้', title: 'วันนี้', Icon: IconToday, periodic: false },
-  { id: 'students', label: 'นักเรียน', title: 'นักเรียน', Icon: IconStudents, periodic: true },
+  { id: 'students', label: 'นักเรียน', title: 'นักเรียน', Icon: IconStudents, periodic: false },
   { id: 'money', label: 'เงิน', title: 'เงิน', Icon: IconBilling, periodic: true },
+  { id: 'overview', label: 'ภาพรวม', title: 'ภาพรวม', Icon: IconOverview, periodic: true },
 ]
 const TAB_IDS = TABS.map((t) => t.id)
 
@@ -342,7 +344,8 @@ function AppShell({ theme, isDesk, urlTab }) {
           onCheckIn={checkIn} onLeave={markLeave}
           onEditSession={(c) => open('attendance', { session: c })}
           onAddSession={() => open('addSession')}
-          onTask={openTask} onSeeAll={() => open('activity')} />
+          onTask={openTask} onSeeAll={() => open('activity')}
+          onOpenStudent={(st) => open('student', { student: st })} />
       )}
       {tab === 'students' && (
         <StudentsTab state={state} period={period} desk={isDesk}
@@ -353,7 +356,11 @@ function AppShell({ theme, isDesk, urlTab }) {
         <MoneyTab state={state} period={period}
           onSlip={(s) => open('slip', { student: s })}
           onRemind={(s) => open('remind', { student: s })}
-          onUndoPaid={undoPaid} onSendAll={() => open('line')}
+          onUndoPaid={undoPaid} onSendAll={() => open('line')} />
+      )}
+      {tab === 'overview' && (
+        <OverviewTab state={state} period={period}
+          onOpenStudent={(st) => open('student', { student: st })}
           onAddExpense={() => open('expense', { expense: null })}
           onEditExpense={(e) => open('expense', { expense: e })} />
       )}

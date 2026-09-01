@@ -9,10 +9,9 @@ import { TODAY, TODAY_PERIOD, FIRST_PERIOD, SEND_DELAY_MS } from './data.js'
 import { longMonth, shiftPeriod, shortDate } from './dates.js'
 
 import Landing from './components/Landing.jsx'
-import OverviewTab from './components/OverviewTab.jsx'
-import TodayTab from './components/TodayTab.jsx'
+import HomeTab from './components/HomeTab.jsx'
+import MoneyTab from './components/MoneyTab.jsx'
 import StudentsTab from './components/StudentsTab.jsx'
-import BillingTab from './components/BillingTab.jsx'
 import SettingsTab from './components/SettingsTab.jsx'
 import Sheet from './components/Sheet.jsx'
 import StudentSheet from './components/StudentSheet.jsx'
@@ -33,11 +32,9 @@ import {
 } from './components/Icons.jsx'
 
 const TABS = [
-  { id: 'overview', label: 'ภาพรวม', title: 'ภาพรวม', Icon: IconOverview, periodic: true },
-  { id: 'today', label: 'วันนี้', title: 'คาบสอนวันนี้', Icon: IconToday, periodic: false },
+  { id: 'home', label: 'วันนี้', title: 'วันนี้', Icon: IconToday, periodic: false },
   { id: 'students', label: 'นักเรียน', title: 'นักเรียน', Icon: IconStudents, periodic: true },
-  { id: 'billing', label: 'บิล', title: 'บิลสิ้นเดือน', Icon: IconBilling, periodic: true },
-  { id: 'settings', label: 'ตั้งค่า', title: 'ตั้งค่า', Icon: IconSettings, periodic: false },
+  { id: 'money', label: 'เงิน', title: 'เงิน', Icon: IconBilling, periodic: true },
 ]
 const TAB_IDS = TABS.map((t) => t.id)
 
@@ -73,9 +70,9 @@ function AppShell({ theme, isDesk, urlTab }) {
   const seq = useRef(0)
   const fileRef = useRef(null)
 
-  const tab = TAB_IDS.includes(urlTab) ? urlTab : 'today'
+  const tab = TAB_IDS.includes(urlTab) ? urlTab : 'home'
   const setTab = useCallback((id) => navigate(`/app/${id}`), [])
-  useEffect(() => { if (!TAB_IDS.includes(urlTab)) navigate('/app/today') }, [urlTab])
+  useEffect(() => { if (!TAB_IDS.includes(urlTab)) navigate('/app/home') }, [urlTab])
 
   const close = useCallback(() => setSheet(null), [])
   const say = useCallback((text, extra = {}) => {
@@ -333,39 +330,32 @@ function AppShell({ theme, isDesk, urlTab }) {
     </div>
   ) : null
 
+  const openTask = (t) => {
+    if (t.kind === 'slip') return open('slip', { student: t.student })
+    if (t.kind === 'stuck') return open('student', { student: t.student })
+  }
+
   const pane = (
     <>
-      {tab === 'overview' && (
-        <OverviewTab state={state} period={period} desk={isDesk}
-          onAddExpense={() => open('expense', { expense: null })}
-          onEditExpense={(e) => open('expense', { expense: e })}
-          onOpenStudent={(s) => open('student', { student: s })} />
-      )}
-      {tab === 'today' && (
-        <TodayTab state={state} desk={isDesk} onCheckIn={checkIn} onLeave={markLeave}
+      {tab === 'home' && (
+        <HomeTab state={state} period={period}
+          onCheckIn={checkIn} onLeave={markLeave}
           onEditSession={(c) => open('attendance', { session: c })}
-          onAddSession={() => open('addSession')} />
+          onAddSession={() => open('addSession')}
+          onTask={openTask} onSeeAll={() => open('activity')} />
       )}
       {tab === 'students' && (
         <StudentsTab state={state} period={period} desk={isDesk}
           onOpen={(s) => open('student', { student: s })}
           onAdd={() => open('studentEdit', { student: null })} />
       )}
-      {tab === 'billing' && (
-        <BillingTab state={state} period={period} desk={isDesk}
+      {tab === 'money' && (
+        <MoneyTab state={state} period={period}
           onSlip={(s) => open('slip', { student: s })}
           onRemind={(s) => open('remind', { student: s })}
-          onUndoPaid={undoPaid}
-          onSendAll={() => open('line')} />
-      )}
-      {tab === 'settings' && (
-        <SettingsTab state={state} onChange={setSettings}
-          theme={theme.choice} onTheme={theme.setChoice}
-          onExport={exportCsv} onBackup={exportBackup}
-          onImport={() => fileRef.current?.click()}
-          onClearData={() => open('confirmClear')} onReset={() => open('confirmReset')}
-          onHelp={() => open('help')} onActivity={() => open('activity')}
-          onHistory={() => open('history')} onInbox={() => open('inbox')} unread={unread} />
+          onUndoPaid={undoPaid} onSendAll={() => open('line')}
+          onAddExpense={() => open('expense', { expense: null })}
+          onEditExpense={(e) => open('expense', { expense: e })} />
       )}
     </>
   )
@@ -397,6 +387,16 @@ function AppShell({ theme, isDesk, urlTab }) {
         <RemindSheet student={sheet.student} state={state} period={period} onClose={close} onSend={sendRemind} />
       )}
       {sheet?.kind === 'line' && <LineBillSheet state={state} period={period} onClose={close} onConfirm={sendAllBills} />}
+      {sheet?.kind === 'settings' && (
+        <Sheet title="ตั้งค่า" onClose={close}>
+          <SettingsTab state={state} onChange={setSettings}
+            theme={theme.choice} onTheme={theme.setChoice}
+            onExport={exportCsv} onBackup={exportBackup} onImport={() => fileRef.current?.click()}
+            onClearData={() => open('confirmClear')} onReset={() => open('confirmReset')}
+            onHelp={() => open('help')} onActivity={() => open('activity')}
+            onHistory={() => open('history')} onInbox={() => open('inbox')} unread={unread} />
+        </Sheet>
+      )}
       {sheet?.kind === 'help' && <HelpSheet onClose={close} />}
       {sheet?.kind === 'activity' && <ActivitySheet state={state} onClose={close} />}
       {sheet?.kind === 'inbox' && (
@@ -470,6 +470,7 @@ function AppShell({ theme, isDesk, urlTab }) {
             <button className="themebtn" onClick={theme.toggle}>
               {theme.isDark ? <IconSun /> : <IconMoon />}{theme.isDark ? 'โหมดสว่าง' : 'โหมดมืด'}
             </button>
+            <button className="themebtn" onClick={() => open('settings')}><IconSettings />ตั้งค่า</button>
             <button className="themebtn" onClick={() => navigate('/')}><IconClose />ออกจากเดโม</button>
             <p className="disclaimer" style={{ marginTop: 8 }}>เดโม · ข้อมูลสมมติทั้งหมด</p>
           </div>
@@ -484,21 +485,6 @@ function AppShell({ theme, isDesk, urlTab }) {
             {monthNav}
           </div>
 
-          <div className="stats">
-            <div className="card stat rise">
-              <div className="stat__k">ค่าเรียนเดือนนี้</div>
-              <div className="stat__v">{baht(total)}<small>บาท</small></div>
-            </div>
-            <div className="card stat stat--in rise d1">
-              <div className="stat__k">เข้าแล้ว</div>
-              <div className="stat__v">{baht(paid)}<small>บาท</small></div>
-            </div>
-            <div className="card stat stat--out rise d2">
-              <div className="stat__k">ยังไม่เข้าบัญชี · {unpaidCount} คน</div>
-              <div className="stat__v">{baht(outstanding)}<small>บาท</small></div>
-            </div>
-          </div>
-
           {pane}
         </main>
         {overlays}
@@ -510,10 +496,7 @@ function AppShell({ theme, isDesk, urlTab }) {
     <div className="app">
       <header className="hd">
         <div className="hd__top">
-          <div>
-            <div className="hd__hi">สวัสดี {state.settings.profile.name}</div>
-            <div className="hd__month">วันนี้ {shortDate(TODAY)}</div>
-          </div>
+          <div className="hd__brand">ติวได้<em>ตังค์</em></div>
           <div className="hd__acts">
             <button className="hd__btn" onClick={() => open('inbox')} aria-label={`การแจ้งเตือน ${unread} รายการใหม่`}>
               <IconBell />
@@ -522,15 +505,9 @@ function AppShell({ theme, isDesk, urlTab }) {
             <button className="hd__btn" onClick={theme.toggle} aria-label={theme.isDark ? 'ใช้โหมดสว่าง' : 'ใช้โหมดมืด'}>
               {theme.isDark ? <IconSun /> : <IconMoon />}
             </button>
+            <button className="hd__btn" onClick={() => open('settings')} aria-label="ตั้งค่า"><IconSettings /></button>
             <button className="hd__btn" onClick={() => navigate('/')} aria-label="ออกจากเดโม"><IconClose /></button>
           </div>
-        </div>
-        <div className="hd__money">
-          <div>
-            <div className="hd__label">ยังไม่เข้าบัญชี</div>
-            <div className="hd__amt">{baht(outstanding)}<small>บาท</small></div>
-          </div>
-          <div className="hd__side">ค่าเรียนเดือนนี้<b>{baht(total)}</b></div>
         </div>
       </header>
 

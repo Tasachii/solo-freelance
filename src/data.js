@@ -36,7 +36,7 @@ export const SEED_STUDENTS = [
   { id: 's1', nick: 'น้องภูมิ', grade: 'ม.5', subject: 'ฟิสิกส์', type: 'single', parent: 'คุณแม่ภูมิ', plan: 8, life: 'active', rate: null,
     schedule: [{ day: 3, time: '19:45' }, { day: 0, time: '14:00' }], status: 'paid' },
   { id: 's2', nick: 'น้องแพรว', grade: 'ม.6', subject: 'คณิต', type: 'single', parent: 'คุณพ่อแพรว', plan: 8, life: 'active', rate: null,
-    schedule: [{ day: 3, time: '16:30' }, { day: 6, time: '10:00' }], status: 'pending' },
+    schedule: [{ day: 3, time: '16:30' }, { day: 6, time: '10:00' }], status: 'paid' },
   { id: 's3', nick: 'น้องต้นน้ำ', grade: 'ม.4', subject: 'คณิต', type: 'group', parent: 'คุณแม่ต้นน้ำ', plan: 4, life: 'active', rate: null,
     schedule: [{ day: 3, time: '18:00' }], status: 'overdue' },
   { id: 's4', nick: 'น้องมีนา', grade: 'ม.6', subject: 'ฟิสิกส์', type: 'single', parent: 'คุณแม่มีนา', plan: 8, life: 'active', rate: null,
@@ -124,9 +124,26 @@ export const SEED_SLIPS = {
         reason: 'ยอดในสลิปน้อยกว่าที่ต้องเก็บ อาจโอนตามยอดเดือนก่อน' },
 }
 
+/** เวลาที่งานแต่ละอย่างกินถ้าทำมือ (นาที) — ใช้บอกว่าระบบประหยัดเวลาให้เท่าไหร่ */
+export const AUTO_MINUTES = { bill: 3, slip: 2, remind: 5, count: 1 }
+
+/** สิ่งที่ระบบทำไปแล้วโดยที่ติวเตอร์ไม่ต้องแตะ — หัวใจของหน้าแรก */
+export const SEED_AUTOLOG = [
+  { id: 'a1', at: '30 ก.ย. · 20:14', kind: 'slip', studentId: 's2', minutes: 2,
+    text: 'รับยอดของน้องแพรว 3,200 บาท · สลิปตรง' },
+  { id: 'a2', at: '30 ก.ย. · 09:00', kind: 'bill', minutes: 18,
+    text: 'ส่งบิลเข้า LINE ผู้ปกครอง 6 คน' },
+  { id: 'a3', at: '28 ก.ย. · 08:00', kind: 'remind', studentId: 's3', minutes: 5,
+    text: 'ทวงน้องต้นน้ำแทนคุณ (1/3)' },
+  { id: 'a4', at: '28 ก.ย. · 08:00', kind: 'remind', studentId: 's5', minutes: 5,
+    text: 'ทวงน้องเจไดแทนคุณ (1/3)' },
+  { id: 'a5', at: 'ตลอดเดือน', kind: 'count', minutes: 32,
+    text: 'นับครั้งเรียนให้ 32 ครั้ง' },
+]
+
 export const SEED_INBOX = [
-  { id: 'i1', at: '30 ก.ย. · 20:14', kind: 'slip', studentId: 's2', read: false,
-    text: 'คุณพ่อแพรวแนบสลิปมาใหม่ · ระบบตรวจแล้วยอดตรง' },
+  { id: 'i1', at: '30 ก.ย. · 20:14', kind: 'slip', studentId: 's2', read: true,
+    text: 'คุณพ่อแพรวแนบสลิปมา · ระบบตรวจแล้วยอดตรง รับยอดให้อัตโนมัติ' },
   { id: 'i2', at: '29 ก.ย. · 09:02', kind: 'slipBad', studentId: 's6', read: false,
     text: 'คุณแม่ปรางแนบสลิปมา · ยอดไม่ตรงกับบิล ต้องตรวจเอง' },
   { id: 'i3', at: '28 ก.ย. · 08:00', kind: 'reminded', studentId: 's3', read: true,

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { TextField, SelectField, Switch, Segmented, Group } from './Field.jsx'
 import { AVATAR_COLORS, DUNNING_TONES, APP_VERSION } from '../data.js'
 import { baht, initialOf } from '../state.js'
@@ -9,6 +10,7 @@ export default function SettingsTab({
   onClearData, onReset, onHelp, onActivity, onHistory, onInbox, unread,
 }) {
   const s = state.settings
+  const [advanced, setAdvanced] = useState(false)
   const put = (section, patch) => onChange({ ...s, [section]: { ...s[section], ...patch } })
 
   return (
@@ -76,7 +78,8 @@ export default function SettingsTab({
           hint="นักเรียนที่ตั้งเรทเฉพาะคนไว้จะไม่ถูกกระทบ" />
       </Group>
 
-      <Group title="การทวงอัตโนมัติ" desc="คนที่ทวงคือระบบ ไม่ใช่คุณ — แต่ต้องไม่ทวงจนผู้ปกครองรำคาญ">
+      {advanced && (<>
+      <Group title="การทวงอัตโนมัติ" desc="ระบบทวงแทน แต่ต้องไม่ทวงจนผู้ปกครองรำคาญ">
         <Switch label="ให้ระบบทวงแทน" hint="ปิดแล้วต้องกดทวงเองทุกครั้ง"
           checked={s.dunning.auto} onChange={(v) => put('dunning', { auto: v })} />
         {s.dunning.auto && (
@@ -119,6 +122,8 @@ export default function SettingsTab({
           เดโมนี้ยังไม่มีระบบส่งแจ้งเตือนจริง ตั้งค่าไว้เพื่อให้เห็นว่าระบบจริงจะทำงานยังไง
         </p>
       </Group>
+
+      </>)}
 
       <Group title="หน้าตา">
         <Segmented label="ธีม" value={theme} onChange={onTheme}
@@ -173,6 +178,12 @@ export default function SettingsTab({
           </button>
         </div>
       </Group>
+
+      {!advanced && (
+        <button className="advbtn" onClick={() => setAdvanced(true)}>
+          ตั้งค่าขั้นสูง · การทวงและการแจ้งเตือน
+        </button>
+      )}
 
       <Group title="ช่วยเหลือ">
         <div className="rows">

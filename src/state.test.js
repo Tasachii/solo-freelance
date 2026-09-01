@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   freshState, emptyState, billOf, totals, statusOf, sessionsOn, needsAttention,
   incomeSeries, expenseTotal, netMonth, buildBackup, parseBackup, initialOf, baht, recordsIn,
+  openTasks, minutesSaved, humanMinutes,
 } from './state.js'
 import { DEFAULT_SETTINGS, TODAY, TODAY_PERIOD } from './data.js'
 import { shiftPeriod, weekday, shortDate, longMonth, shiftPeriod as sp } from './dates.js'
@@ -10,8 +11,8 @@ const P = TODAY_PERIOD
 const byId = (s, id) => s.students.find((x) => x.id === id)
 
 describe('ยอดเงินตั้งต้นต้องตรงกับบรีฟ', () => {
-  it('รวม 11,750 / เข้าแล้ว 5,200 / ค้าง 6,550', () => {
-    expect(totals(freshState(), P)).toEqual({ total: 11750, paid: 5200, outstanding: 6550 })
+  it('รวม 11,750 / เข้าแล้ว 8,400 (ระบบรับสลิปที่ยอดตรงให้เอง) / ค้าง 3,350', () => {
+    expect(totals(freshState(), P)).toEqual({ total: 11750, paid: 8400, outstanding: 3350 })
   })
 
   it('จำนวนครั้งเดือนกันยายนตรงตามบรีฟ', () => {
@@ -40,7 +41,7 @@ describe('snapshot เรท — ขึ้นราคาแล้วบิล�
   it('เงินที่รับมาแล้วต้องไม่ถูกเขียนทับ', () => {
     const s = freshState()
     const raised = { ...s, settings: { ...s.settings, rates: { single: 900, group: 900 } } }
-    expect(totals(raised, P).paid).toBe(5200)
+    expect(totals(raised, P).paid).toBe(8400)
   })
 
   it('เดือนเก่าใช้เรทเก่า (380) ไม่ใช่เรทปัจจุบัน (400)', () => {
@@ -93,7 +94,7 @@ describe('รายจ่ายและเงินเหลือจริง'
 
   it('เหลือจริง = เงินที่เข้าแล้ว ลบรายจ่าย', () => {
     const s = freshState()
-    expect(netMonth(s, P)).toBe(5200 - 1940)
+    expect(netMonth(s, P)).toBe(8400 - 1940)
   })
 })
 
@@ -156,5 +157,31 @@ describe('ตัวช่วยแสดงผล', () => {
     expect(shortDate('2026-09-02')).toBe('2 ก.ย.')
     expect(longMonth('2026-09')).toBe('กันยายน 2569')
     expect(sp('2026-01', -1)).toBe('2025-12')
+  })
+})
+
+describe('automation — ระบบทำแทน แล้วถามเฉพาะตอนไม่แน่ใจ', () => {
+  it('สลิปที่ยอดตรงถูกรับให้อัตโนมัติ ไม่ต้องกดยืนยัน', () => {
+    const s = freshState()
+    expect(statusOf(s, P, s.students.find((x) => x.id === 's2'))).toBe('paid')
+  })
+
+  it('สลิปที่ยอดไม่ตรงยังค้างไว้ให้คนตัดสิน', () => {
+    const s = freshState()
+    const tasks = openTasks(s, P)
+    expect(tasks.some((t) => t.kind === 'slip' && t.student.id === 's6')).toBe(true)
+  })
+
+  it('งานที่เหลือให้คนทำต้องน้อย — เช็คชื่อ + สลิปที่ไม่แน่ใจเท่านั้น', () => {
+    const s = freshState()
+    const kinds = openTasks(s, P).map((t) => t.kind)
+    expect(kinds).toEqual(['checkin', 'slip'])
+  })
+
+  it('นับเวลาที่ระบบทำแทนได้', () => {
+    const s = freshState()
+    expect(minutesSaved(s)).toBeGreaterThan(0)
+    expect(humanMinutes(62)).toBe('1 ชั่วโมง 2 นาที')
+    expect(humanMinutes(45)).toBe('45 นาที')
   })
 })

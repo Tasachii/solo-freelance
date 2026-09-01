@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  DEFAULT_SETTINGS, SEED_STUDENTS, SEED_EXPENSES, SEED_SLIPS, SEED_INBOX,
+  DEFAULT_SETTINGS, SEED_STUDENTS, SEED_EXPENSES, SEED_SLIPS, SEED_INBOX, SEED_AUTOLOG,
   seedRecords, TODAY, TODAY_PERIOD, UNDO_LIMIT,
 } from './data.js'
 import { periodOf, shiftPeriod, weekday, shortDate, longMonth } from './dates.js'
@@ -33,6 +33,7 @@ export function freshState() {
     expenses: clone(SEED_EXPENSES),
     slips: clone(SEED_SLIPS),
     inbox: clone(SEED_INBOX),
+    autoLog: clone(SEED_AUTOLOG),
     outbox: [],
     activity: [],
     reminded: {},
@@ -45,7 +46,7 @@ export function emptyState(settings) {
     ...freshState(),
     settings: clone(settings || DEFAULT_SETTINGS),
     students: [], records: {}, status: {}, sessionState: {}, extraSessions: [],
-    expenses: [], slips: {}, inbox: [], outbox: [], activity: [], reminded: {}, history: [],
+    expenses: [], slips: {}, inbox: [], autoLog: [], outbox: [], activity: [], reminded: {}, history: [],
   }
 }
 
@@ -209,6 +210,46 @@ export function needsAttention(state, period) {
     }
   }
   return out
+}
+
+/** นาทีที่ระบบทำแทนไปแล้ว — ทำให้ automation จับต้องได้เป็นตัวเลข */
+export function minutesSaved(state) {
+  return (state.autoLog || []).reduce((n, a) => n + (a.minutes || 0), 0)
+}
+
+export function humanMinutes(mins) {
+  if (mins < 60) return `${mins} นาที`
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return m ? `${h} ชั่วโมง ${m} นาที` : `${h} ชั่วโมง`
+}
+
+/** สิ่งที่ยังต้องให้คนตัดสิน — ระบบจัดการเองไม่ได้จริงๆ เท่านั้น */
+export function openTasks(state, period) {
+  const tasks = []
+  const sessions = sessionsOn(state, TODAY)
+  const left = sessions.filter((c) => !state.sessionState[c.id] || state.sessionState[c.id] === 'todo')
+  if (left.length) {
+    tasks.push({ id: 'checkin', kind: 'checkin', count: left.length,
+      title: `เช็คชื่อ ${left.length} คาบวันนี้`, why: 'ระบบนับครั้งให้ แต่ต้องรู้ก่อนว่าใครมา' })
+  }
+  for (const s of state.students) {
+    const slip = state.slips?.[s.id]
+    if (slip && slip.match === false && statusOf(state, period, s) !== 'paid') {
+      const { amount } = billOf(s, state, period)
+      tasks.push({ id: `slip-${s.id}`, kind: 'slip', student: s,
+        title: `${s.nick}: สลิปยอดไม่ตรง`, why: `โอนมา ${baht(slip.paid)} จาก ${baht(amount)} บาท` })
+    }
+  }
+  const stuck = state.students.filter(
+    (s) => statusOf(state, period, s) === 'overdue' &&
+      (state.reminded[s.id] || 0) >= state.settings.dunning.maxTimes,
+  )
+  for (const s of stuck) {
+    tasks.push({ id: `stuck-${s.id}`, kind: 'stuck', student: s,
+      title: `${s.nick}: ทวงครบแล้วยังเงียบ`, why: 'ถึงจุดที่ควรคุยกับผู้ปกครองเอง' })
+  }
+  return tasks
 }
 
 const nf = new Intl.NumberFormat('en-US')

@@ -24,7 +24,7 @@ function MessageCard({ m, onSend, onSkip, onEdit }: {
       <div className="msg__hd">
         <span className={`tagk tagk--${m.kind}`}>{copy.admin.kinds[m.kind]}</span>
         <span className="dim">{client?.name}</span>
-        {m.edited && <span className="badge">{copy.admin.editedTag}</span>}
+        {m.edited && <span className="tag-neutral">{copy.admin.editedTag}</span>}
       </div>
       {editing ? (
         <textarea className="inp inp--area" value={text} rows={5} onChange={(e) => setText(e.target.value)} />
@@ -97,7 +97,7 @@ export default function Admin() {
         <>
           <div className="stats">
             <StatCard label={copy.admin.draftedStat} value={`${monthCount}`} />
-            <StatCard label="เวลาที่ใช้" value={`~${minutes} นาที`} tone="ok" />
+            <StatCard label={copy.admin.timeSaved} value={`~${minutes} ${copy.admin.minutes}`} tone="ok" />
             <StatCard label={copy.admin.tabDrafts} value={`${drafts.length}`} tone={drafts.length ? 'warn' : undefined} />
           </div>
 
@@ -174,9 +174,9 @@ export default function Admin() {
           <div className="simbar">
             <span className="dim">{copy.admin.simTitle}{client?.name}</span>
             <div className="chips">
-              <button className="chip" onClick={() => simulate('เดือนนี้ค่าเรียนเท่าไหร่คะ')}>ค่าเรียนเท่าไหร่</button>
-              <button className="chip" onClick={() => simulate('พรุ่งนี้มีเรียนไหมคะ')}>มีเรียนไหม</button>
-              <button className="chip" onClick={() => simulate('เหลือกี่ครั้งแล้วคะ')}>เหลือกี่ครั้ง</button>
+              {copy.admin.sims.map((sm) => (
+                <button key={sm.chip} className="chip" onClick={() => simulate(sm.text)}>{sm.chip}</button>
+              ))}
             </div>
             <div className="btnrow">
               <input className="inp" value={input} onChange={(e) => setInput(e.target.value)}

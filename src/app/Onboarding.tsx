@@ -12,8 +12,8 @@ export function parseRoster(text: string): Row[] {
   return text.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
     const parts = line.split(/[,\t]/).map((p) => p.trim())
     const [name, clientName, lineId] = parts
-    if (!name) return { name: line, clientName: '', error: 'ไม่มีชื่อ' }
-    if (!clientName) return { name, clientName: '', error: 'ไม่มีชื่อผู้จ่าย' }
+    if (!name) return { name: line, clientName: '', error: copy.onboarding.noName }
+    if (!clientName) return { name, clientName: '', error: copy.onboarding.noPayerName }
     return { name, clientName, lineId: lineId || undefined }
   })
 }

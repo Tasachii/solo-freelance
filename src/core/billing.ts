@@ -1,5 +1,5 @@
 import type { AppState, Invoice, InvoiceLine, Subject } from './types'
-import { completionsIn, subjectById } from './ledger'
+import { completionsIn, packageUnitPrice, subjectById } from './ledger'
 import { addDays, diffDays, periodThai } from './format'
 import { professionById } from '../professions'
 
@@ -22,7 +22,11 @@ export function buildInvoice(subject: Subject, period: string, state: AppState):
       qty, unitPrice: b.rate, amount: qty * b.rate,
     }]
   } else if (b.mode === 'flat_monthly') {
-    lines = [{ description: `${label} ${periodThai(period)} (เหมา)`, qty, unitPrice: b.amount, amount: b.amount }]
+    // เหมาเดือน = 1 รายการ ไม่ใช่ qty × ยอดเหมา (ไม่งั้น qty × unitPrice ไม่เท่ากับ amount)
+    lines = [{
+      description: `${label} ${periodThai(period)} (เหมา · ${qty} ครั้ง)`,
+      qty: 1, unitPrice: b.amount, amount: b.amount,
+    }]
   } else {
     return null
   }
@@ -41,7 +45,7 @@ export function buildPackageInvoice(subject: Subject, state: AppState, id: strin
   if (b.mode !== 'package') return null
   const label = subject.label ?? subject.name
   const lines: InvoiceLine[] = [{
-    description: `${label} — แพ็ก ${b.total} ครั้ง`, qty: b.total, unitPrice: Math.round(b.price / b.total), amount: b.price,
+    description: `${label} — แพ็ก ${b.total} ครั้ง`, qty: b.total, unitPrice: packageUnitPrice(b), amount: b.price,
   }]
   return {
     id, clientId: subject.clientId, subjectId: subject.id, period: state.today.slice(0, 7),

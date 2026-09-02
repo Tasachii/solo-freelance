@@ -1,6 +1,6 @@
 import type { AppState } from './types'
-import { completionsIn, packageStatus } from './ledger'
-import { invoiceFor } from './billing'
+import { completionsIn, packageStatus, packageUnitPrice } from './ledger'
+import { daysOverdue, invoiceFor } from './billing'
 import { periodOf } from './format'
 
 export interface Dashboard {
@@ -48,7 +48,7 @@ export function dashboard(state: AppState, period: string): Dashboard {
   for (const s of state.subjects) {
     const pk = packageStatus(state, s)
     if (!pk || pk.overBy === 0) continue
-    overflow += pk.overBy * Math.round(pk.price / pk.total)
+    overflow += pk.overBy * packageUnitPrice(pk)
   }
 
   return { expected, received, outstanding, recovered: dunned + counted + overflow, breakdown: { dunned, counted, overflow } }
@@ -56,13 +56,12 @@ export function dashboard(state: AppState, period: string): Dashboard {
 
 export const draftCount = (state: AppState): number => state.messages.filter((m) => m.status === 'draft').length
 
+/** ค้างนานสุดของวิชานี้ — ใบแรกในอาร์เรย์ไม่ใช่ใบที่ค้างนานสุดเสมอไป */
 export function overdueDaysBySubject(state: AppState, subjectId: string): number {
-  const inv = state.invoices.find(
-    (i) => i.subjectId === subjectId && (i.status === 'overdue' || i.status === 'sent') && i.dueAt)
-  if (!inv?.dueAt || state.today <= inv.dueAt) return 0
-  const [ay, am, ad] = state.today.split('-').map(Number)
-  const [by, bm, bd] = inv.dueAt.split('-').map(Number)
-  return Math.round((Date.UTC(ay, am - 1, ad) - Date.UTC(by, bm - 1, bd)) / 86400000)
+  const days = state.invoices
+    .filter((i) => i.subjectId === subjectId && (i.status === 'overdue' || i.status === 'sent') && i.dueAt)
+    .map((i) => daysOverdue(state, i))
+  return days.length ? Math.max(...days) : 0
 }
 
 export const clientsWithChats = (state: AppState): string[] => {

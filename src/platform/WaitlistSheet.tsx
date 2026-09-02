@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../core/store'
-import { professions } from '../professions'
+import { professionById, professions } from '../professions'
 import { copy } from '../copy'
 import { BottomSheet } from '../app/components'
 import { WAITLIST_ENDPOINT, WAITLIST_FIELDS } from './config'
@@ -10,7 +10,7 @@ const MODES = ['per_unit', 'flat_monthly', 'package'] as const
 
 export default function WaitlistSheet({ preselect, onClose }: { preselect?: string; onClose: () => void }) {
   const { dispatch, track } = useStore()
-  const [professionId, setProfessionId] = useState(preselect ?? 'tutor')
+  const [professionId, setProfessionId] = useState(preselect ?? professions.find((p) => p.status === 'live')?.id ?? professions[0].id)
   const [name, setName] = useState('')
   const [contact, setContact] = useState('')
   const [size, setSize] = useState('')
@@ -34,7 +34,7 @@ export default function WaitlistSheet({ preselect, onClose }: { preselect?: stri
     const entry: WaitlistEntry = {
       professionId, name: name.trim(), contact: contact.trim(),
       size: size || undefined, modes: modes.length ? modes : undefined,
-      concierge: professionId === 'tutor' ? concierge : undefined,
+      concierge: professionById(professionId).conciergeAvailable ? concierge : undefined,
       at: new Date().toISOString(),
     }
     dispatch({ type: 'waitlist', entry })
@@ -115,7 +115,7 @@ export default function WaitlistSheet({ preselect, onClose }: { preselect?: stri
         </div>
       </div>
 
-      {professionId === 'tutor' && (
+      {professionById(professionId).conciergeAvailable && (
         <label className="check">
           <input type="checkbox" checked={concierge} onChange={(e) => setConcierge(e.target.checked)} />
           <span>{copy.waitlist.concierge}</span>

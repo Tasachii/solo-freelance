@@ -20,15 +20,32 @@ export function render(template: string, vars: Vars): string {
   })
 }
 
-export const invoiceUrlOf = (clientId: string): string => `#/client/${clientId}`
-export const receiptUrlOf = (receiptId: string): string => `#/receipt/${receiptId}`
+/**
+ * ลิงก์ในข้อความต้องเป็น URL เต็ม — ผู้ปกครองกดจากแชท ไม่มี origin ให้อ้างอิง
+ * BASE_URL ทำให้ path ของ GitHub Pages (/solo-tutor/) ติดไปด้วย
+ */
+const appUrl = (hashPath: string): string => {
+  const base = import.meta.env?.BASE_URL ?? '/'
+  const origin = typeof location !== 'undefined' ? location.origin : ''
+  return `${origin}${base}#${hashPath}`
+}
+export const invoiceUrlOf = (clientId: string): string => appUrl(`/client/${clientId}`)
+export const receiptUrlOf = (receiptId: string): string => appUrl(`/receipt/${receiptId}`)
+
+const stripHonorific = (name: string | undefined, honorific: string): string => {
+  if (!name) return '—'
+  const rest = name.startsWith(honorific) ? name.slice(honorific.length) : name
+  return rest.trim() || name
+}
 
 function baseVars(state: AppState, subject: Subject): Vars {
   const prof = professionById(state.professionId)
   const client = clientById(state, subject.clientId)
   return {
+    // ชื่อที่บันทึกไว้มักมีคำนำหน้าติดมาแล้ว ("คุณแม่แพรว") — ตัดออกก่อน
+    // ไม่งั้น {clientHonorific}{clientName} จะกลายเป็น "คุณคุณแม่แพรว"
     clientHonorific: prof.vocab.clientHonorific,
-    clientName: client?.name ?? '—',
+    clientName: stripHonorific(client?.name, prof.vocab.clientHonorific),
     subjectName: subject.name,
     invoiceUrl: invoiceUrlOf(subject.clientId),
   }
@@ -61,7 +78,7 @@ export function renewalText(state: AppState, subject: Subject, exhausted: boolea
   const vars: Vars = {
     ...baseVars(state, subject),
     packageTotal: pk.total, packagePrice: money(pk.price),
-    remaining: exhausted ? pk.remaining : Math.max(pk.remaining, 1),
+    remaining: pk.remaining,
     overBy: pk.overBy,
   }
   if (exhausted) return render(tutorTemplates.renewalExhausted, vars)
@@ -100,6 +117,46 @@ export function mkMessage(
     id: `m-${dedupeKey}-${seq}`, clientId, subjectId, kind, draft,
     status: 'draft', createdAt: state.today, dedupeKey, ...(meta ? { meta } : {}),
   }
+}
+
+function rerender(state: AppState, m: Message): string | null {
+  const invOf = (id: unknown) => state.invoices.find((i) => i.id === id)
+  const subjOf = () => (m.subjectId ? subjectById(state, m.subjectId) : undefined)
+
+  if (m.kind === 'reminder') {
+    const inv = invOf(m.meta?.invoiceId)
+    const ladder = m.meta?.ladder as 'soft' | 'clear' | 'final' | undefined
+    return inv && ladder ? reminderText(state, inv, ladder) : null
+  }
+  if (m.kind === 'invoice') {
+    const inv = invOf(m.meta?.invoiceId)
+    return inv ? invoiceText(state, inv) : null
+  }
+  if (m.kind === 'receipt') {
+    const r = state.receipts.find((x) => x.id === m.meta?.receiptId)
+    const pay = r ? state.payments.find((p) => p.id === r.paymentId) : undefined
+    const inv = pay ? invOf(pay.invoiceId) : undefined
+    return r && pay && inv ? receiptText(state, inv, r.id, pay.amount) : null
+  }
+  if (m.kind === 'renewal' || m.kind === 'renewal_exhausted') {
+    const subject = subjOf()
+    if (!subject || !packageStatus(state, subject)) return null
+    return renewalText(state, subject, m.kind === 'renewal_exhausted')
+  }
+  return null
+}
+
+/**
+ * ร่างที่ยังไม่ส่งต้องสะกิดตัวเลขให้ตรง ledger เสมอ
+ * ("ค้างมา 4 วัน" ที่ร่างไว้เมื่อวาน วันนี้ต้องเป็น 5) — ยกเว้นร่างที่ผู้ใช้แก้เอง
+ * ครอบทุกชนิด เพราะร่างเก่าที่ค้างใน localStorage ต้องได้ข้อความรุ่นใหม่ด้วย
+ */
+export function refreshDrafts(state: AppState): Message[] {
+  return state.messages.map((m) => {
+    if (m.status !== 'draft' || m.edited) return m
+    const fresh = rerender(state, m)
+    return !fresh || fresh === m.draft ? m : { ...m, draft: fresh }
+  })
 }
 
 /**

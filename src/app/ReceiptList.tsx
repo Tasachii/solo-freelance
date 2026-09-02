@@ -26,7 +26,7 @@ export default function ReceiptList() {
     <div className="pane">
       <h1 className="h1">{copy.billing.allReceipts}</h1>
       <label className="fld">
-        <span className="fld__l">เดือน</span>
+        <span className="fld__l">{copy.receipt.month}</span>
         <select className="inp" value={period} onChange={(e) => setPeriod(e.target.value)}>
           {periods.map((p) => <option key={p} value={p}>{periodThaiFull(p)}</option>)}
         </select>

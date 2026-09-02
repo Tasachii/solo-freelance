@@ -2,7 +2,7 @@ import type { AppState, Subject } from './types'
 import { modeThai, tutorTemplates } from '../copy/tutor'
 import { professionById } from '../professions'
 import type { FaqSource } from '../professions/types'
-import { completionsIn, packageStatus } from './ledger'
+import { completionsIn, isCompleted, packageStatus } from './ledger'
 import { invoiceFor } from './billing'
 import { render, invoiceUrlOf, receiptUrlOf, currentEstimate } from './messages'
 import { dateThai, dayThai, money, periodOf, periodThai } from './format'
@@ -42,7 +42,9 @@ function answerForSubject(state: AppState, subject: Subject, source: FaqSource):
   if (source === 'nextUnit') {
     const next = state.units
       .filter((u) => u.subjectId === subject.id)
-      .filter((u) => u.scheduledAt > state.today || (u.scheduledAt === state.today && u.time > '12:00'))
+      // คาบที่เช็คชื่อแล้วคือเรียนจบไปแล้ว ห้ามตอบว่าเป็นคาบถัดไป
+      .filter((u) => !isCompleted(state, u.id))
+      .filter((u) => u.scheduledAt >= state.today)
       .sort((a, b) => (a.scheduledAt + a.time).localeCompare(b.scheduledAt + b.time))[0]
     if (!next) return render(tutorTemplates.faq.nextUnitNone, {})
     return render(tutorTemplates.faq.nextUnit, {
@@ -74,8 +76,10 @@ export function answer(state: AppState, clientId: string, question: string): Faq
     const invs = state.invoices
       .filter((i) => i.clientId === clientId)
       .sort((a, b) => (b.sentAt ?? b.createdAt).localeCompare(a.sentAt ?? a.createdAt))
+    // ค้างใบไหนก็ยังถือว่าค้าง — ตอบจากใบล่าสุดใบเดียวจะขัดกับข้อความทวงที่เพิ่งส่งไป
+    const outstanding = invs.some((i) => i.status === 'sent' || i.status === 'overdue')
     const latest = invs[0]
-    if (latest && latest.status === 'paid') {
+    if (!outstanding && latest && latest.status === 'paid') {
       const pay = state.payments.find((p) => p.invoiceId === latest.id)
       const rc = pay ? state.receipts.find((r) => r.paymentId === pay.id) : undefined
       return {

@@ -119,7 +119,7 @@ export default function Subjects() {
         })}
       </ul>
 
-      {shown.length === 0 && <p className="dim center">ไม่พบรายชื่อในกลุ่มนี้</p>}
+      {shown.length === 0 && <p className="dim center">{copy.subjects.noneInFilter}</p>}
 
       {inactive.length > 0 && (
         <details className="fold">

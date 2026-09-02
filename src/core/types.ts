@@ -4,7 +4,9 @@ export type Money = number // บาท จำนวนเต็ม
 export type BillingMode =
   | { mode: 'per_unit'; rate: Money }
   | { mode: 'flat_monthly'; amount: Money }
-  | { mode: 'package'; total: number; price: Money; purchasedAt: ISODate } // used = derive จาก completions
+  | { mode: 'package'; total: number; price: Money; purchasedAt: ISODate // used = derive จาก completions
+      /** unitId ที่แพ็กก่อนหน้านับไปแล้ว — กันคาบวันต่อแพ็กถูกคิดเงินสองรอบ */
+      carriedUnitIds?: string[] }
 
 export interface Client { id: string; name: string; lineId?: string; phone?: string }
 export interface Subject {

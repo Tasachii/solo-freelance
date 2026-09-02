@@ -4,9 +4,10 @@ import {
 import type { AppState, Message, Subject } from './types'
 import { buildScenario, isScenario } from './scenarios'
 import { appendEvent } from './events'
+import { urlParam } from './urlParams'
 import { closableSubjects, markOverdue } from './billing'
-import { deriveDrafts, applySend } from './messages'
-import { complete as ledgerComplete, renewPackage, uncomplete } from './ledger'
+import { deriveDrafts, refreshDrafts, applySend } from './messages'
+import { complete as ledgerComplete, packageUnitPrice, renewPackage, uncomplete } from './ledger'
 import { issueReceipt } from './receipts'
 
 const KEY = 'solo-demo-v3'
@@ -71,13 +72,22 @@ function reducer(state: AppState, action: Action): AppState {
       break
     case 'recordPayment': {
       const inv = s.invoices.find((i) => i.id === action.invoiceId)
-      if (!inv) break
+      if (!inv || inv.status === 'paid') break // กดยืนยันซ้ำต้องไม่ออกใบเสร็จสองใบ
       const pay = {
         id: nid('pay'), invoiceId: inv.id, amount: action.amount, paidAt: s.today,
-        slipVerified: action.slipVerified, ...(action.slipAmount ? { slipAmount: action.slipAmount } : {}),
+        slipVerified: action.slipVerified,
+        ...(action.slipAmount !== undefined ? { slipAmount: action.slipAmount } : {}),
       }
-      s = { ...s, payments: [...s.payments, pay], invoices: s.invoices.map((i) => (i.id === inv.id ? { ...i, status: 'paid' } : i)) }
-      s = issueReceipt(s, pay).state
+      const paidSoFar = s.payments
+        .filter((x) => x.invoiceId === inv.id)
+        .reduce((n, x) => n + x.amount, 0) + pay.amount
+      const settled = paidSoFar >= inv.total // จ่ายไม่ครบ = ยังค้าง ยอด 'ค้าง' ต้องไม่หายไปทั้งก้อน
+      s = {
+        ...s,
+        payments: [...s.payments, pay],
+        invoices: s.invoices.map((i) => (i.id === inv.id && settled ? { ...i, status: 'paid' } : i)),
+      }
+      if (settled) s = issueReceipt(s, pay).state
       break
     }
     case 'renewPackage': {
@@ -87,7 +97,7 @@ function reducer(state: AppState, action: Action): AppState {
       const inv = {
         id: invId, clientId: subject.clientId, subjectId: subject.id, period: s.today.slice(0, 7),
         kind: 'package' as const,
-        lines: [{ description: `${subject.label ?? subject.name} — แพ็ก ${subject.billing.total} ครั้ง`, qty: subject.billing.total, unitPrice: Math.round(subject.billing.price / subject.billing.total), amount: subject.billing.price }],
+        lines: [{ description: `${subject.label ?? subject.name} — แพ็ก ${subject.billing.total} ครั้ง`, qty: subject.billing.total, unitPrice: packageUnitPrice(subject.billing), amount: subject.billing.price }],
         total: subject.billing.price, status: 'paid' as const, createdAt: s.today, sentAt: s.today,
       }
       const pay = { id: nid('pay'), invoiceId: invId, amount: subject.billing.price, paidAt: s.today, slipVerified: true }
@@ -147,16 +157,20 @@ function reducer(state: AppState, action: Action): AppState {
       s = { ...s, onboarded: true }
       break
     case 'clearMessages':
-      s = { ...s, messages: [] }
+      // เก็บ skipped/sent ไว้ ไม่งั้น dedupe หาย ร่างที่ผู้ใช้ข้ามจะกลับมา
+      // และ 'Solo ช่วยไว้' ที่นับจากข้อความทวงที่ส่งแล้วจะกลายเป็นศูนย์
+      s = { ...s, messages: s.messages.filter((m) => m.status !== 'draft') }
       break
     case 'replace':
       s = action.state
       break
     case 'track':
-      return { ...s, events: appendEvent(s.events, action.name, action.props) }
+      s = { ...s, events: appendEvent(s.events, action.name, action.props) }
+      break
   }
 
   s = markOverdue(s)
+  s = { ...s, messages: refreshDrafts(s) }
   const add = deriveDrafts(s)
   if (add.length) s = { ...s, messages: [...s.messages, ...add] }
   return s
@@ -173,14 +187,15 @@ function hydrate(scenarioFromUrl: string | null): { state: AppState; didReset: b
     if (saved?.schemaVersion !== SCHEMA || !Array.isArray(saved.subjects)) {
       return { state: normalize(buildScenario('default')), didReset: true }
     }
-    return { state: saved, didReset: false }
+    return { state: normalize(saved), didReset: false }
   } catch {
     return { state: normalize(buildScenario('default')), didReset: true }
   }
 }
 
 function normalize(s: AppState): AppState {
-  const withOverdue = markOverdue(s)
+  let withOverdue = markOverdue(s)
+  withOverdue = { ...withOverdue, messages: refreshDrafts(withOverdue) }
   const add = deriveDrafts(withOverdue)
   return add.length ? { ...withOverdue, messages: [...withOverdue.messages, ...add] } : withOverdue
 }
@@ -196,7 +211,7 @@ interface StoreValue {
 const Ctx = createContext<StoreValue | null>(null)
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const urlScenario = useMemo(() => new URLSearchParams(window.location.search).get('scenario'), [])
+  const urlScenario = useMemo(() => urlParam('scenario'), [])
   const initial = useMemo(() => hydrate(urlScenario), [urlScenario])
   const [state, dispatch] = useReducer(reducer, initial.state)
   const [hydrated, setHydrated] = useState(false)

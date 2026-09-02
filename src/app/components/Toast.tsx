@@ -12,18 +12,21 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([])
   const seq = useRef(0)
 
+  const timers = useRef<number[]>([])
+
   const push = useCallback((t: Omit<ToastItem, 'id'>) => {
     seq.current += 1
-    const item: ToastItem = { ...t, id: seq.current }
+    const id = seq.current
+    const item: ToastItem = { ...t, id }
     setItems((prev) => [...prev, item].slice(-2)) // ซ้อนได้ไม่เกิน 2
+    // ตั้งเวลาของตัวเองตอนเกิด — ถ้าไปตั้งใน effect ที่ผูกกับ items
+    // toast ใหม่จะรีเซ็ตเวลาของอันเก่า ทำให้ค้างทับแถบแท็บ
+    timers.current.push(window.setTimeout(
+      () => setItems((p) => p.filter((x) => x.id !== id)),
+      t.tone === 'danger' ? 6000 : 3000))
   }, [])
 
-  useEffect(() => {
-    if (!items.length) return
-    const timers = items.map((it) =>
-      window.setTimeout(() => setItems((p) => p.filter((x) => x.id !== it.id)), it.tone === 'danger' ? 6000 : 3000))
-    return () => timers.forEach((t) => window.clearTimeout(t))
-  }, [items])
+  useEffect(() => () => { timers.current.forEach(window.clearTimeout) }, [])
 
   const value = useMemo(() => ({ push }), [push])
   return (

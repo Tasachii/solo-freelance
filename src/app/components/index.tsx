@@ -62,12 +62,23 @@ export function BottomSheet(
   { title: string; sub?: string; onClose: () => void; footer?: ReactNode; children: ReactNode },
 ) {
   const ref = useRef<HTMLDivElement>(null)
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
+
+  // Escape ผูกครั้งเดียว อ่าน onClose ล่าสุดผ่าน ref
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeRef.current() }
     window.addEventListener('keydown', onKey)
-    ref.current?.querySelector<HTMLElement>('input,select,textarea,button')?.focus()
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [])
+
+  // โฟกัสตอนเปิดเท่านั้น — ถ้าผูกกับ onClose จะโฟกัสใหม่ทุกตัวอักษรที่พิมพ์
+  // และต้องหาในตัวเนื้อหา ไม่งั้นไปโดนปุ่ม ✕ ที่อยู่ก่อนหน้าใน DOM
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null
+    ref.current?.querySelector<HTMLElement>('.sheet__body input,.sheet__body select,.sheet__body textarea,.sheet__body button')?.focus()
+    return () => prev?.focus?.()
+  }, [])
 
   return (
     <>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useStore } from '../core/store'
+import { urlParam } from '../core/urlParams'
 import { professionById } from '../professions'
 import { copy } from '../copy'
 import { draftCount } from '../core/selectors'
@@ -8,6 +9,7 @@ import { BottomSheet, DemoBadge } from './components'
 import DevBar from './DevBar'
 import WaitlistSheet from '../platform/WaitlistSheet'
 import { SCENARIOS, SCENARIO_LABEL, type ScenarioId } from '../core/scenarios'
+import { applyTheme, readTheme, type Theme } from '../core/theme'
 
 export default function AppShell() {
   const { state, resetDemo, track } = useStore()
@@ -16,7 +18,8 @@ export default function AppShell() {
   const loc = useLocation()
   const [menu, setMenu] = useState(false)
   const [lead, setLead] = useState(false)
-  const [dev, setDev] = useState(() => new URLSearchParams(window.location.search).get('dev') === '1')
+  const [dev, setDev] = useState(() => urlParam('dev') === '1')
+  const [theme, setTheme] = useState<Theme>(readTheme)
   const drafts = draftCount(state)
 
   // ยังไม่มีข้อมูลเลย = พาไป onboarding ก่อน
@@ -45,7 +48,7 @@ export default function AppShell() {
 
       <main className="shell__main"><Outlet /></main>
 
-      <button className="fab" onClick={() => { setLead(true); track('contact_fab') }}>สนใจใช้จริง</button>
+      <button className="fab" onClick={() => { setLead(true); track('contact_fab') }}>{copy.waitlist.title}</button>
 
       <nav className="tabbar">
         {tabs.map((t) => (
@@ -70,10 +73,23 @@ export default function AppShell() {
             )}
           </div>
           <div className="fld">
+            <div className="fld__l">{copy.menu.theme}</div>
+            <div className="chips">
+              {(['system', 'light', 'dark'] as Theme[]).map((tm) => (
+                <button key={tm} className={`chip${theme === tm ? ' chip--on' : ''}`}
+                  aria-pressed={theme === tm}
+                  onClick={() => { setTheme(tm); applyTheme(tm); track('theme_switch', { theme: tm }) }}>
+                  {copy.menu.themes[tm]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="fld">
             <div className="fld__l">{copy.menu.scenario}</div>
             <div className="chips">
               {SCENARIOS.map((sc) => (
                 <button key={sc} className={`chip${state.scenarioId === sc ? ' chip--on' : ''}`}
+                  aria-pressed={state.scenarioId === sc}
                   onClick={() => { resetDemo(sc as ScenarioId); track('scenario_switch', { scenario: sc }); setMenu(false); nav('/app/today') }}>
                   {SCENARIO_LABEL[sc]}
                 </button>
@@ -83,7 +99,7 @@ export default function AppShell() {
         </BottomSheet>
       )}
 
-      {lead && <WaitlistSheet preselect="tutor" onClose={() => setLead(false)} />}
+      {lead && <WaitlistSheet preselect={state.professionId} onClose={() => setLead(false)} />}
     </div>
   )
 }

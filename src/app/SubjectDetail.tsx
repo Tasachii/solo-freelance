@@ -46,7 +46,7 @@ export default function SubjectDetail() {
     <div className="pane">
       <div className="rowhead">
         <h1 className="h1">{s.name}</h1>
-        <button className="btn btn--ghost btn--sm" onClick={() => setEditing(true)}>แก้ไข</button>
+        <button className="btn btn--ghost btn--sm" onClick={() => setEditing(true)}>{copy.detail.edit}</button>
       </div>
       <p className="dim">{client?.name} · {modeThai(s.billing.mode)}</p>
 
@@ -63,9 +63,9 @@ export default function SubjectDetail() {
         <section className="card">
           <h2 className="h2">{copy.subjects.filters.package}</h2>
           <ProgressBar value={pk.used} max={pk.total} tone={pk.state === 'ok' ? 'ok' : pk.state === 'low' ? 'warn' : 'danger'} />
-          <div className="kv"><span>ใช้ไป / ทั้งหมด</span><b className="num">{pk.used}/{pk.total}</b></div>
+          <div className="kv"><span>{copy.detail.usedOfTotal}</span><b className="num">{pk.used}/{pk.total}</b></div>
           <div className="kv"><span>{copy.clientView.packRemain}</span><b className="num">{pk.remaining}{pk.overBy ? ` (เกิน ${pk.overBy})` : ''}</b></div>
-          <div className="kv"><span>ซื้อเมื่อ</span><b>{dateThai(pk.purchasedAt)}</b></div>
+          <div className="kv"><span>{copy.detail.boughtAt}</span><b>{dateThai(pk.purchasedAt)}</b></div>
           <button className="btn btn--secondary btn--block" onClick={() => setBuying(true)}>{copy.detail.buyPackage}</button>
         </section>
       )}
@@ -84,7 +84,7 @@ export default function SubjectDetail() {
           ))}
         </ul>
         {timeline.length > limit && <button className="linkbtn" onClick={() => setLimit((l) => l + 20)}>{copy.common.more}</button>}
-        {timeline.length === 0 && <p className="dim">ยังไม่มีประวัติ</p>}
+        {timeline.length === 0 && <p className="dim">{copy.detail.noHistory}</p>}
       </section>
 
       {editing && <SubjectSheet subject={s} onClose={() => setEditing(false)} />}

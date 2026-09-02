@@ -16,17 +16,19 @@ export default function Receipt() {
 
   useEffect(() => { if (rc) track('receipt_view', { id }) }, [rc, id, track])
 
-  if (!rc) {
+  const pay = rc ? state.payments.find((p) => p.id === rc.paymentId) : undefined
+  const inv = pay ? state.invoices.find((i) => i.id === pay.invoiceId) : undefined
+
+  if (!rc || !pay || !inv) {
     return (
       <div className="page">
+        <DemoBadge />
         <EmptyState icon="🧾" title={copy.receipt.notFound}
           action={<button className="btn btn--primary" onClick={() => nav('/app/billing')}>{copy.common.back}</button>} />
       </div>
     )
   }
 
-  const pay = state.payments.find((p) => p.id === rc.paymentId)!
-  const inv = state.invoices.find((i) => i.id === pay.invoiceId)!
   const subject = subjectById(state, inv.subjectId)
   const client = clientById(state, inv.clientId)
 

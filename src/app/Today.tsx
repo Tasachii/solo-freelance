@@ -30,7 +30,8 @@ export default function Today() {
   const onComplete = (unitId: string, subjectId: string) => {
     dispatch({ type: 'complete', unitId })
     track('complete_unit', { subjectId })
-    const subject = subjectById(state, subjectId)!
+    const subject = subjectById(state, subjectId)
+    if (!subject) return
     // คำนวณสถานะแพ็กหลังบวกครั้งนี้แล้ว เพื่อบอกผลทันทีไม่ต้องรอสิ้นเดือน
     const pk = packageStatus({ ...state, completions: [...state.completions, { unitId, completedAt: state.today }] }, subject)
     const undo = { label: copy.common.undo, run: () => dispatch({ type: 'uncomplete', unitId }) }
@@ -67,7 +68,8 @@ export default function Today() {
       ) : (
         <ul className="rows">
           {units.map((u) => {
-            const s = subjectById(state, u.subjectId)!
+            const s = subjectById(state, u.subjectId)
+            if (!s) return null
             const pk = packageStatus(state, s)
             const isDone = isCompleted(state, u.id)
             return (
@@ -121,11 +123,11 @@ export default function Today() {
             </select>
           </label>
           <label className="fld">
-            <span className="fld__l">เวลา</span>
+            <span className="fld__l">{copy.today.fieldTime}</span>
             <input className="inp" type="time" value={newUnit.time} onChange={(e) => setNewUnit({ ...newUnit, time: e.target.value })} />
           </label>
           <label className="fld">
-            <span className="fld__l">รายการ</span>
+            <span className="fld__l">{copy.today.fieldItem}</span>
             <input className="inp" value={newUnit.label} onChange={(e) => setNewUnit({ ...newUnit, label: e.target.value })} />
           </label>
         </BottomSheet>

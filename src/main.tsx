@@ -1,17 +1,23 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
+import { applyTheme, readTheme } from './core/theme'
 import App from './App'
+import ErrorBoundary from './app/ErrorBoundary'
 import { StoreProvider } from './core/store'
 import { ToastProvider } from './app/components/Toast'
 import './index.css'
+
+applyTheme(readTheme())
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <HashRouter>
       <StoreProvider>
         <ToastProvider>
-          <App />
+          <ErrorBoundary>
+            <App />
+          </ErrorBoundary>
         </ToastProvider>
       </StoreProvider>
     </HashRouter>

@@ -8,5 +8,5 @@ import clean from './clean'
 export const professions: ProfessionTemplate[] = [tutor, nail, barber, clean]
 
 export function professionById(id: string): ProfessionTemplate {
-  return professions.find((p) => p.id === id) ?? tutor
+  return professions.find((p) => p.id === id) ?? professions[0]
 }

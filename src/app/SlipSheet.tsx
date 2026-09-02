@@ -73,12 +73,12 @@ export default function SlipSheet(
       {phase === 'mismatch' && (
         <>
           <p className="p">{copy.billing.slipMismatch}</p>
-          <div className="kv"><span>ยอดในสลิป</span><b className="num">{money(slipAmount ?? 0)}</b></div>
-          <div className="kv"><span>ยอดในใบแจ้ง</span><b className="num">{money(invoice.total)}</b></div>
+          <div className="kv"><span>{copy.billing.slipAmount}</span><b className="num">{money(slipAmount ?? 0)}</b></div>
+          <div className="kv"><span>{copy.billing.invoiceAmount}</span><b className="num">{money(invoice.total)}</b></div>
         </>
       )}
       {phase === 'unreadable' && <p className="p">{copy.billing.slipUnreadable}</p>}
-      {phase === 'idle' && <p className="p dim">จำลองการแนบสลิปจากผู้จ่าย</p>}
+      {phase === 'idle' && <p className="p dim">{copy.billing.slipSim}</p>}
     </BottomSheet>
   )
 }

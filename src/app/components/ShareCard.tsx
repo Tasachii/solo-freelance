@@ -18,6 +18,7 @@ export default function ShareCard({ period, recovered, onClose }: { period: stri
     const brand = css.getPropertyValue('--brand').trim() || '#0f6f66'
     const ink = css.getPropertyValue('--ink').trim() || '#1f2a2e'
     const surface = css.getPropertyValue('--surface').trim() || '#fff'
+    const muted = css.getPropertyValue('--muted').trim() || '#6f6a62'
 
     g.fillStyle = surface; g.fillRect(0, 0, 1080, 1080)
     g.fillStyle = brand; g.fillRect(0, 0, 1080, 16)
@@ -32,7 +33,7 @@ export default function ShareCard({ period, recovered, onClose }: { period: stri
     g.fillStyle = ink
     g.font = '600 56px Anuphan, system-ui, sans-serif'
     g.fillText(copy.common.baht, 88, 680)
-    g.fillStyle = '#6b7a80'
+    g.fillStyle = muted
     g.font = '400 36px Anuphan, system-ui, sans-serif'
     g.fillText(`${copy.brand.name} — ${copy.brand.tagline}`, 88, 960)
   }, [period, recovered, state.provider.name])

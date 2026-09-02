@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, navigate } from './router.js'
 import { useTheme, useIsDesk } from './theme.js'
 import {
-  useDemoState, totals, baht, uid, logged, inboxed, buildCsv, buildBackup, parseBackup,
-  rateOf, recordsIn, sessionsOn, statusOf, addRecord, setReceived, billOf,
+  useDemoState, totals, baht, uid, logged, inboxed, buildAttendanceCsv, buildBillingCsv, buildBackup, parseBackup,
+  rateOf, recordsIn, sessionsOn, statusOf, addRecord, setReceived, billOf, packState,
+  nextReceiptNo, receiptDescOf, receiptFor,
 } from './state.js'
 import { TODAY, TODAY_PERIOD, FIRST_PERIOD, SEND_DELAY_MS } from './data.js'
 import { longMonth, shiftPeriod, shortDate } from './dates.js'
@@ -28,6 +29,8 @@ import LeadSheet from './components/LeadSheet.jsx'
 import LeaveSheet from './components/LeaveSheet.jsx'
 import PricingPage from './components/PricingPage.jsx'
 import ParentPreview from './components/ParentPreview.jsx'
+import RenewSheet from './components/RenewSheet.jsx'
+import { ReceiptPage, ReceiptListPage } from './components/ReceiptPage.jsx'
 import ActivitySheet from './components/ActivitySheet.jsx'
 import InboxSheet from './components/InboxSheet.jsx'
 import HistorySheet from './components/HistorySheet.jsx'
@@ -62,6 +65,8 @@ export default function App() {
     </>
   }
   if (route === '/parent-preview') return <ParentPreview />
+  if (route === '/receipt' && tab) return <ReceiptPage receiptId={tab} />
+  if (route === '/receipts') return <ReceiptListPage />
   if (route === '/') {
     return <>
       <Landing isDark={theme.isDark} onToggleTheme={theme.toggle} onLead={() => setLead({})} />
@@ -105,7 +110,7 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
 
   useEffect(() => {
     if (!toast) return
-    const ms = toast.cancel ? SEND_DELAY_MS : toast.undo ? 6000 : 2600
+    const ms = toast.cancel ? SEND_DELAY_MS : toast.action ? 8000 : toast.undo ? 6000 : 2600
     const t = setTimeout(() => setToast(null), ms)
     return () => clearTimeout(t)
   }, [toast])
@@ -157,13 +162,39 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
     say('ยกเลิกการส่งแล้ว ยังไม่มีใครได้รับ')
   }, [setState, say])
 
+  /** ปรับตัวนับแพ็ก (used) — โหมดอื่นคืน state เดิม */
+  const bumpUsed = (s, studentId, delta) => ({
+    ...s,
+    students: s.students.map((x) =>
+      x.id === studentId && x.billing?.mode === 'package'
+        ? { ...x, billing: { ...x.billing, used: Math.max(0, x.billing.used + delta) } }
+        : x),
+  })
+
   // ── เช็คชื่อ ──
   const checkIn = (c) => {
     const st = state.students.find((s) => s.id === c.studentId)
-    act((s) => ({
+    const isPack = st?.billing?.mode === 'package'
+    act((s) => bumpUsed({
       ...addRecord(s, c.studentId, { id: uid('r'), date: c.date, kind: 'attended', rate: rateOf(st, s), sessionId: c.id }),
       sessionState: { ...s.sessionState, [c.id]: 'attended' },
-    }), `เช็คชื่อ ${st?.nick ?? ''}`, 'เช็คชื่อแล้ว · นับเข้าบิลให้แล้ว')
+    }, c.studentId, 1), `เช็คชื่อ ${st?.nick ?? ''}`, 'เช็คชื่อแล้ว · นับเข้าบิลให้แล้ว')
+
+    if (isPack) {
+      // เช็คหลังบวก: ถ้าแพ็กหมดแล้ว ครั้งนี้ยังไม่ได้เก็บเงิน — ต้องบอกทันที ไม่ใช่สิ้นเดือน
+      const usedAfter = st.billing.used + 1
+      if (usedAfter > st.billing.total) {
+        say(`แพ็กของ${st.nick}หมดแล้ว — ครั้งนี้ยังไม่ได้เก็บเงิน`, {
+          tone: 'bad',
+          action: { label: 'ชวนต่อแพ็ก', run: () => open('renew', { student: st }) },
+        })
+      } else if (usedAfter === st.billing.total) {
+        say(`เช็คชื่อแล้ว · แพ็กของ${st.nick}ครบ ${st.billing.total} ครั้งพอดี ควรชวนต่อ`, {
+          tone: 'warn',
+          action: { label: 'ชวนต่อแพ็ก', run: () => open('renew', { student: st }) },
+        })
+      }
+    }
   }
 
   const markLeave = (c, kind = 'leave', makeupDate = null) => {
@@ -173,8 +204,8 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
     act((s) => {
       let next = { ...s, sessionState: { ...s.sessionState, [c.id]: kind } }
       if (charged) {
-        next = { ...addRecord(next, c.studentId, { id: uid('r'), date: c.date, kind: 'attended', rate: rateOf(st, s), sessionId: c.id }),
-          sessionState: next.sessionState }
+        next = bumpUsed({ ...addRecord(next, c.studentId, { id: uid('r'), date: c.date, kind: 'attended', rate: rateOf(st, s), sessionId: c.id }),
+          sessionState: next.sessionState }, c.studentId, 1)
       }
       if (kind === 'makeup' && makeupDate) {
         next.makeups = { ...s.makeups, [c.id]: { studentId: c.studentId, date: makeupDate } }
@@ -188,11 +219,15 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
     close()
     const st = state.students.find((s) => s.id === c.studentId)
     act((s) => {
+      const had = (s.records[c.studentId] || []).some((r) => r.sessionId === c.id)
       const list = (s.records[c.studentId] || []).filter((r) => r.sessionId !== c.id)
       if (next === 'attended') {
         list.push({ id: uid('r'), date: c.date, kind: 'attended', rate: rateOf(st, s), sessionId: c.id })
       }
-      return { ...s, sessionState: { ...s.sessionState, [c.id]: next }, records: { ...s.records, [c.studentId]: list } }
+      const delta = (next === 'attended' ? 1 : 0) - (had ? 1 : 0)
+      return bumpUsed(
+        { ...s, sessionState: { ...s.sessionState, [c.id]: next }, records: { ...s.records, [c.studentId]: list } },
+        c.studentId, delta)
     }, `แก้สถานะ ${st?.nick ?? ''}`,
       next === 'attended' ? 'เปลี่ยนเป็นมาเรียนแล้ว' : next === 'leave' ? 'เปลี่ยนเป็นลาแล้ว' : 'ย้อนเป็นยังไม่ได้เช็ค')
   }
@@ -207,16 +242,16 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
   const addPastSession = ({ studentId, date }) => {
     close()
     const st = state.students.find((s) => s.id === studentId)
-    act((s) => addRecord(s, studentId, { id: uid('r'), date, kind: 'attended', rate: rateOf(st, s), sessionId: null }),
+    act((s) => bumpUsed(addRecord(s, studentId, { id: uid('r'), date, kind: 'attended', rate: rateOf(st, s), sessionId: null }), studentId, 1),
       `บันทึกย้อนหลัง ${st?.nick ?? ''}`, 'บันทึกคาบย้อนหลังแล้ว')
   }
 
   const removeRecord = (student, record) =>
-    act((s) => ({
+    act((s) => bumpUsed({
       ...s,
       records: { ...s.records, [student.id]: (s.records[student.id] || []).filter((r) => r.id !== record.id) },
       sessionState: record.sessionId ? { ...s.sessionState, [record.sessionId]: 'todo' } : s.sessionState,
-    }), `ลบครั้งเรียน ${student.nick} ${shortDate(record.date)}`, `ลบวันที่ ${shortDate(record.date)} แล้ว`)
+    }, student.id, -1), `ลบครั้งเรียน ${student.nick} ${shortDate(record.date)}`, `ลบวันที่ ${shortDate(record.date)} แล้ว`)
 
   // ── นักเรียน ──
   const saveStudent = (data) => {
@@ -249,8 +284,19 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
   const confirmSlip = (student) => {
     close()
     const { amount } = billOf(student, state, period)
-    act((s) => setReceived(s, period, student.id, amount),
-      `รับยอด ${student.nick}`, `รับยอดของ${student.nick}แล้ว`)
+    act((s) => {
+      const withMoney = setReceived(s, period, student.id, amount)
+      const receipt = {
+        id: uid('rc'), no: nextReceiptNo(withMoney, period), studentId: student.id, period,
+        date: shortDate(TODAY) + ' 2569', amount, desc: receiptDescOf(student, withMoney, period),
+      }
+      return {
+        ...withMoney,
+        receipts: [...(withMoney.receipts || []), receipt],
+        autoLog: [{ id: uid('a'), at: shortDate(TODAY), kind: 'receipt', studentId: student.id, minutes: 2,
+          text: `ออกใบเสร็จ ${receipt.no} ให้${student.parent}` }, ...(withMoney.autoLog || [])],
+      }
+    }, `รับยอด ${student.nick}`, `รับยอดแล้ว · ส่งใบเสร็จให้ผู้ปกครองแล้ว`)
   }
 
   const undoPaid = (student) =>
@@ -275,6 +321,15 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
       log: `ทวงค่าเรียนของ${student.nick} ถึง${student.parent}`,
       notify: { kind: 'sent', studentId: student.id, text: `ส่งข้อความทวงถึง${student.parent}แล้ว` },
     }, 'จะส่งใน 6 วินาที', `ทวง ${student.nick}`)
+  }
+
+  const sendRenew = (student) => {
+    const b = student.billing
+    queueSend({
+      kind: 'renew',
+      log: `ชวนต่อแพ็ก ${b.total} ครั้ง (${baht(b.price)} บาท) ของ${student.nick} ถึง${student.parent}`,
+      notify: { kind: 'sent', studentId: student.id, text: `ส่งข้อความชวนต่อแพ็กถึง${student.parent}แล้ว` },
+    }, 'จะส่งใน 6 วินาที', `ชวนต่อแพ็ก ${student.nick}`)
   }
 
   const sendProgress = (student) =>
@@ -316,7 +371,11 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
   const exportCsv = () => {
-    try { download(buildCsv(state, period), `solo-tutor-${period}.csv`, 'text/csv;charset=utf-8'); say('ดาวน์โหลด CSV แล้ว') }
+    try {
+      download(buildAttendanceCsv(state, period), `attendance-${period}.csv`, 'text/csv;charset=utf-8')
+      download(buildBillingCsv(state, period), `billing-${period}.csv`, 'text/csv;charset=utf-8')
+      say('ดาวน์โหลด attendance.csv และ billing.csv แล้ว')
+    }
     catch { say('ดาวน์โหลดไม่สำเร็จ ลองอีกครั้งครับ') }
   }
   const exportBackup = () => {
@@ -362,6 +421,7 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
   const openTask = (t) => {
     if (t.kind === 'slip') return open('slip', { student: t.student })
     if (t.kind === 'stuck') return open('student', { student: t.student })
+    if (t.kind === 'renew') return open('renew', { student: t.student })
   }
 
   const pane = (
@@ -384,7 +444,8 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
           onSlip={(s) => open('slip', { student: s })}
           onRemind={(s) => open('remind', { student: s })}
           onUndoPaid={undoPaid} onSendAll={() => open('line')}
-          onParentView={() => navigate('/parent-preview')} />
+          onParentView={() => navigate('/parent-preview')}
+          onRenew={(st) => open('renew', { student: st })} />
       )}
       {tab === 'overview' && (
         <OverviewTab state={state} period={period}
@@ -441,6 +502,9 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
         <InboxSheet state={state} onClose={close} onMarkAllRead={markAllRead}
           onOpenStudent={(s) => open('student', { student: s })} />
       )}
+      {sheet?.kind === 'renew' && (
+        <RenewSheet student={sheet.student} state={state} onClose={close} onSend={sendRenew} />
+      )}
       {sheet?.kind === 'history' && <HistorySheet state={state} onClose={close} onUndoTo={doUndo} />}
 
       {sheet?.kind === 'confirmClear' && (
@@ -471,8 +535,13 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
       {lead}
 
       {toast && (
-        <div className="toast" role="status" key={toast.id}>
+        <div className={`toast${toast.tone ? ` toast--${toast.tone}` : ''}`} role="status" key={toast.id}>
           <span className="toast__txt">{toast.text}</span>
+          {toast.action && (
+            <button className="toast__btn" onClick={() => { toast.action.run(); setToast(null) }}>
+              {toast.action.label}
+            </button>
+          )}
           {toast.cancel && (
             <button className="toast__btn" onClick={() => { cancelSend(toast.cancel); setToast(null) }}>
               ยกเลิกการส่ง
@@ -560,6 +629,8 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
         {tab === 'settings' ? <div className="pane">{pane}</div> : pane}
         <footer className="appfoot">
           <p className="disclaimer" style={{ margin: 0 }}>เดโม · ข้อมูลสมมติทั้งหมด</p>
+          <button className="reset" onClick={exportCsv}>ดาวน์โหลดข้อมูล (Excel)</button>
+          <p className="appfoot__own">ข้อมูลเป็นของคุณ ดาวน์โหลดได้ทุกเมื่อ ไม่มีค่าใช้จ่าย</p>
           <button className="reset" onClick={() => open('confirmReset')}>รีเซ็ตข้อมูลเดโม</button>
         </footer>
       </main>

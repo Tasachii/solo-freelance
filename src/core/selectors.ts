@@ -1,5 +1,5 @@
 import type { AppState } from './types'
-import { completionsIn, packageStatus, subjectById } from './ledger'
+import { completionsIn, packageStatus } from './ledger'
 import { invoiceFor } from './billing'
 import { periodOf } from './format'
 
@@ -71,4 +71,3 @@ export const clientsWithChats = (state: AppState): string[] => {
   return [...ids]
 }
 
-export const _subjectById = subjectById

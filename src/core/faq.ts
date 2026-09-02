@@ -2,7 +2,7 @@ import type { AppState, Subject } from './types'
 import { modeThai, tutorTemplates } from '../copy/tutor'
 import { professionById } from '../professions'
 import type { FaqSource } from '../professions/types'
-import { completionsIn, packageStatus, subjectById } from './ledger'
+import { completionsIn, packageStatus } from './ledger'
 import { invoiceFor } from './billing'
 import { render, invoiceUrlOf, receiptUrlOf, currentEstimate } from './messages'
 import { dateThai, dayThai, money, periodOf, periodThai } from './format'
@@ -90,10 +90,9 @@ export function answer(state: AppState, clientId: string, question: string): Faq
   }
 
   const parts = subjects.map((s) => answerForSubject(state, s, source)).filter(Boolean) as string[]
-  return { source, text: parts.join('\n') }
+  return { source, text: [...new Set(parts)].join('\n') }
 }
 
 export const subjectsOfClient = (state: AppState, clientId: string): Subject[] =>
   state.subjects.filter((s) => s.clientId === clientId)
 
-export const _subjectById = subjectById

@@ -19,7 +19,7 @@ export const tutorTemplates = {
     'เรียน{clientHonorific}{clientName} สลิปที่ส่งมายอด {slipAmount} บาท แต่ค่าเรียนเดือนนี้ {total} บาทครับ รบกวนตรวจสอบหรือส่งสลิปอีกครั้งได้ไหมครับ 🙏',
   faq: {
     currentInvoice: 'เดือน{periodThai} {subjectName}เรียน {qty} ครั้ง รวม {total} บาทครับ สแกนจ่ายได้ที่ {invoiceUrl}',
-    currentInvoiceNone: 'เดือนนี้ยังไม่ปิดยอดครับ ตอนนี้เรียนไป {completedSoFar} ครั้ง ประมาณ {estimate} บาท จะส่งใบแจ้งสิ้นเดือนนะครับ',
+    currentInvoiceNone: '{subjectName}เดือนนี้ยังไม่ปิดยอดครับ ตอนนี้เรียนไป {completedSoFar} ครั้ง ประมาณ {estimate} บาท จะส่งใบแจ้งสิ้นเดือนนะครับ',
     nextUnit: '{subjectName}มีเรียนครั้งถัดไปวัน{dayThai}ที่ {dateThai} เวลา {time} ครับ',
     nextUnitNone: 'ตอนนี้ยังไม่มีคาบถัดไปในตารางครับ เดี๋ยวครูนัดเพิ่มแล้วแจ้งนะครับ',
     packageRemaining: 'แพ็ก {packageTotal} ครั้งของ{subjectName} ใช้ไป {used} เหลือ {remaining} ครั้งครับ',

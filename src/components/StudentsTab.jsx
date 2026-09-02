@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { TYPE_LABEL, LIFE_LABEL, MODE_LABEL } from '../data.js'
+import { LIFE_LABEL, MODE_LABEL } from '../data.js'
 import { billOf, billingOf, initialOf, baht, packState } from '../state.js'
 import { TH_DAY_SHORT } from '../dates.js'
 import { EmptyState } from './Field.jsx'

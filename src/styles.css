@@ -1136,9 +1136,10 @@ button:focus-visible, a:focus-visible {
   .home__hd { display: none; }
 }
 
-/* จอกว้างจริง (โหมดที่ใช้พรีเซนต์) — แบ่งสองคอลัมน์ให้เห็นทั้งงานและสิ่งที่ระบบทำให้ในจอเดียว */
+/* จอกว้างจริง (โหมดที่ใช้พรีเซนต์) — สองคอลัมน์เฉพาะหน้าแรกที่มี wrapper รองรับ
+   เคยจับทุก .home แล้วแท็บอื่นที่มี section ตรงๆ ถูกโปรยสลับช่องเป็นคอลลาจ */
 @media (min-width: 1180px) {
-  .home {
+  .home--split {
     max-width: 1160px;
     display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
     gap: 0 48px; align-items: start;

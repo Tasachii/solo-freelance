@@ -18,7 +18,7 @@ export default function HomeTab({ state, period, onCheckIn, onLeave, onEditSessi
   const todayIdx = weekday(TODAY)
 
   return (
-    <div className="home">
+    <div className="home home--split">
       <header className="home__hd">
         <p className="home__hi">สวัสดี {state.settings.profile.name}</p>
         <p className="home__date">วัน{TH_DAY[weekday(TODAY)]}ที่ {d} {TH_MONTH[m - 1]}</p>

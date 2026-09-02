@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   DEFAULT_SETTINGS, SEED_STUDENTS, SEED_EXPENSES, SEED_SLIPS, SEED_INBOX, SEED_AUTOLOG,
-  seedRecords, TODAY, TODAY_PERIOD, UNDO_LIMIT,
+  SEED_RECEIPTS, seedRecords, perSessionValue, MODE_LABEL, TODAY, TODAY_PERIOD, UNDO_LIMIT,
 } from './data.js'
 import { periodOf, shiftPeriod, weekday, shortDate, longMonth } from './dates.js'
 
 // คงคีย์เดิมไว้ตอนเปลี่ยนชื่อแบรนด์ ไม่งั้นข้อมูลของคนที่เคยกดเล่นจะหายหมด
-export const STORAGE_KEY = 'tutordai-demo-v1'
-const SCHEMA = 3
+// เปลี่ยนคีย์ตอนออกรุ่น 3 โหมดการจ่าย เพื่อให้ผู้ใช้เก่าได้ mock ชุดใหม่ที่มีแพ็ก
+export const STORAGE_KEY = 'solotutor-demo-v2'
+const SCHEMA = 4
 
 const clone = (v) => JSON.parse(JSON.stringify(v))
 export const uid = (p) => `${p}-${Math.random().toString(36).slice(2, 9)}`
@@ -18,8 +19,12 @@ export function freshState() {
   // เดือนก่อนๆ ถือว่าเก็บเงินครบแล้ว เดือนปัจจุบันใช้สถานะจากบรีฟ
   const status = {}
   const received = {}
-  const amountIn = (id, period) =>
-    (records[id] || []).filter((r) => periodOf(r.date) === period).reduce((n, r) => n + r.rate, 0)
+  const amountIn = (id, period) => {
+    const st = SEED_STUDENTS.find((x) => x.id === id)
+    if (st.billing.mode === 'package') return 0
+    if (st.billing.mode === 'monthly_flat') return st.billing.amount
+    return (records[id] || []).filter((r) => periodOf(r.date) === period).reduce((n, r) => n + r.rate, 0)
+  }
 
   for (let i = 5; i >= 1; i--) {
     const p = shiftPeriod(TODAY_PERIOD, -i)
@@ -44,6 +49,7 @@ export function freshState() {
     slips: clone(SEED_SLIPS),
     inbox: clone(SEED_INBOX),
     autoLog: clone(SEED_AUTOLOG),
+    receipts: clone(SEED_RECEIPTS),
     outbox: [],
     makeups: {},
     activity: [],
@@ -57,7 +63,7 @@ export function emptyState(settings) {
     ...freshState(),
     settings: clone(settings || DEFAULT_SETTINGS),
     students: [], records: {}, status: {}, received: {}, sessionState: {}, extraSessions: [],
-    expenses: [], slips: {}, inbox: [], autoLog: [], outbox: [], makeups: {}, activity: [], reminded: {}, history: [],
+    expenses: [], slips: {}, inbox: [], autoLog: [], receipts: [], outbox: [], makeups: {}, activity: [], reminded: {}, history: [],
   }
 }
 
@@ -125,8 +131,17 @@ export function useDemoState() {
 
 // ═══ ตัวเลือกข้อมูล ═══════════════════════════════════════════════
 
-export const rateOf = (student, state) =>
-  student.rate ?? state.settings.rates[student.type] ?? 0
+/** billing ของนักเรียน — กันข้อมูลเก่าที่ไม่มี field นี้ทำแอปพัง */
+export const billingOf = (student, state) =>
+  student.billing || { mode: 'per_session', rate: state?.settings?.rates?.[student.type] ?? 0 }
+
+/** มูลค่าต่อครั้ง ใช้เป็น snapshot ตอนเช็คชื่อและตีมูลค่าครั้งที่หลุด */
+export const rateOf = (student, state) => {
+  const b = billingOf(student, state)
+  if (b.mode === 'per_session') return b.rate ?? 0
+  if (b.mode === 'package') return Math.round((b.price || 0) / (b.total || 1))
+  return 0 // เหมารายเดือน — ครั้งที่เพิ่มไม่ได้ทำให้บิลโต
+}
 
 export const recordsOf = (state, id) => state.records[id] || []
 
@@ -151,21 +166,35 @@ export function setReceived(s, period, studentId, amount) {
 
 export const receivedOf = (state, period, id) => state.received?.[period]?.[id] ?? 0
 
-export const packLeft = (student) =>
-  student.pack ? Math.max(0, student.pack.size - student.pack.used) : null
+/** สถานะแพ็ก: ok เหลือเยอะ · low เหลือ ≤2 · out หมดพอดี · over หมดแล้วยังมาเรียน */
+export function packState(student) {
+  const b = student.billing
+  if (!b || b.mode !== 'package') return null
+  const left = b.total - b.used
+  const over = Math.max(0, -left)
+  const state = over > 0 ? 'over' : left === 0 ? 'out' : left <= 2 ? 'low' : 'ok'
+  return { total: b.total, used: b.used, left: Math.max(0, left), over, price: b.price, state }
+}
 
 export function billOf(student, state, period) {
+  const b = billingOf(student, state)
   const list = recordsIn(state, student.id, period)
-  // แพ็กจ่ายล่วงหน้า: เก็บเงินไปแล้วตอนซื้อแพ็ก จึงไม่มีบิลรายเดือน
-  if (student.pack) {
-    return { times: list.length, amount: 0, uniformRate: null, mixedRates: false,
-      status: 'prepaid', packLeft: packLeft(student) }
+
+  // แพ็ก: เก็บเงินไปแล้วตอนซื้อ จึงไม่มีบิลรายเดือน — งานคือดูว่าเหลือกี่ครั้ง
+  if (b.mode === 'package') {
+    return { times: list.length, amount: 0, mode: 'package', status: 'package', pack: packState(student) }
   }
+
+  // เหมารายเดือน: ยอดคงที่ ไม่ขึ้นกับจำนวนครั้ง
+  if (b.mode === 'monthly_flat') {
+    return { times: list.length, amount: b.amount || 0, mode: 'monthly_flat',
+      status: statusOf(state, period, student) }
+  }
+
   const amount = list.reduce((n, r) => n + (r.rate ?? rateOf(student, state)), 0)
   const rates = [...new Set(list.map((r) => r.rate))]
   return {
-    times: list.length,
-    amount,
+    times: list.length, amount, mode: 'per_session',
     uniformRate: rates.length === 1 ? rates[0] : null,
     mixedRates: rates.length > 1,
     status: statusOf(state, period, student),
@@ -173,9 +202,11 @@ export function billOf(student, state, period) {
 }
 
 export function statusOf(state, period, student) {
-  if (student.pack) return 'prepaid'
-  const list = recordsIn(state, student.id, period)
-  const amount = list.reduce((n, r) => n + (r.rate ?? rateOf(student, state)), 0)
+  const b = billingOf(student, state)
+  if (b.mode === 'package') return 'package'
+  const amount = b.mode === 'monthly_flat'
+    ? b.amount || 0
+    : recordsIn(state, student.id, period).reduce((n, r) => n + (r.rate ?? rateOf(student, state)), 0)
   const got = receivedOf(state, period, student.id)
 
   if (amount === 0 && got === 0) return 'none'
@@ -266,8 +297,11 @@ export function needsAttention(state, period) {
   for (const s of state.students) {
     if (s.life !== 'active') continue
     const { times, status, amount } = billOf(s, state, period)
-    if (s.pack && packLeft(s) <= 3) {
-      out.push({ student: s, why: `ใกล้หมดแพ็ก เหลือ ${packLeft(s)}/${s.pack.size} ครั้ง`, tone: 'warn' })
+    const pk = packState(s)
+    if (pk && pk.state === 'over') {
+      out.push({ student: s, why: `แพ็กหมดแล้ว เกิน ${pk.over} ครั้งยังไม่ได้เก็บเงิน`, tone: 'bad' })
+    } else if (pk && (pk.state === 'low' || pk.state === 'out')) {
+      out.push({ student: s, why: `ใกล้หมดแพ็ก เหลือ ${pk.left}/${pk.total} ครั้ง ควรชวนต่อ`, tone: 'warn' })
     } else if (status === 'overdue') {
       out.push({ student: s, why: `ค้างจ่าย ${baht(amount)} บาท`, tone: 'bad' })
     } else if (times > 0 && s.plan - times >= 2) {
@@ -306,6 +340,13 @@ export function openTasks(state, period) {
         title: `${s.nick}: สลิปยอดไม่ตรง`, why: `โอนมา ${baht(slip.paid)} จาก ${baht(amount)} บาท` })
     }
   }
+  for (const s of state.students) {
+    const pk = packState(s)
+    if (pk && pk.state === 'over') {
+      tasks.push({ id: `renew-${s.id}`, kind: 'renew', student: s,
+        title: `${s.nick}: แพ็กหมดแล้วยังมาเรียน`, why: `เกิน ${pk.over} ครั้ง ยังไม่ได้เก็บเงิน — ควรชวนต่อแพ็ก` })
+    }
+  }
   const stuck = state.students.filter(
     (s) => statusOf(state, period, s) === 'overdue' &&
       (state.reminded[s.id] || 0) >= state.settings.dunning.maxTimes,
@@ -334,19 +375,92 @@ export function inboxed(state, entry) {
   return [{ id: uid('i'), at: shortDate(TODAY), read: false, ...entry }, ...state.inbox].slice(0, 60)
 }
 
+/** เงินที่ระบบช่วยกู้คืนเดือนนี้ — คำนวณจาก state จริงเท่าที่คำนวณได้
+    ส่วนที่เป็นฐานเปรียบเทียบกับ "ก่อนใช้ระบบ" (ครั้งที่เคยลืมจด) เป็นตัวเลขตั้งต้นของเดโม */
+export const BASELINE_FORGOTTEN = { times: 3, rate: 400 }
+
+export function recoveredThisMonth(state, period) {
+  // 1) ทวงแล้วได้เงินจริง (สถานะเป็น paid/partial หลังจากที่เคยทวง)
+  let dunned = 0, dunnedCount = 0
+  for (const s of state.students) {
+    if ((state.reminded[s.id] || 0) > 0) {
+      const got = Math.min(receivedOf(state, period, s.id), billOf(s, state, period).amount)
+      if (got > 0) { dunned += got; dunnedCount += 1 }
+    }
+  }
+  // 2) ครั้งที่เช็คในระบบแต่สมัยก่อนไม่ได้จด (ฐานเดโม)
+  const forgotten = BASELINE_FORGOTTEN.times * BASELINE_FORGOTTEN.rate
+  // 3) แพ็กหมดแล้วยังมาเรียนที่ระบบจับได้ — มูลค่าครั้งละเท่าราคาแพ็กหารจำนวนครั้ง
+  let packCatch = 0, packTimes = 0
+  for (const s of state.students) {
+    const pk = packState(s)
+    if (pk && pk.over > 0) { packTimes += pk.over; packCatch += pk.over * rateOf(s, state) }
+  }
+  return {
+    dunned, dunnedCount,
+    forgotten, forgottenTimes: BASELINE_FORGOTTEN.times,
+    packCatch, packTimes,
+    total: dunned + forgotten + packCatch,
+  }
+}
+
+// ═══ ใบเสร็จรับเงิน ═══════════════════════════════════════════════
+
+export function nextReceiptNo(state, period) {
+  const [y, m] = period.split('-')
+  const be = Number(y) + 543
+  const n = (state.receipts || []).length + 11
+  return `ST-${be}-${m}-${String(n).padStart(4, '0')}`
+}
+
+export function receiptDescOf(student, state, period) {
+  const b = billingOf(student, state)
+  const { times } = billOf(student, state, period)
+  if (b.mode === 'monthly_flat') return `ค่าเรียน${student.subject}รายเดือน (เหมา) — ${longMonth(period)}`
+  if (b.mode === 'package') return `แพ็กเรียน${student.subject} ${b.total} ครั้ง`
+  return `ค่าเรียน${student.subject} ${longMonth(period)} — ${times} ครั้ง × ${uniformRateText(student, state, period)}`
+}
+
+function uniformRateText(student, state, period) {
+  const list = recordsIn(state, student.id, period)
+  const rates = [...new Set(list.map((r) => r.rate))]
+  return rates.length === 1 ? String(rates[0]) : 'เรทผสม'
+}
+
+export function receiptFor(state, studentId, period) {
+  return (state.receipts || []).find((r) => r.studentId === studentId && r.period === period)
+}
+
 // ═══ นำข้อมูลออก / กู้คืน ═════════════════════════════════════════
 
-export function buildCsv(state, period) {
-  const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
-  const lines = [`เดือน,${longMonth(period)}`, '', 'ประเภท,ชื่อ,รายละเอียด,จำนวนครั้ง,ยอด,สถานะ']
-  for (const s of state.students) {
-    const { times, amount, status } = billOf(s, state, period)
-    lines.push(['นักเรียน', s.nick, `${s.grade} ${s.subject} (${s.parent})`, times, amount, status].map(esc).join(','))
+const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
+const BOM = '\ufeff' // ให้ Excel ไทยอ่าน UTF-8 ไม่เป็นตัวยึกยือ
+
+export function buildAttendanceCsv(state, period) {
+  const lines = ['วันที่,นักเรียน,วิชา,สถานะ']
+  const rows = []
+  for (const st of state.students) {
+    for (const r of recordsIn(state, st.id, period)) {
+      rows.push([shortDate(r.date), st.nick, st.subject, 'มาเรียน'])
+    }
   }
-  for (const e of expensesIn(state, period)) {
-    lines.push(['รายจ่าย', e.category, `${shortDate(e.date)} ${e.note}`, '', -e.amount, ''].map(esc).join(','))
+  rows.sort((a, b) => a[0].localeCompare(b[0], 'th'))
+  for (const r of rows) lines.push(r.map(esc).join(','))
+  return BOM + lines.join('\n')
+}
+
+export function buildBillingCsv(state, period) {
+  const lines = ['นักเรียน,โหมด,ยอด,สถานะจ่าย,วันที่จ่าย']
+  for (const st of state.students) {
+    const bill = billOf(st, state, period)
+    const b = billingOf(st, state)
+    const modeText = b.mode === 'package' ? `แพ็ก ${b.used}/${b.total} ครั้ง` : MODE_LABEL[b.mode]
+    const paidDate = bill.status === 'paid' ? shortDate(TODAY) : ''
+    const statusText = { paid: 'จ่ายแล้ว', pending: 'รอสลิป', overdue: 'ค้างจ่าย', partial: 'จ่ายบางส่วน',
+      package: 'จ่ายล่วงหน้า (แพ็ก)', none: 'ยังไม่มียอด' }[bill.status] || bill.status
+    lines.push([st.nick, modeText, bill.amount, statusText, paidDate].map(esc).join(','))
   }
-  return '﻿' + lines.join('\n')
+  return BOM + lines.join('\n')
 }
 
 export function buildBackup(state) {

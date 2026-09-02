@@ -80,7 +80,7 @@ export default function Billing() {
             <li className="srow" key={s.id}>
               <span className="srow__main">
                 <span className="srow__name">{s.name}</span>
-                <span className="srow__meta">{inv ? `${money(inv.total)} · ${inv.status}` : copy.billing.noInvoices}</span>
+                <span className="srow__meta">{inv ? `${money(inv.total)} · ${copy.billing.status[inv.status]}` : copy.billing.noInvoices}</span>
               </span>
               {inv?.status === 'draft' && <button className="btn btn--secondary btn--sm" onClick={() => nav('/app/admin?tab=drafts')}>{copy.billing.viewMessage}</button>}
               {(inv?.status === 'sent' || inv?.status === 'overdue') && <button className="btn btn--primary btn--sm" onClick={() => setSlipFor(inv)}>{copy.billing.attachSlip}</button>}

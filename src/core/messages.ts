@@ -21,8 +21,8 @@ export function render(template: string, vars: Vars): string {
 }
 
 /**
- * ลิงก์ในข้อความต้องเป็น URL เต็ม — ผู้ปกครองกดจากแชท ไม่มี origin ให้อ้างอิง
- * BASE_URL ทำให้ path ของ GitHub Pages (/solo-tutor/) ติดไปด้วย
+ * ลิงก์ในข้อความต้องเป็น URL เต็ม — ผู้รับกดจากแชท จึงไม่มี origin ให้อ้างอิง
+ * BASE_URL ทำให้ path ที่ deploy อยู่ติดไปด้วย
  */
 const appUrl = (hashPath: string): string => {
   const base = import.meta.env?.BASE_URL ?? '/'

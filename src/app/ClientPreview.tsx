@@ -27,10 +27,19 @@ export default function ClientPreview() {
   }
 
   const subjects = state.subjects.filter((s) => s.clientId === clientId && s.active)
+
+  // ผู้จ่ายกดลิงก์มาจากข้อความทวง ซึ่งพูดถึงบิลเดือนที่ค้าง ไม่ใช่เดือนปฏิทินปัจจุบัน
+  // จึงต้องโชว์ใบที่ยังค้างก่อน แล้วค่อย fallback เป็นใบของเดือนนี้
+  const openOf = (s: Subject): Invoice | undefined =>
+    state.invoices
+      .filter((i) => i.subjectId === s.id && (i.status === 'sent' || i.status === 'overdue'))
+      .sort((a, b) => a.period.localeCompare(b.period))[0]
+
   const rows: { subject: Subject; invoice?: Invoice }[] = subjects.map((s) => ({
-    subject: s, invoice: invoiceFor(state, s.id, period),
+    subject: s, invoice: openOf(s) ?? invoiceFor(state, s.id, period),
   }))
   const billed = rows.filter((r) => r.invoice && r.invoice.status !== 'draft')
+  const shownPeriod = billed[0]?.invoice?.period ?? period
   const total = billed.reduce((n, r) => n + (r.invoice?.total ?? 0), 0)
   const allPaid = billed.length > 0 && billed.every((r) => r.invoice?.status === 'paid')
   const receipt = billed.map((r) => receiptOfInvoice(state, r.invoice!.id)).find(Boolean)
@@ -43,7 +52,7 @@ export default function ClientPreview() {
       </div>
 
       <h1 className="cv__h1">{copy.clientView.invoiceTitle}</h1>
-      <p className="cv__who">{client.name} · {periodThai(period)}</p>
+      <p className="cv__who">{client.name} · {periodThai(shownPeriod)}</p>
 
       {billed.length === 0 ? (
         <EmptyState icon="🧾" title={copy.clientView.noInvoice} desc={copy.billing.firstMonthHint} />

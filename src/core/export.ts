@@ -1,3 +1,4 @@
+import { copy } from '../copy'
 import type { AppState } from './types'
 import { clientById, isCompleted, subjectById } from './ledger'
 import { modeThai } from '../copy/tutor'
@@ -8,9 +9,7 @@ const BOM = '﻿' // ให้ Excel ไทยอ่าน UTF-8 ไม่เป
 const esc = (v: unknown): string => `"${String(v ?? '').replace(/"/g, '""')}"`
 const row = (cells: unknown[]): string => cells.map(esc).join(',')
 
-const STATUS_TH: Record<string, string> = {
-  draft: 'ยังไม่ส่ง', sent: 'ส่งแล้ว', overdue: 'ค้างจ่าย', paid: 'จ่ายแล้ว',
-}
+const STATUS_TH: Record<string, string> = copy.billing.status
 
 export function attendanceCsv(state: AppState, period: string): string {
   const lines = [['วันที่', 'เวลา', 'ชื่อ', 'ผู้จ่าย', 'รายการ', 'สถานะ'].join(',')]

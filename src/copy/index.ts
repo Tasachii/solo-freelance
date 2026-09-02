@@ -112,6 +112,7 @@ export const copy = {
     slipAmount: 'ยอดในสลิป', invoiceAmount: 'ยอดในใบแจ้ง', slipSim: 'จำลองการแนบสลิปจากผู้จ่าย',
     firstMonthHint: 'เริ่มใช้เดือนแรก ตัวเลขจะชัดสิ้นเดือน',
     share: 'แชร์การ์ด',
+    status: { draft: 'ยังไม่ส่ง', sent: 'ส่งแล้ว', overdue: 'ค้างจ่าย', paid: 'จ่ายแล้ว' },
     dash: { expected: 'รายได้ที่ควรได้', received: 'เข้าแล้ว', outstanding: 'ค้าง', recovered: 'Solo ช่วยไว้' },
   },
   admin: {

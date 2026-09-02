@@ -1,0 +1,17 @@
+/* Solo design tokens — spec ข้อ 10 (LEGACY_TOKEN_FILE ว่าง) ห้าม hard-code สีนอกไฟล์นี้ */
+:root{--bg:#f6f7f8;--surface:#fff;--ink:#1f2a2e;--muted:#6b7a80;--line:#e1e6e8;
+--brand:#0f6f66;--brand-soft:#e3f1ef;--brand-ink:#0b4f49;--ok:#1f8a4c;--ok-soft:#e6f4ec;
+--warn:#b26a00;--warn-soft:#fff4e0;--danger:#c0392b;--danger-soft:#fdecea;
+--radius:12px;--radius-sm:8px;--shadow:0 2px 8px rgba(0,0,0,.06);
+--font:'Anuphan',system-ui,sans-serif;--fs-body:15px;--fs-small:12.5px;--fs-h1:22px;--fs-h2:17px;--tap:48px;
+--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-6:24px}
+
+*{box-sizing:border-box}
+html,body,#root{height:100%}
+body{margin:0;font-family:var(--font);font-size:var(--fs-body);line-height:1.55;color:var(--ink);
+  background:var(--bg);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input,select,textarea{font:inherit}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:2px solid var(--brand);outline-offset:2px;border-radius:6px}
+.num{font-variant-numeric:tabular-nums}

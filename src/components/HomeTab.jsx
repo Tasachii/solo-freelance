@@ -1,6 +1,6 @@
 import { TODAY } from '../data.js'
 import { useState } from 'react'
-import { baht, sessionsOn, minutesSaved, humanMinutes, openTasks, totals, weekSchedule } from '../state.js'
+import { baht, sessionsOn, minutesSaved, humanMinutes, openTasks, totals, weekSchedule, packState } from '../state.js'
 import { TH_DAY, weekday, parse } from '../dates.js'
 
 const TH_MONTH = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม']
@@ -72,7 +72,19 @@ export default function HomeTab({ state, period, onCheckIn, onLeave, onEditSessi
               return (
                 <li className="row2" key={c.id}>
                   <span className="row2__t">{c.time}</span>
-                  <span className="row2__n">{st.nick}</span>
+                  <span className="row2__n">
+                    {st.nick}
+                    {(() => {
+                      const pk = packState(st)
+                      if (!pk) return null
+                      const cls = pk.state === 'over' ? 'packchip--over' : pk.state === 'ok' ? '' : 'packchip--low'
+                      return (
+                        <span className={`packchip ${cls}`}>
+                          {pk.over > 0 ? `เกิน ${pk.over}` : `เหลือ ${pk.left}/${pk.total}`}
+                        </span>
+                      )
+                    })()}
+                  </span>
                   {status === 'todo' ? (
                     <span className="row2__a">
                       <button className="btn btn--ink btn--sm" onClick={() => onCheckIn(c)}>เช็คชื่อ</button>

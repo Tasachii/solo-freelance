@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Sheet from './Sheet.jsx'
 import { TextField, SelectField, Segmented } from './Field.jsx'
-import { baht } from '../state.js'
+import { baht, billingOf } from '../state.js'
 import { TH_DAY } from '../dates.js'
 
 const GRADES = ['ป.6', 'ม.1', 'ม.2', 'ม.3', 'ม.4', 'ม.5', 'ม.6']
@@ -10,6 +10,7 @@ const SUBJECTS = ['คณิต', 'ฟิสิกส์', 'เคมี', 'ช�
 export default function StudentEditSheet({ student, state, onClose, onSave, onDelete }) {
   const isNew = !student
   const [step, setStep] = useState('form')
+  const b = student ? billingOf(student, state) : null
   const [f, setF] = useState(() => ({
     nick: student?.nick ?? '',
     grade: student?.grade ?? 'ม.4',
@@ -17,9 +18,13 @@ export default function StudentEditSheet({ student, state, onClose, onSave, onDe
     type: student?.type ?? 'single',
     parent: student?.parent ?? '',
     plan: String(student?.plan ?? 4),
-    rate: student?.rate == null ? '' : String(student.rate),
     life: student?.life ?? 'active',
     schedule: student?.schedule ? [...student.schedule] : [{ day: 3, time: '17:00' }],
+    mode: b?.mode ?? 'per_session',
+    rate: String(b?.rate ?? state.settings.rates[student?.type ?? 'single'] ?? 400),
+    flatAmount: String(b?.amount ?? 3000),
+    packTotal: String(b?.total ?? 10),
+    packPrice: String(b?.price ?? 3500),
   }))
   const [err, setErr] = useState({})
 
@@ -29,22 +34,31 @@ export default function StudentEditSheet({ student, state, onClose, onSave, onDe
   const addSlot = () => setF((p) => ({ ...p, schedule: [...p.schedule, { day: 1, time: '17:00' }] }))
   const removeSlot = (i) => setF((p) => ({ ...p, schedule: p.schedule.filter((_, j) => j !== i) }))
 
-  const defaultRate = state.settings.rates[f.type]
-
   const submit = () => {
     const next = {}
     if (!f.nick.trim()) next.nick = 'ใส่ชื่อเล่นของนักเรียนด้วยครับ'
     const plan = Number(f.plan)
     if (!Number.isFinite(plan) || plan < 1 || plan > 31) next.plan = 'แผนต่อเดือนต้องอยู่ระหว่าง 1–31 ครั้ง'
-    if (f.rate !== '' && (!Number.isFinite(Number(f.rate)) || Number(f.rate) < 0)) next.rate = 'เรทต้องเป็นตัวเลขที่ไม่ติดลบ'
+    const pos = (v) => Number.isFinite(Number(v)) && Number(v) > 0
+    if (f.mode === 'per_session' && !pos(f.rate)) next.rate = 'ใส่เรทต่อครั้งเป็นตัวเลขมากกว่า 0'
+    if (f.mode === 'monthly_flat' && !pos(f.flatAmount)) next.flatAmount = 'ใส่ยอดเหมาต่อเดือน'
+    if (f.mode === 'package' && (!pos(f.packTotal) || !pos(f.packPrice))) next.packTotal = 'ใส่จำนวนครั้งและราคาแพ็ก'
     setErr(next)
     if (Object.keys(next).length) return
+
+    const billing =
+      f.mode === 'per_session' ? { mode: 'per_session', rate: Number(f.rate) }
+      : f.mode === 'monthly_flat' ? { mode: 'monthly_flat', amount: Number(f.flatAmount) }
+      : { mode: 'package', total: Number(f.packTotal), price: Number(f.packPrice),
+          // แก้ไขคนเดิม: เก็บจำนวนที่ใช้ไปแล้ว ไม่รีเซ็ตตัวนับ
+          used: b?.mode === 'package' ? b.used : 0,
+          purchasedAt: b?.purchasedAt ?? null }
+
     onSave({
       ...(student || {}),
       nick: f.nick.trim(), grade: f.grade, subject: f.subject, type: f.type,
       parent: f.parent.trim() || `ผู้ปกครอง${f.nick.trim()}`,
-      plan, rate: f.rate === '' ? null : Number(f.rate), life: f.life,
-      schedule: f.schedule,
+      plan, life: f.life, schedule: f.schedule, billing,
     })
   }
 
@@ -86,11 +100,33 @@ export default function StudentEditSheet({ student, state, onClose, onSave, onDe
         <SelectField label="วิชา" value={f.subject} onChange={set('subject')} options={SUBJECTS.map((s) => ({ value: s, label: s }))} />
       </div>
 
-      <Segmented label="ประเภทคาบ" value={f.type} onChange={(v) => setF((p) => ({ ...p, type: v }))}
+      <Segmented label="โหมดการจ่าย" value={f.mode} onChange={(v) => setF((p) => ({ ...p, mode: v }))}
         options={[
-          { value: 'single', label: `เดี่ยว ${baht(state.settings.rates.single)}` },
-          { value: 'group', label: `กลุ่ม ${baht(state.settings.rates.group)}` },
-        ]} />
+          { value: 'per_session', label: 'รายครั้ง' },
+          { value: 'monthly_flat', label: 'เหมา/เดือน' },
+          { value: 'package', label: 'แพ็ก' },
+        ]}
+        hint={f.mode === 'per_session' ? 'สิ้นเดือนคิดตามครั้งที่เรียนจริง'
+          : f.mode === 'monthly_flat' ? 'จ่ายเท่ากันทุกเดือน เรียนกี่ครั้งก็ได้'
+          : 'จ่ายล่วงหน้าเป็นก้อน ระบบนับให้ว่าเหลือกี่ครั้ง'} />
+
+      {f.mode === 'per_session' && (
+        <TextField label="เรทต่อครั้ง" type="number" inputMode="numeric" min="0"
+          value={f.rate} onChange={set('rate')} suffix="บาท" error={err.rate} />
+      )}
+      {f.mode === 'monthly_flat' && (
+        <TextField label="ยอดเหมาต่อเดือน" type="number" inputMode="numeric" min="0"
+          value={f.flatAmount} onChange={set('flatAmount')} suffix="บาท" error={err.flatAmount} />
+      )}
+      {f.mode === 'package' && (
+        <div className="two">
+          <TextField label="แพ็กกี่ครั้ง" type="number" inputMode="numeric" min="1"
+            value={f.packTotal} onChange={set('packTotal')} suffix="ครั้ง" error={err.packTotal} />
+          <TextField label="ราคาแพ็ก" type="number" inputMode="numeric" min="0"
+            value={f.packPrice} onChange={set('packPrice')} suffix="บาท"
+            hint={Number(f.packTotal) > 0 ? `ตกครั้งละ ${baht(Number(f.packPrice) / Number(f.packTotal))} บาท` : undefined} />
+        </div>
+      )}
 
       <div className="fld">
         <div className="fld__label">ตารางเรียนประจำสัปดาห์</div>
@@ -116,13 +152,9 @@ export default function StudentEditSheet({ student, state, onClose, onSave, onDe
       <TextField label="ชื่อผู้ปกครอง" value={f.parent} onChange={set('parent')}
         placeholder="เช่น คุณแม่พลอย" hint="ใช้ขึ้นต้นข้อความที่ส่งเข้า LINE" />
 
-      <div className="two">
-        <TextField label="แผนต่อเดือน" type="number" inputMode="numeric" min="1" max="31"
-          value={f.plan} onChange={set('plan')} suffix="ครั้ง" error={err.plan} />
-        <TextField label="เรทเฉพาะคนนี้" type="number" inputMode="numeric" min="0"
-          value={f.rate} onChange={set('rate')} suffix="บาท" placeholder={String(defaultRate)} error={err.rate}
-          hint={f.rate === '' ? `ว่างไว้ = ใช้เรทกลาง ${baht(defaultRate)}` : 'ใช้เรทพิเศษเฉพาะคนนี้'} />
-      </div>
+      <TextField label="แผนต่อเดือน" type="number" inputMode="numeric" min="1" max="31"
+        value={f.plan} onChange={set('plan')} suffix="ครั้ง" error={err.plan}
+        hint="ใช้เตือนเมื่อเรียนต่ำกว่าแผน" />
 
       <Segmented label="สถานะการเรียน" value={f.life} onChange={(v) => setF((p) => ({ ...p, life: v }))}
         options={[

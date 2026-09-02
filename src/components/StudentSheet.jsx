@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Sheet from './Sheet.jsx'
 import { PROGRESS_NOTE, TYPE_LABEL, LIFE_LABEL } from '../data.js'
-import { baht, billOf, recordsIn, rateOf } from '../state.js'
+import { baht, billOf, recordsIn, rateOf, billingOf, packState } from '../state.js'
 import { longMonth, shortDate, TH_DAY } from '../dates.js'
 
 export default function StudentSheet({ student, state, period, onClose, onSendProgress, onEdit, onRemoveRecord }) {
@@ -58,7 +58,17 @@ export default function StudentSheet({ student, state, period, onClose, onSendPr
       <div className="card" style={{ padding: '4px 14px' }}>
         <div className="kv">
           <span>เรทปัจจุบัน</span>
-          <b>{baht(rateOf(student, state))} บาท{student.rate != null && <span className="kv__tag">เฉพาะคน</span>}</b>
+          <b>
+            {(() => {
+              const b = billingOf(student, state)
+              if (b.mode === 'monthly_flat') return `เหมา ${baht(b.amount)} บาท/เดือน`
+              if (b.mode === 'package') {
+                const pk = packState(student)
+                return `แพ็ก ${pk.total} ครั้ง ${baht(b.price)} บาท · ${pk.over > 0 ? `เกิน ${pk.over}` : `เหลือ ${pk.left}`}`
+              }
+              return `${baht(rateOf(student, state))} บาท/ครั้ง`
+            })()}
+          </b>
         </div>
         <div className="kv"><span>เรียนไปแล้ว</span><b>{times}/{student.plan} ครั้ง</b></div>
         <div className="kv">

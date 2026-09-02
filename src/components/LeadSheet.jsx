@@ -3,7 +3,7 @@ import Sheet from './Sheet.jsx'
 import { TextField, Switch, Segmented } from './Field.jsx'
 import { submitLead, markLeadSent, FORM_ENDPOINT } from '../lead.js'
 
-const PLAN_LABEL = { self: 'ใช้เอง 299', done: 'ให้เราทำให้ 1,500' }
+const PLAN_LABEL = { free: 'ฟรี', pro: 'Pro 299 บาท/เดือน', done: 'Concierge 1,500 บาท/เดือน' }
 
 export default function LeadSheet({ plan, onClose }) {
   const [f, setF] = useState({ name: '', contact: '', students: '', subjects: '', mode: 'both', wantsHelp: true })
@@ -75,7 +75,7 @@ export default function LeadSheet({ plan, onClose }) {
     >
       {plan && (
         <div className="notice" style={{ background: 'var(--ok-soft)', color: 'var(--ok)' }}>
-          สนใจแพ็ก <b>{PLAN_LABEL[plan]} บาท/เดือน</b>
+          สนใจแพ็ก <b>{PLAN_LABEL[plan] || plan}</b>
         </div>
       )}
 

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Sheet from './Sheet.jsx'
 import { SelectField, TextField, Segmented, EmptyState } from './Field.jsx'
-import { baht, rateOf } from '../state.js'
+import { baht, rateOf, billingOf } from '../state.js'
 import { TODAY } from '../data.js'
 
 /** เพิ่มคาบพิเศษของวันนี้ หรือบันทึกคาบที่สอนไปแล้วแต่ลืมกด */
@@ -39,7 +39,12 @@ export default function AddSessionSheet({ state, onClose, onAddToday, onAddPast 
         <button className="btn btn--cta btn--block" onClick={submit}>
           {mode === 'today'
             ? 'เพิ่มเข้าตารางวันนี้'
-            : `บันทึก +${baht(student ? rateOf(student, state) : 0)} บาท`}
+            : (() => {
+                const mode = student ? billingOf(student, state).mode : 'per_session'
+                if (mode === 'monthly_flat') return 'บันทึก (เหมารายเดือน ไม่กระทบบิล)'
+                if (mode === 'package') return 'บันทึก · ใช้สิทธิ์แพ็ก 1 ครั้ง'
+                return `บันทึก +${baht(student ? rateOf(student, state) : 0)} บาท`
+              })()}
         </button>
       }
     >

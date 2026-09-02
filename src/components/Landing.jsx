@@ -1,4 +1,17 @@
 import { navigate } from '../router.js'
+import { freshState, totals, baht, sessionsOn } from '../state.js'
+import { TODAY, TODAY_PERIOD } from '../data.js'
+
+// ภาพตัวอย่างต้องเลขตรงกับเดโมจริงเสมอ — เคย hardcode แล้วหลุดตอนเปลี่ยน mock
+const PEEK = (() => {
+  const s = freshState()
+  const find = (id) => s.students.find((x) => x.id === id)
+  return {
+    outstanding: baht(totals(s, TODAY_PERIOD).outstanding),
+    sessions: sessionsOn(s, TODAY).slice(0, 3).map((c) => ({ time: c.time, nick: find(c.studentId).nick })),
+    auto: (s.autoLog || []).slice(0, 3).map((a) => a.text),
+  }
+})()
 import { IconSun, IconMoon } from './Icons.jsx'
 
 const POINTS = [
@@ -58,18 +71,20 @@ export default function Landing({ isDark, onToggleTheme, onLead }) {
         <div className="land__peek rise d4" aria-hidden="true">
           <div className="peek">
             <div className="peek__hd">สวัสดี พี่กานต์</div>
-            <div className="peek__big">3,350<small> บาท</small></div>
+            <div className="peek__big">{PEEK.outstanding}<small> บาท</small></div>
             <div className="peek__lbl">ยังไม่เข้าบัญชี</div>
 
-            <div className="peek__sec">วันนี้มี 4 คาบ</div>
-            <div className="peek__row"><b>16:30</b> น้องแพรว <span className="peek__btn">เช็คชื่อ</span></div>
-            <div className="peek__row"><b>18:00</b> น้องต้นน้ำ <span className="peek__btn">เช็คชื่อ</span></div>
-            <div className="peek__row"><b>19:45</b> น้องภูมิ <span className="peek__btn">เช็คชื่อ</span></div>
+            <div className="peek__sec">วันนี้มี {PEEK.sessions.length}+ คาบ</div>
+            {PEEK.sessions.map((c) => (
+              <div className="peek__row" key={c.time + c.nick}>
+                <b>{c.time}</b> {c.nick} <span className="peek__btn">เช็คชื่อ</span>
+              </div>
+            ))}
 
             <div className="peek__sec">ระบบทำให้แล้ว</div>
-            <div className="peek__auto"><i>✓</i> รับยอดของน้องแพรว 3,200 บาท</div>
-            <div className="peek__auto"><i>✓</i> ส่งบิลเข้า LINE ผู้ปกครอง 6 คน</div>
-            <div className="peek__auto"><i>✓</i> ทวงน้องต้นน้ำแทนคุณ (1/3)</div>
+            {PEEK.auto.map((t) => (
+              <div className="peek__auto" key={t}><i>✓</i> {t}</div>
+            ))}
           </div>
         </div>
       </div>

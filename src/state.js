@@ -50,6 +50,7 @@ export function freshState() {
     inbox: clone(SEED_INBOX),
     autoLog: clone(SEED_AUTOLOG),
     receipts: clone(SEED_RECEIPTS),
+    receiptSeq: 11,
     outbox: [],
     makeups: {},
     activity: [],
@@ -63,7 +64,7 @@ export function emptyState(settings) {
     ...freshState(),
     settings: clone(settings || DEFAULT_SETTINGS),
     students: [], records: {}, status: {}, received: {}, sessionState: {}, extraSessions: [],
-    expenses: [], slips: {}, inbox: [], autoLog: [], receipts: [], outbox: [], makeups: {}, activity: [], reminded: {}, history: [],
+    expenses: [], slips: {}, inbox: [], autoLog: [], receipts: [], receiptSeq: 0, outbox: [], makeups: {}, activity: [], reminded: {}, history: [],
   }
 }
 
@@ -76,6 +77,7 @@ function load() {
     return {
       ...freshState(), ...saved,
       settings: { ...clone(DEFAULT_SETTINGS), ...(saved.settings || {}) },
+      receiptSeq: saved.receiptSeq ?? 10 + (saved.receipts?.length ?? 1),
     }
   } catch {
     return freshState()
@@ -409,8 +411,32 @@ export function recoveredThisMonth(state, period) {
 export function nextReceiptNo(state, period) {
   const [y, m] = period.split('-')
   const be = Number(y) + 543
-  const n = (state.receipts || []).length + 11
-  return `ST-${be}-${m}-${String(n).padStart(4, '0')}`
+  return `ST-${be}-${m}-${String((state.receiptSeq ?? 0) + 1).padStart(4, '0')}`
+}
+
+/** ออกใบเสร็จ — ถ้ามีใบของคน-เดือนนี้อยู่แล้ว แทนที่ (กันใบซ้ำจาก confirm→undo→confirm) */
+export function issueReceipt(s, student, period, opts = {}) {
+  const { amount } = billOf(student, s, period)
+  const receipt = {
+    id: `rc-${(s.receiptSeq ?? 0) + 1}`,
+    no: nextReceiptNo(s, period),
+    studentId: student.id, period,
+    date: opts.date ?? '',
+    amount, desc: receiptDescOf(student, s, period),
+  }
+  return {
+    state: {
+      ...s,
+      receipts: [...(s.receipts || []).filter((r) => !(r.studentId === student.id && r.period === period)), receipt],
+      receiptSeq: (s.receiptSeq ?? 0) + 1,
+    },
+    receipt,
+  }
+}
+
+/** เพิกถอนใบเสร็จของคน-เดือนนั้น — ใช้ตอนยกเลิกรับยอด ไม่งั้นมีเอกสารบอกว่ารับเงินแล้วทั้งที่ยังไม่ได้ */
+export function voidReceipt(s, studentId, period) {
+  return { ...s, receipts: (s.receipts || []).filter((r) => !(r.studentId === studentId && r.period === period)) }
 }
 
 export function receiptDescOf(student, state, period) {
@@ -427,6 +453,11 @@ function uniformRateText(student, state, period) {
   return rates.length === 1 ? String(rates[0]) : 'เรทผสม'
 }
 
+/** นักเรียนที่มีบิลรายเดือนให้ส่ง — โหมดแพ็กไม่มีบิล จึงไม่อยู่ในลิสต์ส่งบิล */
+export function billableStudents(state) {
+  return state.students.filter((s) => billingOf(s, state).mode !== 'package' && s.life === 'active')
+}
+
 export function receiptFor(state, studentId, period) {
   return (state.receipts || []).find((r) => r.studentId === studentId && r.period === period)
 }
@@ -441,11 +472,12 @@ export function buildAttendanceCsv(state, period) {
   const rows = []
   for (const st of state.students) {
     for (const r of recordsIn(state, st.id, period)) {
-      rows.push([shortDate(r.date), st.nick, st.subject, 'มาเรียน'])
+      rows.push({ iso: r.date, cells: [shortDate(r.date), st.nick, st.subject, 'มาเรียน'] })
     }
   }
-  rows.sort((a, b) => a[0].localeCompare(b[0], 'th'))
-  for (const r of rows) lines.push(r.map(esc).join(','))
+  // เรียงด้วยวันที่จริง — เคยเรียงด้วยข้อความที่ format แล้ว ทำให้ "10 ก.ย." มาก่อน "2 ก.ย."
+  rows.sort((a, b) => a.iso.localeCompare(b.iso))
+  for (const r of rows) lines.push(r.cells.map(esc).join(','))
   return BOM + lines.join('\n')
 }
 

@@ -4,7 +4,7 @@ import {
   incomeSeries, expenseTotal, netMonth, buildBackup, parseBackup, initialOf, baht, recordsIn,
   openTasks, minutesSaved, humanMinutes, addRecord, setReceived, receivedOf,
   packState, rateOf, recoveredThisMonth, nextReceiptNo, receiptDescOf, receiptFor,
-  buildAttendanceCsv, buildBillingCsv,
+  buildAttendanceCsv, buildBillingCsv, issueReceipt, voidReceipt, billableStudents,
 } from './state.js'
 import { TODAY, TODAY_PERIOD } from './data.js'
 import { shortDate, longMonth } from './dates.js'
@@ -248,5 +248,53 @@ describe('เริ่มจากศูนย์', () => {
     expect(s.students).toHaveLength(0)
     expect(s.receipts).toHaveLength(0)
     expect(totals(s, P)).toEqual({ total: 0, paid: 0, outstanding: 0 })
+  })
+})
+
+describe('วงจรใบเสร็จ — เอกสารการเงินห้ามโกหก', () => {
+  it('ยกเลิกรับยอดต้องเพิกถอนใบเสร็จด้วย', () => {
+    let s = freshState()
+    const mina = find(s, 's4')
+    s = issueReceipt(setReceived(s, P, 's4', 2800), mina, P).state
+    expect(receiptFor(s, 's4', P)).toBeTruthy()
+    s = voidReceipt(setReceived(s, P, 's4', 0), 's4', P)
+    expect(receiptFor(s, 's4', P)).toBeUndefined()
+  })
+
+  it('confirm → undo → confirm ได้ใบเดียว เลขที่ไม่ซ้ำ', () => {
+    let s = freshState()
+    const mina = find(s, 's4')
+    const r1 = issueReceipt(s, mina, P); s = r1.state
+    s = voidReceipt(s, 's4', P)
+    const r2 = issueReceipt(s, mina, P); s = r2.state
+    expect(s.receipts.filter((r) => r.studentId === 's4')).toHaveLength(1)
+    expect(r2.receipt.no).not.toBe(r1.receipt.no)
+    expect(receiptFor(s, 's4', P).id).toBe(r2.receipt.id)
+  })
+})
+
+describe('attendance.csv เรียงตามวันที่จริง', () => {
+  it('แถวแรกคือวันแรกของเดือน ไม่ใช่ "10 ก.ย." จาก string sort', () => {
+    const rows = buildAttendanceCsv(freshState(), P).split('\n').slice(1)
+    const days = rows.map((r) => Number(r.split(',')[0].replace(/"/g, '').split(' ')[0]))
+    expect(days[0]).toBe(Math.min(...days))
+    for (let i = 1; i < days.length; i++) expect(days[i]).toBeGreaterThanOrEqual(days[i - 1])
+  })
+})
+
+describe('ส่งบิลเฉพาะคนที่มีบิลจริง', () => {
+  it('นักเรียนแพ็กไม่อยู่ในลิสต์ส่งบิล', () => {
+    const s = freshState()
+    const names = billableStudents(s).map((x) => x.id)
+    expect(names).toHaveLength(5)
+    expect(names).not.toContain('s5')
+    expect(names).not.toContain('s7')
+    expect(names).not.toContain('s8')
+  })
+
+  it('นักเรียนพักการเรียนไม่ถูกส่งบิล', () => {
+    const s = freshState()
+    const paused = { ...s, students: s.students.map((x) => (x.id === 's1' ? { ...x, life: 'paused' } : x)) }
+    expect(billableStudents(paused).map((x) => x.id)).not.toContain('s1')
   })
 })

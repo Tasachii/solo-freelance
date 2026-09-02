@@ -63,7 +63,7 @@ export default function SettingsTab({
         </div>
       </Group>
 
-      <Group title="เรทและการออกบิล" desc="เปลี่ยนแล้วยอดทุกใบคำนวณใหม่ทันที">
+      <Group title="เรทตั้งต้นและการออกบิล" desc="ใช้เป็นค่าเริ่มต้นตอนเพิ่มนักเรียนใหม่ — นักเรียนเดิมตั้งโหมดและเรทรายคนในหน้าแก้ไข">
         <div className="two">
           <TextField label="เรทเรียนเดี่ยว" type="number" inputMode="numeric" min="0"
             value={s.rates.single} suffix="บาท"

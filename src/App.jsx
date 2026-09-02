@@ -4,7 +4,7 @@ import { useTheme, useIsDesk } from './theme.js'
 import {
   useDemoState, totals, baht, uid, logged, inboxed, buildAttendanceCsv, buildBillingCsv, buildBackup, parseBackup,
   rateOf, recordsIn, sessionsOn, statusOf, addRecord, setReceived, billOf, packState,
-  nextReceiptNo, receiptDescOf, receiptFor,
+  issueReceipt, voidReceipt, billableStudents,
 } from './state.js'
 import { TODAY, TODAY_PERIOD, FIRST_PERIOD, SEND_DELAY_MS } from './data.js'
 import { longMonth, shiftPeriod, shortDate } from './dates.js'
@@ -185,12 +185,12 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
       const usedAfter = st.billing.used + 1
       if (usedAfter > st.billing.total) {
         say(`แพ็กของ${st.nick}หมดแล้ว — ครั้งนี้ยังไม่ได้เก็บเงิน`, {
-          tone: 'bad',
+          tone: 'bad', undo: true,
           action: { label: 'ชวนต่อแพ็ก', run: () => open('renew', { student: st }) },
         })
       } else if (usedAfter === st.billing.total) {
         say(`เช็คชื่อแล้ว · แพ็กของ${st.nick}ครบ ${st.billing.total} ครั้งพอดี ควรชวนต่อ`, {
-          tone: 'warn',
+          tone: 'warn', undo: true,
           action: { label: 'ชวนต่อแพ็ก', run: () => open('renew', { student: st }) },
         })
       }
@@ -286,22 +286,19 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
     const { amount } = billOf(student, state, period)
     act((s) => {
       const withMoney = setReceived(s, period, student.id, amount)
-      const receipt = {
-        id: uid('rc'), no: nextReceiptNo(withMoney, period), studentId: student.id, period,
-        date: shortDate(TODAY) + ' 2569', amount, desc: receiptDescOf(student, withMoney, period),
-      }
+      const { state: withReceipt, receipt } = issueReceipt(withMoney, student, period, { date: shortDate(TODAY) + ' 2569' })
       return {
-        ...withMoney,
-        receipts: [...(withMoney.receipts || []), receipt],
+        ...withReceipt,
         autoLog: [{ id: uid('a'), at: shortDate(TODAY), kind: 'receipt', studentId: student.id, minutes: 2,
-          text: `ออกใบเสร็จ ${receipt.no} ให้${student.parent}` }, ...(withMoney.autoLog || [])],
+          text: `ออกใบเสร็จ ${receipt.no} ให้${student.parent}` }, ...(withReceipt.autoLog || [])],
       }
     }, `รับยอด ${student.nick}`, `รับยอดแล้ว · ส่งใบเสร็จให้ผู้ปกครองแล้ว`)
   }
 
   const undoPaid = (student) =>
-    act((s) => setReceived(s, period, student.id, 0),
-      `ยกเลิกรับยอด ${student.nick}`, `ยกเลิกการรับยอดของ${student.nick}`)
+    // เพิกถอนใบเสร็จด้วย — ไม่งั้นมีเอกสารบอกว่ารับเงินแล้วทั้งที่สถานะกลับเป็นค้าง
+    act((s) => voidReceipt(setReceived(s, period, student.id, 0), student.id, period),
+      `ยกเลิกรับยอด ${student.nick}`, `ยกเลิกรับยอดของ${student.nick} · เพิกถอนใบเสร็จแล้ว`)
 
   const remindDiff = (student, diff) => {
     // รับเท่าที่โอนมาจริงไว้ก่อน ส่วนต่างยังค้างอยู่ในระบบ
@@ -339,12 +336,14 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
       notify: { kind: 'sent', studentId: student.id, text: `ส่งสรุปพัฒนาการถึง${student.parent}แล้ว` },
     }, 'จะส่งใน 6 วินาที', `ส่งสรุป ${student.nick}`)
 
-  const sendAllBills = () =>
+  const sendAllBills = () => {
+    const n = billableStudents(state).length
     queueSend({
       kind: 'bill',
-      log: `ส่งบิลเดือน${longMonth(period)} เข้า LINE ผู้ปกครอง ${state.students.length} คน`,
-      notify: { kind: 'sent', text: `ส่งบิลเข้า LINE ครบ ${state.students.length} คนแล้ว` },
-    }, `จะส่งใน 6 วินาที · ${state.students.length} คน`, 'ส่งบิลทุกคน')
+      log: `ส่งบิลเดือน${longMonth(period)} เข้า LINE ผู้ปกครอง ${n} คน (แพ็กไม่มีบิลรายเดือน)`,
+      notify: { kind: 'sent', text: `ส่งบิลเข้า LINE ครบ ${n} คนแล้ว` },
+    }, `จะส่งใน 6 วินาที · ${n} คน`, 'ส่งบิลทุกคน')
+  }
 
   // ── รายจ่าย ──
   const saveExpense = (data) => {
@@ -373,7 +372,7 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
   const exportCsv = () => {
     try {
       download(buildAttendanceCsv(state, period), `attendance-${period}.csv`, 'text/csv;charset=utf-8')
-      download(buildBillingCsv(state, period), `billing-${period}.csv`, 'text/csv;charset=utf-8')
+      setTimeout(() => download(buildBillingCsv(state, period), `billing-${period}.csv`, 'text/csv;charset=utf-8'), 350)
       say('ดาวน์โหลด attendance.csv และ billing.csv แล้ว')
     }
     catch { say('ดาวน์โหลดไม่สำเร็จ ลองอีกครั้งครับ') }
@@ -401,7 +400,7 @@ function AppShell({ theme, isDesk, urlTab, onLead, lead }) {
   const { total, paid, outstanding } = totals(state, period)
   const sessions = useMemo(() => sessionsOn(state, TODAY), [state])
   const sessionsLeft = sessions.filter((c) => !state.sessionState[c.id] || state.sessionState[c.id] === 'todo').length
-  const unpaidCount = state.students.filter((s) => statusOf(state, period, s) === 'overdue' || statusOf(state, period, s) === 'pending').length
+  const unpaidCount = state.students.filter((s) => ['overdue', 'pending', 'partial'].includes(statusOf(state, period, s))).length
   const unread = state.inbox.filter((i) => !i.read).length
   const dots = { overview: false, today: sessionsLeft > 0, students: false, billing: unpaidCount > 0, settings: false }
   const active = TABS.find((t) => t.id === tab)

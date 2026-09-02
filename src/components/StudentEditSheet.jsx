@@ -106,7 +106,9 @@ export default function StudentEditSheet({ student, state, onClose, onSave, onDe
           { value: 'monthly_flat', label: 'เหมา/เดือน' },
           { value: 'package', label: 'แพ็ก' },
         ]}
-        hint={f.mode === 'per_session' ? 'สิ้นเดือนคิดตามครั้งที่เรียนจริง'
+        hint={b && b.mode !== f.mode
+          ? 'เปลี่ยนโหมดมีผลกับครั้งถัดไป — ครั้งที่บันทึกไว้แล้วคิดตามโหมดเดิม'
+          : f.mode === 'per_session' ? 'สิ้นเดือนคิดตามครั้งที่เรียนจริง'
           : f.mode === 'monthly_flat' ? 'จ่ายเท่ากันทุกเดือน เรียนกี่ครั้งก็ได้'
           : 'จ่ายล่วงหน้าเป็นก้อน ระบบนับให้ว่าเหลือกี่ครั้ง'} />
 

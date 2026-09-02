@@ -22,6 +22,7 @@ export const FORM_FIELDS = {
   subjects: 'entry.1000004',  // สอนวิชาอะไร
   wantsHelp: 'entry.1000005', // สนใจให้ทีมทำให้ฟรี 1 รอบบิล
   plan: 'entry.1000006',      // แพ็กที่สนใจ (ถ้ากดมาจากหน้าราคา)
+  mode: 'entry.1000007',      // ตอนนี้เก็บเงินแบบไหน (รายเดือน/แพ็ก/ทั้งคู่)
 }
 
 export const LEAD_FLAG = 'tutordai-lead-sent'

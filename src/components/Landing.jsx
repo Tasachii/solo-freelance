@@ -27,6 +27,10 @@ export default function Landing({ isDark, onToggleTheme, onLead }) {
             <br />
             ไม่ใช่ 5 ชั่วโมง
           </p>
+          <p className="land__sub rise d2">
+            ระบบหลังบ้านสำหรับติวเตอร์เดี่ยว — เช็คชื่อ คิดเงิน ส่งบิล LINE ตรวจสลิป
+            ออกใบเสร็จ และทวงแทนคุณ รองรับทั้งรายเดือนและแพ็กจ่ายล่วงหน้า
+          </p>
         </div>
 
         <ul className="land__list rise d3">

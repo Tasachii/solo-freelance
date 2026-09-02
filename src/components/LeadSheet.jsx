@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import Sheet from './Sheet.jsx'
-import { TextField, Switch } from './Field.jsx'
+import { TextField, Switch, Segmented } from './Field.jsx'
 import { submitLead, markLeadSent, FORM_ENDPOINT } from '../lead.js'
 
 const PLAN_LABEL = { self: 'ใช้เอง 299', done: 'ให้เราทำให้ 1,500' }
 
 export default function LeadSheet({ plan, onClose }) {
-  const [f, setF] = useState({ name: '', contact: '', students: '', subjects: '', wantsHelp: true })
+  const [f, setF] = useState({ name: '', contact: '', students: '', subjects: '', mode: 'both', wantsHelp: true })
   const [err, setErr] = useState({})
   const [state, setState] = useState('form') // form | sending | done | error
 
@@ -29,6 +29,7 @@ export default function LeadSheet({ plan, onClose }) {
         contact: f.contact.trim(),
         students: f.students,
         subjects: f.subjects.trim(),
+        mode: { monthly: 'รายเดือน', package: 'แพ็ก', both: 'ทั้งคู่' }[f.mode],
         wantsHelp: f.wantsHelp ? 'สนใจ' : 'ยังไม่สนใจ',
         plan: plan ? PLAN_LABEL[plan] || plan : '',
       })
@@ -86,6 +87,14 @@ export default function LeadSheet({ plan, onClose }) {
           value={f.students} onChange={set('students')} suffix="คน" error={err.students} />
         <TextField label="สอนวิชาอะไร" value={f.subjects} onChange={set('subjects')} placeholder="คณิต ฟิสิกส์" />
       </div>
+
+      <Segmented label="ตอนนี้เก็บเงินแบบไหน" value={f.mode}
+        onChange={(v) => setF((p) => ({ ...p, mode: v }))}
+        options={[
+          { value: 'monthly', label: 'รายเดือน' },
+          { value: 'package', label: 'แพ็ก' },
+          { value: 'both', label: 'ทั้งคู่' },
+        ]} />
 
       <Switch
         label="สนใจให้ทีมทำให้ฟรี 1 รอบบิล"

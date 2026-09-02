@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { navigate } from '../router.js'
-import { freshState, billOf, baht, recordsIn } from '../state.js'
+import { freshState, billOf, baht, recordsIn, packState } from '../state.js'
 import { shortDate, weekday, TH_DAY_SHORT } from '../dates.js'
 import { TODAY_PERIOD } from '../data.js'
 
 /** สิ่งที่ผู้ปกครองเห็นเมื่อกดลิงก์บิลจาก LINE — หน้าเดียวจบ ไม่ต้องโหลดแอป */
 export default function ParentPreview() {
   const [step, setStep] = useState('idle') // idle | checking | done
+  const [mode, setMode] = useState('monthly') // monthly | package
   const demo = freshState()
-  const student = demo.students.find((s) => s.id === 's2')
+  const student = demo.students.find((s) => s.id === (mode === 'package' ? 's7' : 's2'))
+  const pk = packState(student)
   const { times, amount } = billOf(student, demo, TODAY_PERIOD)
   const records = recordsIn(demo, student.id, TODAY_PERIOD)
   const timeFor = (date) =>
@@ -28,6 +30,11 @@ export default function ParentPreview() {
       </header>
 
       <div className="page__body">
+        <div className="viewtog" role="group" aria-label="ตัวอย่าง" style={{ width: 'fit-content', margin: '0 auto 14px' }}>
+          <button className={mode === 'monthly' ? 'is-on' : ''} onClick={() => { setMode('monthly'); setStep('idle') }}>รายเดือน</button>
+          <button className={mode === 'package' ? 'is-on' : ''} onClick={() => { setMode('package'); setStep('idle') }}>แพ็ก</button>
+        </div>
+
         <div className="card bill-doc">
           <p className="bill-doc__from">จาก {demo.settings.profile.publicName}</p>
           <h1 className="bill-doc__h1">ใบแจ้งค่าเรียน</h1>
@@ -50,8 +57,17 @@ export default function ParentPreview() {
           </table>
 
           <div className="bill-doc__total">
-            <span>เรียนทั้งหมด {times} ครั้ง</span>
-            <b>{baht(amount)} บาท</b>
+            {mode === 'package' ? (
+              <>
+                <span>แพ็ก {pk.total} ครั้ง · เหลือ {pk.left} ครั้ง</span>
+                <b>ต่อแพ็กใหม่ {baht(student.billing.price)} บาท</b>
+              </>
+            ) : (
+              <>
+                <span>เหมารายเดือน · เรียน {times} ครั้ง</span>
+                <b>{baht(amount)} บาท</b>
+              </>
+            )}
           </div>
         </div>
 
@@ -59,7 +75,7 @@ export default function ParentPreview() {
           <div className="paid-ok">
             <span className="paid-ok__tick" aria-hidden="true">✓</span>
             <b>ได้รับยอดแล้ว ขอบคุณครับ</b>
-            <span>ระบบตรวจสลิปกับธนาคารแล้ว ยอดตรงกับใบแจ้ง</span>
+            <span>ระบบตรวจสลิปแล้ว ยอดตรง · ใบเสร็จส่งให้แล้ว</span>
           </div>
         ) : (
           <div className="card pay">
@@ -71,7 +87,7 @@ export default function ParentPreview() {
               </div>
             </div>
             <button className="btn btn--cta btn--block" onClick={attach} disabled={step === 'checking'}>
-              {step === 'checking' ? 'ระบบกำลังตรวจสลิป…' : 'แนบสลิป'}
+              {step === 'checking' ? 'ระบบกำลังตรวจสลิป…' : mode === 'package' ? 'ต่อแพ็กใหม่ · แนบสลิป' : 'แนบสลิป'}
             </button>
             {step === 'checking' && <p className="pay__wait">เทียบยอดกับรายการเดินบัญชี…</p>}
           </div>

@@ -1,3 +1,140 @@
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useStore } from '../core/store'
+import { professionById } from '../professions'
+import { copy } from '../copy'
+import { clientById, packageStatus } from '../core/ledger'
+import { overdueDaysBySubject } from '../core/selectors'
+import { currentEstimate } from '../core/messages'
+import { money, periodOf } from '../core/format'
+import { modeThai } from '../copy/tutor'
+import { Chip, EmptyState, ProgressBar, Skeleton } from './components'
+import SubjectSheet from './SubjectSheet'
+
+type Filter = 'all' | 'per_unit' | 'flat_monthly' | 'package' | 'lowpack' | 'overdue'
+
 export default function Subjects() {
-  return <div className="page">Subjects</div>
+  const { state, hydrated } = useStore()
+  const prof = professionById(state.professionId)
+  const v = prof.vocab
+  const nav = useNavigate()
+  const [filter, setFilter] = useState<Filter>('all')
+  const [q, setQ] = useState('')
+  const [adding, setAdding] = useState(false)
+  const period = periodOf(state.today)
+
+  const active = state.subjects.filter((s) => s.active)
+  const inactive = state.subjects.filter((s) => !s.active)
+
+  const counts = useMemo(() => {
+    const c: Record<Filter, number> = { all: active.length, per_unit: 0, flat_monthly: 0, package: 0, lowpack: 0, overdue: 0 }
+    for (const s of active) {
+      c[s.billing.mode] += 1
+      const pk = packageStatus(state, s)
+      if (pk && pk.state !== 'ok') c.lowpack += 1
+      if (overdueDaysBySubject(state, s.id) > 0) c.overdue += 1
+    }
+    return c
+  }, [state, active])
+
+  const shown = useMemo(() => {
+    const n = q.trim().toLowerCase()
+    return active.filter((s) => {
+      const pk = packageStatus(state, s)
+      if (filter === 'lowpack' && !(pk && pk.state !== 'ok')) return false
+      if (filter === 'overdue' && overdueDaysBySubject(state, s.id) === 0) return false
+      if (['per_unit', 'flat_monthly', 'package'].includes(filter) && s.billing.mode !== filter) return false
+      if (!n) return true
+      const c = clientById(state, s.clientId)
+      return `${s.name} ${c?.name ?? ''}`.toLowerCase().includes(n)
+    })
+  }, [state, active, filter, q])
+
+  if (!hydrated) return <div className="pane"><Skeleton rows={5} /></div>
+
+  if (state.subjects.length === 0) {
+    return (
+      <div className="pane">
+        <EmptyState icon="👋" title={`${copy.subjects.emptyTitle}`}
+          action={
+            <div className="btnrow">
+              <button className="btn btn--primary" onClick={() => setAdding(true)}>{copy.subjects.addOneByOne}</button>
+              <button className="btn btn--secondary" onClick={() => nav('/app/onboarding')}>{copy.subjects.pasteExcel}</button>
+            </div>
+          } />
+        {adding && <SubjectSheet onClose={() => setAdding(false)} />}
+      </div>
+    )
+  }
+
+  const FILTERS: { id: Filter; label: string }[] = [
+    { id: 'all', label: copy.subjects.filters.all },
+    { id: 'per_unit', label: copy.subjects.filters.per_unit },
+    { id: 'flat_monthly', label: copy.subjects.filters.flat_monthly },
+    { id: 'package', label: copy.subjects.filters.package },
+    { id: 'lowpack', label: copy.subjects.filters.lowpack },
+    { id: 'overdue', label: copy.subjects.filters.overdue },
+  ]
+
+  return (
+    <div className="pane">
+      <div className="rowhead">
+        <h1 className="h1">{v.subjects} {active.length}</h1>
+        <button className="btn btn--primary btn--sm" onClick={() => setAdding(true)}>+ {copy.subjects.add}</button>
+      </div>
+
+      <div className="chips">
+        {FILTERS.map((f) => (
+          <Chip key={f.id} label={f.label} count={counts[f.id]} on={filter === f.id} onClick={() => setFilter(f.id)} />
+        ))}
+      </div>
+      <input className="inp inp--search" type="search" value={q} placeholder={copy.subjects.search}
+        aria-label={copy.subjects.search} onChange={(e) => setQ(e.target.value)} />
+
+      <ul className="rows">
+        {shown.map((s) => {
+          const pk = packageStatus(state, s)
+          const od = overdueDaysBySubject(state, s.id)
+          const c = clientById(state, s.clientId)
+          const tone = pk ? (pk.state === 'ok' ? 'ok' : pk.state === 'low' ? 'warn' : 'danger') : 'ok'
+          return (
+            <li key={s.id}>
+              <button className="srow" onClick={() => nav(`/app/subjects/${s.id}`)}>
+                <span className="srow__main">
+                  <span className="srow__name">{s.name}{od > 0 && <i className="badge badge--danger">ค้าง {od} วัน</i>}</span>
+                  <span className="srow__meta">
+                    {c?.name} · {modeThai(s.billing.mode)}
+                    {s.billing.mode === 'per_unit' && ` ${money(s.billing.rate)}`}
+                    {s.billing.mode === 'flat_monthly' && ` ${money(s.billing.amount)}`}
+                    {pk && ` ${pk.used}/${pk.total}`}
+                  </span>
+                  {pk && <ProgressBar value={pk.used} max={pk.total} tone={tone} />}
+                </span>
+                <span className="srow__side num">
+                  {pk ? `${money(pk.price)}` : money(currentEstimate(state, s, period))}
+                </span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+
+      {shown.length === 0 && <p className="dim center">ไม่พบรายชื่อในกลุ่มนี้</p>}
+
+      {inactive.length > 0 && (
+        <details className="fold">
+          <summary>{copy.subjects.inactiveGroup} ({inactive.length})</summary>
+          <ul className="rows">
+            {inactive.map((s) => (
+              <li key={s.id}><button className="srow" onClick={() => nav(`/app/subjects/${s.id}`)}>
+                <span className="srow__name dim">{s.name}</span>
+              </button></li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {adding && <SubjectSheet onClose={() => setAdding(false)} />}
+    </div>
+  )
 }

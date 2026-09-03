@@ -49,7 +49,8 @@ npm run dev
 | `npm run dev` | เซิร์ฟเวอร์สำหรับพัฒนา |
 | `npm run build` | `tsc` แล้ว build ลง `dist/` |
 | `npm run preview` | เสิร์ฟ `dist/` ที่ build แล้ว |
-| `npx vitest run` | ชุดทดสอบ |
+| `npm test` | ชุดทดสอบหน่วย (42 ตัว) |
+| `npm run e2e` | เดินเส้นทางเดโมทั้งเส้นบน build จริง (16 ตัว · มือถือ + เดสก์ท็อป) |
 
 ### พารามิเตอร์สำหรับเดโม
 

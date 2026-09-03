@@ -40,7 +40,7 @@ let uid = 0
 const nid = (p: string): string => { uid += 1; return `${p}-${Date.now().toString(36)}${uid}` }
 
 /** ทุก action วิ่งผ่านที่นี่ แล้ว normalize (markOverdue + deriveDrafts) ตอนท้ายเสมอ */
-function reducer(state: AppState, action: Action): AppState {
+export function reducer(state: AppState, action: Action): AppState {
   let s = state
   switch (action.type) {
     case 'complete': s = ledgerComplete(s, action.unitId); break

@@ -9,12 +9,23 @@ const open = async (page: Page, hash: string): Promise<void> => {
   await expect(page.locator('.skel')).toHaveCount(0)
 }
 
-test('หน้าแรกบอกว่าเป็นเดโม และมีอาชีพที่เปิดใช้จริงอยู่หนึ่งอาชีพ', async ({ page }) => {
+test('หน้าแรกมีทางเข้าเดียว ไม่ใช่เมนูให้เลือก', async ({ page }) => {
   await page.goto('./')
   await expect(page.getByText('เดโม · ข้อมูลสมมติ').first()).toBeVisible()
-  await expect(page.locator('.picker__i--live')).toHaveCount(1)
-  await expect(page.locator('.picker__i--live')).toContainText('Solo Tutor')
-  // ตารางสร้างจาก vocab จริง ไม่ใช่ค่าที่พิมพ์ซ้ำ
+
+  // ทางเข้าแอปต้องมีปุ่มเดียว ไม่มีปุ่มซ้ำไปที่เดียวกัน
+  await expect(page.locator('a[href$="/app/today"]')).toHaveCount(1)
+
+  // อาชีพที่ยังไม่เปิดบอกให้รู้ได้ แต่ต้องไม่ทำเป็นตัวเลือกให้กด
+  await expect(page.locator('.soonline')).toContainText('Solo Nail')
+  await expect(page.locator('.picker__i')).toHaveCount(0)
+
+  // ของสำหรับนำเสนอไม่ควรอยู่หน้าที่ผู้ใช้เข้ามาใช้งาน
+  await expect(page.locator('.engine')).toHaveCount(0)
+})
+
+test('ตาราง engine อยู่หน้า pitch และสร้างจาก vocab จริง', async ({ page }) => {
+  await page.goto('#/pitch')
   await expect(page.locator('.engine tbody tr').first()).toContainText('ผู้ปกครอง')
 })
 

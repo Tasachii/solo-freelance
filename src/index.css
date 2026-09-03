@@ -390,3 +390,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   background:var(--ok-soft)}
 .paid-ok__txt{color:var(--ok);font-weight:600;font-size:var(--fs-small)}
 .paid-ok .btn{text-decoration:none}
+
+/* อาชีพที่ยังไม่เปิด — บรรทัดเดียว ไม่ใช่เมนูให้เลือก */
+.soonline{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2) var(--space-3);
+  margin:0;padding:var(--space-3) 0 var(--space-6);font-size:var(--fs-small);color:var(--muted)}
+.soonline__l{font-weight:600;color:var(--faint,var(--muted))}
+.soonline__i{white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+.soonline__b{min-height:var(--tap);padding:0 var(--space-2);color:var(--brand);
+  font-size:var(--fs-small);font-weight:600;text-decoration:underline;text-underline-offset:3px}

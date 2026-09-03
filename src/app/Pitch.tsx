@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { copy } from '../copy'
 import { DemoBadge } from './components'
+import EngineTable from '../platform/EngineTable'
 
 /** ปลายทางในแอปของแต่ละจังหวะ — ให้กดเข้าไปดูของจริงได้ ไม่ใช่ภาพนิ่ง */
 const TARGETS = [
@@ -53,6 +54,11 @@ export default function Pitch() {
             <button className="btn btn--ghost" onClick={() => setI(i + 1)}>{copy.pitch.next}</button>
           )}
         </div>
+      </section>
+
+      <section className="land__sec" aria-labelledby="sec-engine">
+        <h2 className="land__h2" id="sec-engine">{copy.landing.engineTitle}</h2>
+        <EngineTable />
       </section>
 
       <footer className="land__foot">

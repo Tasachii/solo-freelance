@@ -2,7 +2,7 @@
 
 แอดมินให้คนที่ทำงานคนเดียว — เดโมแบบ static ไม่มีหลังบ้าน ไม่มีล็อกอิน ไม่มีการจ่ายเงินจริง
 
-เดโม: https://tasachii.github.io/solo-tutor/
+เดโม: https://tasachii.github.io/solo/
 
 ---
 

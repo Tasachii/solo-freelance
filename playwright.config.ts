@@ -8,7 +8,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'line' : 'list',
   use: {
-    baseURL: 'http://localhost:4173/solo-tutor/',
+    baseURL: 'http://localhost:4173/solo/',
     trace: 'on-first-retry',
   },
   projects: [
@@ -17,7 +17,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run build && npx vite preview --port 4173',
-    url: 'http://localhost:4173/solo-tutor/',
+    url: 'http://localhost:4173/solo/',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

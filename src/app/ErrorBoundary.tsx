@@ -2,7 +2,6 @@ import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { copy } from '../copy'
 import { STORAGE_KEY } from '../core/store'
 import { download } from '../core/export'
-import { Mascot } from './components/Mascot'
 
 interface State { failed: boolean }
 
@@ -50,7 +49,6 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, St
     const real = this.isReal()
     return (
       <div className="page crash">
-        <Mascot mood="oops" size={110} />
         <h1 className="crash__t">{copy.errors.crashTitle}</h1>
         <p className="crash__p">{real ? copy.errors.crashReal : copy.errors.crashDemo}</p>
         <div className="btnrow">

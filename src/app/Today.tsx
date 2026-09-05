@@ -7,7 +7,6 @@ import { cancelledText, mkMessage, movedText } from '../core/messages'
 import { addDays } from '../core/format'
 import { isCompleted, packageStatus, subjectById, unitsOn } from '../core/ledger'
 import { dateThaiFull, dateThai } from '../core/format'
-import { Mascot } from './components/Mascot'
 import { BottomSheet, ConfirmSheet, EmptyState, Skeleton, StatCard } from './components'
 import { useToast } from './components/Toast'
 
@@ -91,7 +90,7 @@ export default function Today() {
 
       {units.length === 0 ? (
         <EmptyState
-          icon={<Mascot mood="rest" />} title={`${copy.today.emptyTitle}`}
+          icon="☕" title={`${copy.today.emptyTitle}`}
           desc={nextDay ? `${copy.today.emptyNext}: ${dateThai(nextDay)}` : undefined}
           action={<button className="btn btn--secondary" onClick={() => setAdding(true)}>+ {copy.today.addUnit}</button>}
         />

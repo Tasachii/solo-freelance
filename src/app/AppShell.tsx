@@ -12,6 +12,8 @@ import { BottomSheet, ConfirmSheet, DemoBadge } from './components'
 import { SCENARIOS, SCENARIO_LABEL, type ScenarioId } from '../core/scenarios'
 import { applyTheme, readTheme, type Theme } from '../core/theme'
 import { applySize, readSize, type DisplaySize } from '../core/display'
+import { ACCENTS, applyAccent, readAccent, type Accent } from '../core/accent'
+import { applyFrame, readFrame, toggleFullscreen, type Frame } from '../core/present'
 
 export default function AppShell() {
   const { state, dispatch, resetDemo, track } = useStore()
@@ -21,6 +23,9 @@ export default function AppShell() {
   const [menu, setMenu] = useState(false)
   const [theme, setTheme] = useState<Theme>(readTheme)
   const [size, setSize] = useState<DisplaySize>(readSize)
+  const [accent, setAccent] = useState<Accent>(readAccent)
+  const [frame, setFrame] = useState<Frame>(readFrame)
+  const [keys, setKeys] = useState(false)
   // ask = สิ่งที่กำลังถามยืนยันอยู่ (แทน window.confirm ที่ใช้ไม่ได้บน PWA)
   const [ask, setAsk] = useState<null | 'toDemo' | 'toReal' | { restore: AppState; cross: boolean }>(null)
   const real = state.mode === 'real'
@@ -33,6 +38,38 @@ export default function AppShell() {
       nav('/app/onboarding', { replace: true })
     }
   }, [state.onboarded, state.subjects.length, loc.pathname, nav])
+
+  // คีย์ลัดสำหรับตอนพรีเซนต์ — ไม่จับเมื่อกำลังพิมพ์อยู่ในช่องกรอก
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const el = e.target as HTMLElement | null
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return
+      const go = (i: number) => nav(['/app/today', '/app/subjects', '/app/billing', '/app/admin'][i])
+      const sizes: DisplaySize[] = ['sm', 'lg', 'xl']
+      switch (e.key) {
+        case '1': case '2': case '3': case '4': go(Number(e.key) - 1); break
+        case 'f': case 'F': void toggleFullscreen(); break
+        case 'w': case 'W': {
+          const next: Frame = readFrame() === 'web' ? 'phone' : 'web'
+          setFrame(next); applyFrame(next); break
+        }
+        case 'd': case 'D': {
+          const next: Theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'
+          setTheme(next); applyTheme(next); break
+        }
+        case '+': case '=': case '-': case '_': {
+          const at = sizes.indexOf(readSize())
+          const to = sizes[Math.min(sizes.length - 1, Math.max(0, at + (e.key === '-' || e.key === '_' ? -1 : 1)))]
+          setSize(to); applySize(to); break
+        }
+        case '?': setKeys(true); break
+        case 'Escape': setKeys(false); break
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [nav])
 
   const tabs = [
     { to: '/app/today', label: copy.nav.today },
@@ -69,7 +106,8 @@ export default function AppShell() {
               <button className="row" onClick={() => setAsk('toDemo')}>{copy.menu.backToDemo}</button>
             ) : (
               <>
-                <button className="row" onClick={() => { resetDemo(); setMenu(false) }}>{copy.menu.reset}</button>
+                <button className="row" onClick={() => { setKeys(true); setMenu(false) }}>{copy.menu.shortcuts}</button>
+            <button className="row" onClick={() => { resetDemo(); setMenu(false) }}>{copy.menu.reset}</button>
                 <button className="row row--go" onClick={() => setAsk('toReal')}>{copy.menu.startReal}</button>
               </>
             )}
@@ -92,6 +130,32 @@ export default function AppShell() {
                 {copy.menu.clientView}
               </button>
             )}
+          </div>
+          <div className="fld">
+            <div className="fld__l">{copy.menu.frame}</div>
+            <div className="chips">
+              {(['phone', 'web'] as Frame[]).map((f) => (
+                <button key={f} className={`chip${frame === f ? ' chip--on' : ''}`} aria-pressed={frame === f}
+                  onClick={() => { setFrame(f); applyFrame(f); track('frame_switch', { frame: f }) }}>
+                  {copy.menu.frames[f]}
+                </button>
+              ))}
+              <button className="chip" onClick={() => { void toggleFullscreen(); setMenu(false) }}>
+                {copy.menu.fullscreen}
+              </button>
+            </div>
+          </div>
+          <div className="fld">
+            <div className="fld__l">{copy.menu.accent}</div>
+            <div className="chips">
+              {ACCENTS.map((a) => (
+                <button key={a} className={`chip chip--dot${accent === a ? ' chip--on' : ''}`} aria-pressed={accent === a}
+                  data-accent-swatch={a}
+                  onClick={() => { setAccent(a); applyAccent(a); track('accent_switch', { accent: a }) }}>
+                  {copy.menu.accents[a]}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="fld">
             <div className="fld__l">{copy.menu.size}</div>
@@ -129,6 +193,16 @@ export default function AppShell() {
               ))}
             </div>
           </div>}
+        </BottomSheet>
+      )}
+
+      {keys && (
+        <BottomSheet title={copy.menu.shortcuts} onClose={() => setKeys(false)}>
+          <ul className="keys">
+            {copy.menu.keys.map((k) => (
+              <li key={k.k}><kbd>{k.k}</kbd><span>{k.d}</span></li>
+            ))}
+          </ul>
         </BottomSheet>
       )}
 

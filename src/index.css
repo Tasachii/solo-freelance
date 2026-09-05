@@ -1,7 +1,7 @@
 /* Solo design tokens — spec ข้อ 10 (LEGACY_TOKEN_FILE ว่าง) ห้าม hard-code สีนอกไฟล์นี้ */
 :root{color-scheme:light;
 --bg:#f7f5f1;--bg-outer:#ebe7e0;--surface:#fffefb;--ink:#2b2926;--muted:#6f6a62;--line:#e5e0d6;
---brand:#0f6f66;--brand-soft:#e2efec;--brand-ink:#0b4f49;--ok:#1f7a4c;--ok-soft:#e6f2ea;
+--brand:#0d7f77;--brand-soft:#ddf0ed;--brand-ink:#0a5751;--ok:#1f7a4c;--ok-soft:#e6f2ea;
 --warn:#a86a12;--warn-soft:#faf0dd;--danger:#b8402f;--danger-soft:#f9e9e5;
 --on-brand:#fff;--on-danger:#fff;--on-ink:#fff;--on-ink-soft:rgba(255,255,255,.2);
 --skel-hi:#eef1f2;--veil:rgba(20,30,32,.45);
@@ -14,7 +14,7 @@
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){color-scheme:dark;
   --bg:#14120f;--bg-outer:#0d0c0a;--surface:#1e1b17;--ink:#efe9e0;--muted:#a49c90;--line:#312c25;
-  --brand:#4fb3a6;--brand-soft:#17332f;--brand-ink:#9fd8ce;--ok:#5cbb85;--ok-soft:#16301f;
+  --brand:#3fc4b4;--brand-soft:#123330;--brand-ink:#8fe3d8;--ok:#5cbb85;--ok-soft:#16301f;
   --warn:#d9a441;--warn-soft:#33260f;--danger:#e8735f;--danger-soft:#361d19;
   --on-brand:#08201d;--on-danger:#2a100c;--on-ink:#14120f;--on-ink-soft:rgba(0,0,0,.18);
   --skel-hi:#2b261f;--veil:rgba(0,0,0,.62);
@@ -22,7 +22,7 @@
 }
 :root[data-theme="dark"]{color-scheme:dark;
 --bg:#14120f;--bg-outer:#0d0c0a;--surface:#1e1b17;--ink:#efe9e0;--muted:#a49c90;--line:#312c25;
---brand:#4fb3a6;--brand-soft:#17332f;--brand-ink:#9fd8ce;--ok:#5cbb85;--ok-soft:#16301f;
+--brand:#3fc4b4;--brand-soft:#123330;--brand-ink:#8fe3d8;--ok:#5cbb85;--ok-soft:#16301f;
 --warn:#d9a441;--warn-soft:#33260f;--danger:#e8735f;--danger-soft:#361d19;
 --on-brand:#08201d;--on-danger:#2a100c;--on-ink:#14120f;--on-ink-soft:rgba(0,0,0,.18);
 --skel-hi:#2b261f;--veil:rgba(0,0,0,.62);
@@ -34,6 +34,27 @@
 :root[data-size="xl"]{--shell-w:760px;
   --fs-body:21px;--fs-small:17px;--fs-h1:33px;--fs-h2:25px;--tap:60px;
   --space-3:15px;--space-4:20px;--space-6:30px}
+
+/* สีหลักที่ผู้ใช้เลือกเองได้ — teal คือค่าเริ่มต้นจึงไม่ต้องมี block */
+:root[data-accent="forest"]{--brand:#1d7a45;--brand-soft:#e0f0e6;--brand-ink:#155a33}
+:root[data-accent="indigo"]{--brand:#4a54d6;--brand-soft:#e6e8fb;--brand-ink:#343ca6}
+:root[data-accent="plum"]{--brand:#8b3a8f;--brand-soft:#f4e6f5;--brand-ink:#6a2a6d}
+:root[data-accent="clay"]{--brand:#b25a2a;--brand-soft:#fbeadf;--brand-ink:#8a431e}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"])[data-accent="forest"]{--brand:#4fc57e;--brand-soft:#122b1c;--brand-ink:#9ee5b7}
+  :root:not([data-theme="light"])[data-accent="indigo"]{--brand:#8b93ff;--brand-soft:#1d2050;--brand-ink:#bcc1ff}
+  :root:not([data-theme="light"])[data-accent="plum"]{--brand:#d489d8;--brand-soft:#331434;--brand-ink:#ecbdee}
+  :root:not([data-theme="light"])[data-accent="clay"]{--brand:#e0925f;--brand-soft:#331e10;--brand-ink:#f3c4a1}
+}
+:root[data-theme="dark"][data-accent="forest"]{--brand:#4fc57e;--brand-soft:#122b1c;--brand-ink:#9ee5b7}
+:root[data-theme="dark"][data-accent="indigo"]{--brand:#8b93ff;--brand-soft:#1d2050;--brand-ink:#bcc1ff}
+:root[data-theme="dark"][data-accent="plum"]{--brand:#d489d8;--brand-soft:#331434;--brand-ink:#ecbdee}
+:root[data-theme="dark"][data-accent="clay"]{--brand:#e0925f;--brand-soft:#331e10;--brand-ink:#f3c4a1}
+
+/* ธีมมืดใช้สีสว่างขึ้น ตัวหนังสือบนปุ่มจึงต้องเป็นสีเข้ม */
+:root[data-accent]{--on-brand:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"])[data-accent]{--on-brand:#0d1512}}
+:root[data-theme="dark"][data-accent]{--on-brand:#0d1512}
 
 *{box-sizing:border-box}
 html,body,#root{height:100%}
@@ -444,3 +465,28 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .confirm__left{display:inline-block;margin-left:var(--space-3);padding-left:var(--space-3);border-left:1px solid var(--line);font-style:normal;font-weight:600;
   font-size:var(--fs-small);color:var(--muted)}
 .hint--bad{color:var(--danger)}
+
+/* โหมดเว็บ — ใช้ความกว้างจริงของจอ สำหรับฉายหรือดูบนคอม */
+@media(min-width:768px){
+  :root[data-frame="web"] .shell{max-width:min(1100px, 96vw);box-shadow:none}
+  :root[data-frame="web"] body{background:var(--bg)}
+  :root[data-frame="web"] .page{max-width:none}
+  :root[data-frame="web"] .pane{max-width:900px;margin:0 auto}
+}
+
+/* จุดสีหน้าชิปเลือกสี */
+.chip--dot::before{content:'';width:10px;height:10px;border-radius:50%;margin-right:6px;
+  display:inline-block;vertical-align:-1px;background:var(--brand)}
+.chip--dot[data-accent-swatch="teal"]::before{background:#0d7f77}
+.chip--dot[data-accent-swatch="forest"]::before{background:#1d7a45}
+.chip--dot[data-accent-swatch="indigo"]::before{background:#4a54d6}
+.chip--dot[data-accent-swatch="plum"]::before{background:#8b3a8f}
+.chip--dot[data-accent-swatch="clay"]::before{background:#b25a2a}
+
+/* ตารางคีย์ลัด */
+.keys{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-2)}
+.keys li{display:grid;grid-template-columns:88px minmax(0,1fr);gap:var(--space-3);align-items:center;
+  font-size:var(--fs-small)}
+.keys kbd{font-family:'IBM Plex Mono',ui-monospace,monospace;background:var(--surface-2,var(--bg));
+  border:1px solid var(--line);border-radius:var(--radius-sm);padding:4px 8px;text-align:center;
+  font-size:var(--fs-small);color:var(--ink)}

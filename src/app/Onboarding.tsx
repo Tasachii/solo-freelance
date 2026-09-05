@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../core/store'
 import { professionById } from '../professions'
 import { copy } from '../copy'
+import { Mascot } from './components/Mascot'
 import type { BillingMode } from '../core/types'
 
 interface Row { name: string; clientName: string; lineId?: string; error?: string }
@@ -46,6 +47,7 @@ export default function Onboarding() {
 
   return (
     <div className="pane">
+      {step === 1 && <Mascot mood="hello" size={110} />}
       <h1 className="h1">{step === 1 ? copy.onboarding.step1 : step === 2 ? copy.onboarding.step2 : copy.onboarding.step3}</h1>
 
       {step === 1 && (

@@ -8,6 +8,7 @@ import { sortDrafts, mkMessage } from '../core/messages'
 import { answer } from '../core/faq'
 import { periodOf } from '../core/format'
 import { EmptyState, Skeleton, StatCard } from './components'
+import { Mascot } from './components/Mascot'
 import { useToast } from './components/Toast'
 import { copyText, openLine } from './share'
 import type { Message } from '../core/types'
@@ -159,7 +160,7 @@ export default function Admin() {
           </div>
 
           {drafts.length === 0 ? (
-            <EmptyState icon="✓" title={copy.admin.emptyDrafts} />
+            <EmptyState icon={<Mascot mood="cheer" />} title={copy.admin.emptyDrafts} />
           ) : (
             <>
               {/* ส่งทีละคนเป็นคิว — LINE เปิดได้ทีละแชท จะกดรวดเดียวแล้วนับว่าส่งหมดไม่ได้ */}

@@ -13,7 +13,7 @@ export function Skeleton({ rows = 3 }: { rows?: number }) {
   )
 }
 
-export function EmptyState({ icon, title, desc, action }: { icon: string; title: string; desc?: string; action?: ReactNode }) {
+export function EmptyState({ icon, title, desc, action }: { icon: ReactNode; title: string; desc?: string; action?: ReactNode }) {
   return (
     <div className="empty">
       <div className="empty__ico" aria-hidden="true">{icon}</div>

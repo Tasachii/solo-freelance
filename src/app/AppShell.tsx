@@ -8,7 +8,6 @@ import { professionById } from '../professions'
 import { copy } from '../copy'
 import { draftCount } from '../core/selectors'
 import { BottomSheet, DemoBadge } from './components'
-import WaitlistSheet from '../platform/WaitlistSheet'
 import { SCENARIOS, SCENARIO_LABEL, type ScenarioId } from '../core/scenarios'
 import { applyTheme, readTheme, type Theme } from '../core/theme'
 import { applySize, readSize, type DisplaySize } from '../core/display'
@@ -19,7 +18,6 @@ export default function AppShell() {
   const nav = useNavigate()
   const loc = useLocation()
   const [menu, setMenu] = useState(false)
-  const [lead, setLead] = useState(false)
   const [theme, setTheme] = useState<Theme>(readTheme)
   const [size, setSize] = useState<DisplaySize>(readSize)
   const real = state.mode === 'real'
@@ -51,10 +49,6 @@ export default function AppShell() {
       </header>
 
       <main className="shell__main"><Outlet /></main>
-
-      {!real && (
-        <button className="fab" onClick={() => { setLead(true); track('contact_fab') }}>{copy.waitlist.title}</button>
-      )}
 
       <nav className="tabbar">
         {tabs.map((t) => (
@@ -140,7 +134,6 @@ export default function AppShell() {
         </BottomSheet>
       )}
 
-      {lead && <WaitlistSheet preselect={state.professionId} onClose={() => setLead(false)} />}
     </div>
   )
 }

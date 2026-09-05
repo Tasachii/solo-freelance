@@ -8,6 +8,7 @@ import WaitlistSheet from './WaitlistSheet'
 /** ตัวเลขราคาอยู่ที่นี่ ข้อความอยู่ใน copy — ดัชนีตรงกับ copy.pricing.plans */
 const PRICES: (number | null)[] = [0, 299, 1500]
 const HIGHLIGHT = 1
+const CONCIERGE = 2
 const QUARTERLY_PRICE = 850
 
 export default function Pricing() {
@@ -28,12 +29,11 @@ export default function Pricing() {
     <div className="land">
       <header className="land__hero land__hero--sm">
         <div className="land__bar">
-          <Link className="land__brand" to="/">{copy.brand.name}</Link>
+          <Link className="backlink" to="/">‹ {copy.brand.name}</Link>
           <DemoBadge />
         </div>
         <h1 className="land__h1">{copy.pricing.title}</h1>
         <p className="land__sub">{copy.pricing.sub}</p>
-        <p className="land__banner">{copy.pricing.banner}</p>
       </header>
 
       <section className="land__sec">
@@ -54,11 +54,12 @@ export default function Pricing() {
               <ul className="plan__feats">
                 {p.features.map((f) => <li key={f}>{f}</li>)}
               </ul>
-              {PRICES[i] === 0 ? (
-                <Link className="btn btn--ghost plan__cta" to="/app/today">{p.cta}</Link>
+              {/* ทุกแพ็กเข้าไปลองได้เลย ไม่มีฟอร์มมาขวาง — มีแต่ Concierge ที่ต้องคุยกับทีมจริง */}
+              {i === CONCIERGE ? (
+                <button className="btn btn--ghost plan__cta" onClick={() => setLead(true)}>{p.cta}</button>
               ) : (
-                <button className={`btn plan__cta ${i === HIGHLIGHT ? 'btn--primary' : 'btn--ghost'}`}
-                  onClick={() => setLead(true)}>{p.cta}</button>
+                <Link className={`btn plan__cta ${i === HIGHLIGHT ? 'btn--primary' : 'btn--ghost'}`}
+                  to="/app/today">{p.cta}</Link>
               )}
             </li>
           ))}

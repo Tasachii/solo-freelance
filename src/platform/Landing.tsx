@@ -43,7 +43,7 @@ export default function Landing() {
 
       <section className="land__sec land__sec--cta">
         <p className="land__last">{copy.landing.ctaBottom}</p>
-        <button className="btn btn--primary" onClick={() => setLead('')}>{copy.waitlist.title}</button>
+        <Link className="btn btn--primary" to="/app/today">{copy.landing.tryNow}</Link>
       </section>
 
       {/* อาชีพอื่นยังเปิดไม่ได้ จึงไม่ใช่ "ตัวเลือก" — บอกให้รู้ว่ากำลังมา ก็พอ */}

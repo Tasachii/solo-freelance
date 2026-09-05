@@ -19,7 +19,7 @@ export default function Pitch() {
     <div className="land">
       <header className="land__hero land__hero--sm">
         <div className="land__bar">
-          <Link className="land__brand" to="/">{copy.brand.name}</Link>
+          <Link className="backlink" to="/">‹ {copy.brand.name}</Link>
           <DemoBadge />
         </div>
         <h1 className="land__h1">{steps[i].t}</h1>

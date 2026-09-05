@@ -13,8 +13,14 @@ test('หน้าแรกมีทางเข้าเดียว ไม่�
   await page.goto('./')
   await expect(page.getByText('เดโม · ข้อมูลสมมติ').first()).toBeVisible()
 
-  // ทางเข้าแอปต้องมีปุ่มเดียว ไม่มีปุ่มซ้ำไปที่เดียวกัน
-  await expect(page.locator('a[href$="/app/today"]')).toHaveCount(1)
+  // hero มีทางเข้าเดียว (CTA ล่างเป็นอีกจุดตั้งใจ ไม่ใช่ปุ่มซ้ำใน hero เดียวกัน)
+  await expect(page.locator('.land__cta a[href$="/app/today"]')).toHaveCount(1)
+  // ทุกทางเข้าพาไปที่เดียวกัน ไม่มีฟอร์มมาขวางก่อนได้ลอง
+  const entries = page.locator('a[href$="/app/today"]')
+  await expect(entries).not.toHaveCount(0)
+  for (const href of await entries.evaluateAll((els) => els.map((e) => (e as HTMLAnchorElement).getAttribute('href')))) {
+    expect(href).toContain('/app/today')
+  }
 
   // อาชีพที่ยังไม่เปิดบอกให้รู้ได้ แต่ต้องไม่ทำเป็นตัวเลือกให้กด
   await expect(page.locator('.soonline')).toContainText('ช่างเล็บ')
@@ -22,6 +28,15 @@ test('หน้าแรกมีทางเข้าเดียว ไม่�
 
   // ของสำหรับนำเสนอไม่ควรอยู่หน้าที่ผู้ใช้เข้ามาใช้งาน
   await expect(page.locator('.engine')).toHaveCount(0)
+})
+
+test('หน้าราคามีปุ่มกลับหน้าแรก', async ({ page }) => {
+  await page.goto('#/pricing')
+  const back = page.locator('.backlink')
+  await expect(back).toBeVisible()
+  await back.click()
+  await expect(page.locator('.land__h1')).toContainText('แอดมิน')
+  await expect(page.locator('.plans')).toHaveCount(0)
 })
 
 test('ตาราง engine อยู่หน้า pitch และสร้างจาก vocab จริง', async ({ page }) => {
@@ -202,4 +217,27 @@ test('ส่งสรุปให้ผู้ปกครองเปิด LINE
   expect(text).toContain('น้องเนย')
   expect(text).toMatch(/เหลืออีก 2 จาก 10/)
   expect(text).not.toMatch(/\{[a-zA-Z]+\}/)
+})
+
+test('ทุกทางเข้าพาไปใช้งานได้เลย ไม่มีฟอร์มมาขวาง', async ({ page }) => {
+  // หน้าแรก
+  await page.goto('./')
+  for (const label of ['เดโม', 'ทดลองใช้']) {
+    const link = page.locator('.land').getByRole('link', { name: label }).first()
+    await expect(link).toHaveAttribute('href', /\/app\/today$/)
+  }
+
+  // หน้าราคา — ทุกแพ็กยกเว้น Concierge ต้องเป็นลิงก์เข้าแอป ไม่ใช่ปุ่มเปิดฟอร์ม
+  await page.goto('#/pricing')
+  const ctas = page.locator('.plan__cta')
+  await expect(ctas).toHaveCount(3)
+  await expect(ctas.nth(0)).toHaveAttribute('href', /\/app\/today$/)
+  await expect(ctas.nth(1)).toHaveAttribute('href', /\/app\/today$/)
+  await expect(ctas.nth(2)).toHaveJSProperty('tagName', 'BUTTON')
+
+  // กดแล้วเข้าถึงหน้าใช้งานจริงโดยไม่ต้องกรอกอะไร
+  await ctas.nth(1).click()
+  await expect(page.locator('.skel')).toHaveCount(0)
+  await expect(page.locator('.urow').first()).toBeVisible()
+  await expect(page.locator('.sheet')).toHaveCount(0)
 })

@@ -398,3 +398,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .soonline__i{white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
 .soonline__b{min-height:var(--tap);padding:0 var(--space-2);color:var(--brand);
   font-size:var(--fs-small);font-weight:600;text-decoration:underline;text-underline-offset:3px}
+
+/* ยืนยันว่าส่งใน LINE แล้ว — ค้างบนการ์ด ไม่ใช่ toast เพราะครูสลับแอปไปแล้วกลับมา */
+.confirm{margin-top:var(--space-3);padding:var(--space-3);border-radius:var(--radius-sm);
+  background:var(--brand-soft)}
+.confirm__q{display:block;font-size:var(--fs-small);font-weight:600;color:var(--brand-ink)}
+.confirm .btnrow{margin:var(--space-2) 0 0}

@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__Claude_Browser__browser_batch",
+  "tool_input_preview": "{\"actions\":[{\"name\":\"navigate\",\"input\":{\"url\":\"http://localhost:4173/solo/?scenario=default#/app/admin\"}},{\"name\":\"resize_window\",\"input\":{\"preset\":\"mobile\",\"colorScheme\":\"light\"}},{\"name\":\"computer\",...",
+  "error": "actions[0] (navigate) failed: The Browser pane isn't open yet, and a `browser_batch` step can't open it. Call `navigate` with this url on its own, outside `browser_batch` (that opens the pane), then batch the rest. (0 completed, 3 remaining)",
+  "timestamp": "2026-09-05T07:28:54.348Z",
+  "retry_count": 1
+}

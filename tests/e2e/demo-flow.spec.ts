@@ -102,3 +102,38 @@ test('ไม่มีข้อความไหนส่งออกโดย�
   await expect(page.locator('.skel')).toHaveCount(0)
   await expect(page.locator('.msg')).toHaveCount(before)   // โหลดใหม่ไม่ทำให้ร่างหายไปเอง
 })
+
+test('เปิด LINE แล้วยังไม่นับว่าส่ง จนกว่าครูจะยืนยัน', async ({ page }) => {
+  // ดัก window.open ไว้ ไม่ให้เด้งออกไปหา LINE จริงตอนเทส
+  await page.addInitScript(() => {
+    ;(window as unknown as { __opened: string[] }).__opened = []
+    window.open = ((url: string) => {
+      ;(window as unknown as { __opened: string[] }).__opened.push(url)
+      return {} as Window
+    }) as typeof window.open
+  })
+  await open(page, '/app/admin')
+
+  const before = await page.locator('.msg').count()
+  expect(before).toBeGreaterThan(0)
+
+  await page.locator('.msg').first().getByRole('button', { name: 'ส่งใน LINE' }).click()
+
+  // LINE ถูกเปิดพร้อมข้อความ
+  const opened = await page.evaluate(() => (window as unknown as { __opened: string[] }).__opened)
+  expect(opened[0]).toContain('line.me/R/share?text=')
+
+  // แต่ยังต้องไม่ถูกนับว่าส่ง — การ์ดยังอยู่ครบ และถามยืนยันค้างไว้
+  await expect(page.locator('.confirm__q')).toBeVisible()
+  await expect(page.locator('.msg')).toHaveCount(before)
+
+  // บอกว่ายังไม่ได้ส่ง → ร่างต้องกลับมาเหมือนเดิม
+  await page.getByRole('button', { name: 'ยังไม่ได้ส่ง' }).click()
+  await expect(page.locator('.msg')).toHaveCount(before)
+  await expect(page.locator('.confirm__q')).toHaveCount(0)
+
+  // ยืนยันว่าส่งแล้ว → ร่างถึงจะหายไปหนึ่งใบ
+  await page.locator('.msg').first().getByRole('button', { name: 'ส่งใน LINE' }).click()
+  await page.getByRole('button', { name: 'ส่งแล้ว' }).click()
+  await expect(page.locator('.msg')).toHaveCount(before - 1)
+})

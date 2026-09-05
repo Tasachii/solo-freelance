@@ -118,7 +118,10 @@ export const copy = {
   admin: {
     tabDrafts: 'รอส่ง', tabChat: 'แชท',
     draftedStat: 'เดือนนี้แอดมินร่างให้', timeSaved: 'เวลาที่ใช้', minutes: 'นาที',
-    sendAll: 'ส่งทั้งหมด', emptyDrafts: 'ไม่มีอะไรรอส่ง วันนี้เรียบร้อยครับ ✓',
+    sendAll: 'ส่งทีละคน', queueLeft: 'เหลืออีก',
+    sendLine: 'ส่งใน LINE', sentAsk: 'ส่งใน LINE แล้วหรือยัง', sentYes: 'ส่งแล้ว',
+    copyText: 'คัดลอกข้อความ', notYet: 'ยังไม่ได้ส่ง',
+    lineBlocked: 'เปิด LINE ไม่ได้ — คัดลอกข้อความให้แล้ว วางในแชทได้เลย', emptyDrafts: 'ไม่มีอะไรรอส่ง วันนี้เรียบร้อยครับ ✓',
     editedTag: 'แก้แล้ว', draftedTag: 'แอดมินร่างให้',
     answeredFrom: 'ตอบจากข้อมูล', answerManual: 'ต้องตอบเอง',
     simTitle: 'จำลองข้อความจาก', sendAs: 'ส่งในฐานะ',
@@ -180,6 +183,7 @@ export const copy = {
     messageSkipped: 'ข้ามแล้ว',
     receiptIssued: 'ออกใบเสร็จแล้ว',
     exported: 'ดาวน์โหลดแล้ว',
+    copied: 'คัดลอกแล้ว',
     saved: 'บันทึกแล้ว',
   },
   errors: {

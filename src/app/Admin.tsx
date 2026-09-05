@@ -9,10 +9,13 @@ import { answer } from '../core/faq'
 import { periodOf } from '../core/format'
 import { EmptyState, Skeleton, StatCard } from './components'
 import { useToast } from './components/Toast'
+import { copyText, openLine } from './share'
 import type { Message } from '../core/types'
 
-function MessageCard({ m, onSend, onSkip, onEdit }: {
-  m: Message; onSend: () => void; onSkip: () => void; onEdit: (t: string) => void
+function MessageCard({ m, awaiting, onSend, onSent, onCancel, onCopy, onSkip, onEdit }: {
+  m: Message; awaiting: boolean
+  onSend: () => void; onSent: () => void; onCancel: () => void; onCopy: () => void
+  onSkip: () => void; onEdit: (t: string) => void
 }) {
   const { state } = useStore()
   const [editing, setEditing] = useState(false)
@@ -31,15 +34,28 @@ function MessageCard({ m, onSend, onSkip, onEdit }: {
       ) : (
         <p className="p msg__body">{m.draft}</p>
       )}
-      <div className="btnrow">
-        {editing ? (
-          <button className="btn btn--secondary btn--sm" onClick={() => { onEdit(text); setEditing(false) }}>{copy.common.save}</button>
-        ) : (
-          <button className="btn btn--ghost btn--sm" onClick={() => setEditing(true)}>{copy.common.edit}</button>
-        )}
-        <button className="btn btn--primary btn--sm" onClick={onSend}>{copy.common.send}</button>
-        <button className="btn btn--ghost btn--sm" onClick={onSkip}>{copy.common.skip}</button>
-      </div>
+      {awaiting ? (
+        // เปิด LINE ไปแล้ว — ยังไม่นับว่าส่งจนกว่าครูจะยืนยัน
+        // การ์ดถามค้างไว้ ไม่ใช้ toast เพราะครูสลับไป LINE แล้ว toast หายไปก่อนกลับมา
+        <div className="confirm">
+          <span className="confirm__q">{copy.admin.sentAsk}</span>
+          <div className="btnrow">
+            <button className="btn btn--primary btn--sm" onClick={onSent}>{copy.admin.sentYes}</button>
+            <button className="btn btn--ghost btn--sm" onClick={onCopy}>{copy.admin.copyText}</button>
+            <button className="btn btn--ghost btn--sm" onClick={onCancel}>{copy.admin.notYet}</button>
+          </div>
+        </div>
+      ) : (
+        <div className="btnrow">
+          {editing ? (
+            <button className="btn btn--secondary btn--sm" onClick={() => { onEdit(text); setEditing(false) }}>{copy.common.save}</button>
+          ) : (
+            <button className="btn btn--ghost btn--sm" onClick={() => setEditing(true)}>{copy.common.edit}</button>
+          )}
+          <button className="btn btn--primary btn--sm" onClick={onSend}>{copy.admin.sendLine}</button>
+          <button className="btn btn--ghost btn--sm" onClick={onSkip}>{copy.common.skip}</button>
+        </div>
+      )}
     </li>
   )
 }
@@ -60,11 +76,35 @@ export default function Admin() {
     (m) => (m.status === 'sent' || m.status === 'draft') && periodOf(m.createdAt) === period).length
   const minutes = Math.ceil((monthCount * 10) / 60)
 
-  const send = (m: Message) => {
-    dispatch({ type: 'sendMessage', id: m.id })
-    track('send_message', { kind: m.kind })
-    toast.push({ text: copy.toast.messageSent, tone: 'ok' })
+  // id ที่เปิด LINE ไปแล้วและรอครูยืนยัน · queue = คิวที่เหลือตอนส่งทีละคน
+  const [awaiting, setAwaiting] = useState<string | null>(null)
+  const [queue, setQueue] = useState<string[]>([])
+
+  const byId = (id: string): Message | undefined => state.messages.find((x) => x.id === id)
+
+  const openFor = (m: Message) => {
+    if (!openLine(m.draft)) {
+      // popup โดนบล็อก (มักบนเดสก์ท็อป) — คัดลอกให้แทน ครูวางเองได้
+      void copyText(m.draft)
+      toast.push({ text: copy.admin.lineBlocked, tone: 'warn' })
+    }
+    setAwaiting(m.id)
+    track('open_line', { kind: m.kind })
   }
+
+  const confirmSent = () => {
+    const m = awaiting ? byId(awaiting) : undefined
+    if (m) {
+      dispatch({ type: 'sendMessage', id: m.id })
+      track('send_message', { kind: m.kind })
+      toast.push({ text: copy.toast.messageSent, tone: 'ok' })
+    }
+    const [next, ...rest] = queue
+    const nextMsg = next ? byId(next) : undefined
+    if (nextMsg) { setQueue(rest); openFor(nextMsg) } else { setAwaiting(null); setQueue([]) }
+  }
+
+  const cancelSend = () => { setAwaiting(null); setQueue([]) }
 
   if (!hydrated) return <div className="pane"><Skeleton rows={4} /></div>
 
@@ -105,14 +145,21 @@ export default function Admin() {
             <EmptyState icon="✓" title={copy.admin.emptyDrafts} />
           ) : (
             <>
-              <button className="btn btn--primary btn--block" onClick={() => {
-                drafts.forEach((m) => { dispatch({ type: 'sendMessage', id: m.id }); track('send_message', { kind: m.kind }) })
-                toast.push({ text: `${copy.toast.messageSent} ${drafts.length}`, tone: 'ok' })
+              {/* ส่งทีละคนเป็นคิว — LINE เปิดได้ทีละแชท จะกดรวดเดียวแล้วนับว่าส่งหมดไม่ได้ */}
+              <button className="btn btn--primary btn--block" disabled={awaiting !== null} onClick={() => {
+                const [first, ...rest] = drafts
+                if (!first) return
+                setQueue(rest.map((m) => m.id))
+                openFor(first)
               }}>{copy.admin.sendAll} ({drafts.length})</button>
               <ul className="msgs">
                 {drafts.map((m) => (
                   <MessageCard key={m.id} m={m}
-                    onSend={() => send(m)}
+                    awaiting={awaiting === m.id}
+                    onSend={() => openFor(m)}
+                    onSent={confirmSent}
+                    onCancel={cancelSend}
+                    onCopy={() => { void copyText(m.draft).then((ok) => ok && toast.push({ text: copy.toast.copied, tone: 'ok' })) }}
                     onSkip={() => { dispatch({ type: 'skipMessage', id: m.id }); track('skip_message', { kind: m.kind }); toast.push({ text: copy.toast.messageSkipped }) }}
                     onEdit={(t) => { dispatch({ type: 'editMessage', id: m.id, draft: t }); track('edit_message', { kind: m.kind }) }} />
                 ))}
@@ -164,10 +211,20 @@ export default function Admin() {
             <div className="draftcard" key={m.id}>
               <span className="dim">{copy.admin.draftedTag} · {m.meta?.answerFrom ? `${copy.admin.answeredFrom}: ${String(m.meta.answerFrom)}` : copy.admin.answerManual}</span>
               <p className="p">{m.draft}</p>
-              <div className="btnrow">
-                <button className="btn btn--primary btn--sm" onClick={() => send(m)}>{copy.common.send}</button>
-                <button className="btn btn--ghost btn--sm" onClick={() => dispatch({ type: 'skipMessage', id: m.id })}>{copy.common.close}</button>
-              </div>
+              {awaiting === m.id ? (
+                <div className="confirm">
+                  <span className="confirm__q">{copy.admin.sentAsk}</span>
+                  <div className="btnrow">
+                    <button className="btn btn--primary btn--sm" onClick={confirmSent}>{copy.admin.sentYes}</button>
+                    <button className="btn btn--ghost btn--sm" onClick={cancelSend}>{copy.admin.notYet}</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="btnrow">
+                  <button className="btn btn--primary btn--sm" onClick={() => openFor(m)}>{copy.admin.sendLine}</button>
+                  <button className="btn btn--ghost btn--sm" onClick={() => dispatch({ type: 'skipMessage', id: m.id })}>{copy.common.close}</button>
+                </div>
+              )}
             </div>
           ))}
 

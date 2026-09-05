@@ -137,3 +137,69 @@ test('เปิด LINE แล้วยังไม่นับว่าส่�
   await page.getByRole('button', { name: 'ส่งแล้ว' }).click()
   await expect(page.locator('.msg')).toHaveCount(before - 1)
 })
+
+test('เลื่อนคาบแล้วยอดบิลไม่ขยับ และมีร่างแจ้งผู้ปกครองรออยู่', async ({ page }) => {
+  await open(page, '/app/billing')
+  const money = async () => (await page.locator('.stat').first().innerText()).replace(/\D/g, '')
+  const expectedBefore = await money()
+  const draftsBefore = Number(await page.locator('.tab__badge').innerText())
+
+  await open(page, '/app/today')
+  const row = page.locator('.urow').filter({ hasText: 'น้องเนย' })
+  await row.getByRole('button', { name: 'เลื่อน น้องเนย' }).click()
+
+  const sheet = page.locator('.sheet')
+  await expect(sheet).toBeVisible()
+  await sheet.locator('input[type="date"]').fill('2025-09-20')
+  await sheet.locator('input[type="time"]').fill('19:30')
+  await sheet.getByRole('button', { name: /^เลื่อน$/ }).click()
+
+  // คาบหายจากวันนี้
+  await expect(page.locator('.urow').filter({ hasText: 'น้องเนย' })).toHaveCount(0)
+  // มีร่างแจ้งเพิ่มมาหนึ่งใบ
+  await expect(page.locator('.tab__badge')).toHaveText(String(draftsBefore + 1))
+
+  // เงินต้องไม่ขยับ
+  await open(page, '/app/billing')
+  expect(await money()).toBe(expectedBefore)
+})
+
+test('สำรองข้อมูลแล้วได้ไฟล์ที่กู้คืนได้', async ({ page }) => {
+  await open(page, '/app/today')
+  await page.locator('.shell__menu').click()
+  const [dl] = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('.sheet .row').filter({ hasText: 'สำรองข้อมูล' }).click(),
+  ])
+  expect(dl.suggestedFilename()).toMatch(/^solo-backup-\d{4}-\d{2}-\d{2}\.json$/)
+
+  const stream = await dl.createReadStream()
+  const text = await new Promise<string>((resolve) => {
+    let out = ''
+    stream.on('data', (c) => { out += c })
+    stream.on('end', () => resolve(out))
+  })
+  const file = JSON.parse(text)
+  expect(file.format).toBe('solo-backup-1')
+  expect(file.app.subjects.length).toBeGreaterThan(0)
+  expect(file.app.schemaVersion).toBe(4)
+})
+
+test('ส่งสรุปให้ผู้ปกครองเปิด LINE พร้อมจำนวนครั้งจริง', async ({ page }) => {
+  await page.addInitScript(() => {
+    ;(window as unknown as { __opened: string[] }).__opened = []
+    window.open = ((url: string) => {
+      ;(window as unknown as { __opened: string[] }).__opened.push(url)
+      return {} as Window
+    }) as typeof window.open
+  })
+  await open(page, '/app/subjects')
+  await page.locator('.srow').filter({ hasText: 'น้องเนย' }).click()
+  await page.getByRole('button', { name: 'ส่งสรุปให้ผู้ปกครอง' }).click()
+
+  const opened = await page.evaluate(() => (window as unknown as { __opened: string[] }).__opened)
+  const text = decodeURIComponent(opened[0].split('text=')[1])
+  expect(text).toContain('น้องเนย')
+  expect(text).toMatch(/เหลืออีก 2 จาก 10/)
+  expect(text).not.toMatch(/\{[a-zA-Z]+\}/)
+})

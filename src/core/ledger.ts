@@ -8,7 +8,7 @@ export const isCompleted = (s: AppState, unitId: string): boolean => s.completio
 
 export const unitsOn = (s: AppState, date: string): ServiceUnit[] =>
   s.units
-    .filter((u) => u.scheduledAt === date)
+    .filter((u) => u.scheduledAt === date && !u.cancelled)
     .filter((u) => subjectById(s, u.subjectId)?.active !== false)
     .sort((a, b) => a.time.localeCompare(b.time))
 
@@ -28,7 +28,7 @@ export function completionsOfSubject(s: AppState, subjectId: string): Completion
 export function complete(s: AppState, unitId: string): AppState {
   if (isCompleted(s, unitId)) return s
   const u = unitById(s, unitId)
-  if (!u) return s
+  if (!u || u.cancelled) return s // คาบที่ยกเลิกแล้วเช็คชื่อไม่ได้
   return { ...s, completions: [...s.completions, { unitId, completedAt: u.scheduledAt }] }
 }
 

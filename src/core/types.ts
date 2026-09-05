@@ -16,6 +16,10 @@ export interface Subject {
 export interface ServiceUnit {
   id: string; subjectId: string; scheduledAt: ISODate; time: string
   durationMin: number; label?: string; adHoc?: boolean
+  /** ยกเลิกแล้ว — ไม่โผล่ในตาราง ไม่ถูกนับเงิน แต่ยังอยู่ในประวัติ */
+  cancelled?: boolean
+  /** วันเดิมก่อนเลื่อน เก็บไว้ให้ตรวจย้อนได้ */
+  movedFrom?: ISODate
 }
 export interface CompletionEvent { unitId: string; completedAt: ISODate; note?: string }
 export interface InvoiceLine { description: string; qty: number; unitPrice: Money; amount: Money }
@@ -31,6 +35,7 @@ export interface Payment {
 export interface Receipt { id: string; paymentId: string; number: string; issuedAt: ISODate }
 
 export type MessageKind = 'invoice' | 'reminder' | 'renewal' | 'renewal_exhausted' | 'receipt' | 'faq_reply'
+  | 'moved' | 'cancelled' | 'summary'
 export interface Message {
   id: string; clientId: string; subjectId?: string; kind: MessageKind; draft: string; edited?: boolean
   status: 'draft' | 'sent' | 'skipped'; createdAt: ISODate; sentAt?: ISODate
@@ -60,4 +65,6 @@ export interface AppState {
   waitlist: WaitlistEntry[]; events: EventLog[]
   counters: { receipt: number; invoice: number }
   onboarded: boolean
+  /** วันที่สำรองข้อมูลล่าสุด — เตือนครูเมื่อทิ้งช่วงนาน */
+  lastBackupAt?: ISODate
 }

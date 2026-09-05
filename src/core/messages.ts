@@ -3,7 +3,7 @@ import { tutorTemplates } from '../copy/tutor'
 import { professionById } from '../professions'
 import { clientById, completionsIn, packageStatus, subjectById } from './ledger'
 import { daysOverdue, dueDaysOf, invoiceFor, ladderFor } from './billing'
-import { addDays, money, periodThai } from './format'
+import { addDays, dateThai, dayThai, money, periodThai } from './format'
 
 type Vars = Record<string, string | number>
 
@@ -70,6 +70,33 @@ export function reminderText(state: AppState, inv: Invoice, key: 'soft' | 'clear
     periodThai: periodThai(inv.period),
     total: money(inv.total),
     daysOverdue: daysOverdue(state, inv),
+  })
+}
+
+/** แจ้งเลื่อนคาบ — เกิดจากการกระทำของครู ไม่ใช่ derive จึงสร้างตอนกดเลื่อน */
+export function movedText(state: AppState, subject: Subject, from: { date: string }, to: { date: string; time: string }): string {
+  return render(tutorTemplates.moved, {
+    ...baseVars(state, subject),
+    fromDayThai: dayThai(from.date), fromDateThai: dateThai(from.date),
+    dayThai: dayThai(to.date), dateThai: dateThai(to.date), time: to.time,
+  })
+}
+
+export function cancelledText(state: AppState, subject: Subject, at: string): string {
+  return render(tutorTemplates.cancelled, {
+    ...baseVars(state, subject), dayThai: dayThai(at), dateThai: dateThai(at),
+  })
+}
+
+/** สรุปกลางเดือน — ตัวเลขมาจาก ledger ทั้งหมด */
+export function summaryText(state: AppState, subject: Subject, period: string): string {
+  const qty = completionsIn(state, subject.id, period).length
+  const pk = packageStatus(state, subject)
+  const amountLine = pk
+    ? render(tutorTemplates.summaryPackage, { remaining: pk.remaining, packageTotal: pk.total })
+    : render(tutorTemplates.summaryAmount, { total: money(currentEstimate(state, subject, period)) })
+  return render(tutorTemplates.summary, {
+    ...baseVars(state, subject), periodThai: periodThai(period), qty, amountLine,
   })
 }
 
@@ -210,7 +237,7 @@ export function deriveDrafts(state: AppState): Message[] {
   return add
 }
 
-export const ORDER: MessageKind[] = ['reminder', 'invoice', 'renewal_exhausted', 'renewal', 'faq_reply', 'receipt']
+export const ORDER: MessageKind[] = ['moved', 'cancelled', 'reminder', 'invoice', 'renewal_exhausted', 'renewal', 'faq_reply', 'summary', 'receipt']
 export const sortDrafts = (a: Message, b: Message): number => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind)
 
 /** ส่งข้อความแล้วผลข้างเคียงต่อ invoice */

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../core/store'
 import { professionById } from '../professions'
 import { copy } from '../copy'
+import { cancelledText, mkMessage, movedText } from '../core/messages'
+import { addDays } from '../core/format'
 import { isCompleted, packageStatus, subjectById, unitsOn } from '../core/ledger'
 import { dateThaiFull, dateThai } from '../core/format'
 import { BottomSheet, EmptyState, Skeleton, StatCard } from './components'
@@ -18,6 +20,13 @@ export default function Today() {
   const [newUnit, setNewUnit] = useState({ subjectId: '', time: '17:00', label: '' })
 
   const units = useMemo(() => unitsOn(state, state.today), [state])
+
+  // คาบที่กำลังเลื่อน
+  const [moving, setMoving] = useState<string | null>(null)
+  const movingUnit = state.units.find((u) => u.id === moving)
+  const [mDate, setMDate] = useState('')
+  const [mTime, setMTime] = useState('')
+
   const done = units.filter((u) => isCompleted(state, u.id)).length
 
   const nextDay = useMemo(() => {
@@ -26,6 +35,22 @@ export default function Today() {
   }, [state])
 
   if (!hydrated) return <div className="pane"><Skeleton rows={4} /></div>
+
+  const openMove = (unitId: string, time: string) => {
+    setMoving(unitId); setMDate(addDays(state.today, 1)); setMTime(time)
+  }
+
+  /** เลื่อน/งดคาบ แล้วร่างข้อความแจ้ง — ครูกดส่งเองที่แท็บแอดมิน */
+  const draftNotice = (unitId: string, kind: 'moved' | 'cancelled', to?: { date: string; time: string }) => {
+    const u = state.units.find((x) => x.id === unitId)
+    const subject = u && subjectById(state, u.subjectId)
+    if (!u || !subject) return
+    const text = kind === 'moved' && to
+      ? movedText(state, subject, { date: u.scheduledAt }, to)
+      : cancelledText(state, subject, u.scheduledAt)
+    const key = `${kind}:${unitId}:${to ? `${to.date}${to.time}` : u.scheduledAt}`
+    dispatch({ type: 'addMessage', message: mkMessage(state, kind, subject.clientId, subject.id, text, key, { unitId }) })
+  }
 
   const onComplete = (unitId: string, subjectId: string) => {
     dispatch({ type: 'complete', unitId })
@@ -87,14 +112,50 @@ export default function Today() {
                     {copy.today.fixLabel}
                   </button>
                 ) : (
-                  <button className="btn btn--primary btn--tap" onClick={() => onComplete(u.id, u.subjectId)}>
-                    {v.completion}
-                  </button>
+                  <>
+                    <button className="btn btn--ghost btn--sm urow__move" aria-label={`${copy.today.move} ${s.name}`}
+                      onClick={() => openMove(u.id, u.time)}>{copy.today.move}</button>
+                    <button className="btn btn--primary btn--tap" onClick={() => onComplete(u.id, u.subjectId)}>
+                      {v.completion}
+                    </button>
+                  </>
                 )}
               </li>
             )
           })}
         </ul>
+      )}
+
+      {movingUnit && (
+        <BottomSheet title={copy.today.moveTitle}
+          sub={subjectById(state, movingUnit.subjectId)?.name}
+          onClose={() => setMoving(null)}
+          footer={
+            <div className="btnrow">
+              <button className="btn btn--primary" onClick={() => {
+                draftNotice(movingUnit.id, 'moved', { date: mDate, time: mTime })
+                dispatch({ type: 'rescheduleUnit', unitId: movingUnit.id, date: mDate, time: mTime })
+                track('unit_rescheduled')
+                setMoving(null); toast.push({ text: copy.today.moveDone, tone: 'ok' })
+              }}>{copy.today.move}</button>
+              <button className="btn btn--danger" onClick={() => {
+                if (!window.confirm(copy.today.cancelConfirm)) return
+                draftNotice(movingUnit.id, 'cancelled')
+                dispatch({ type: 'cancelUnit', unitId: movingUnit.id })
+                track('unit_cancelled')
+                setMoving(null); toast.push({ text: copy.today.cancelDone, tone: 'warn' })
+              }}>{copy.today.cancelUnit}</button>
+            </div>
+          }>
+          <label className="fld">
+            <span className="fld__l">{copy.today.moveDate}</span>
+            <input className="inp" type="date" value={mDate} onChange={(e) => setMDate(e.target.value)} />
+          </label>
+          <label className="fld">
+            <span className="fld__l">{copy.today.moveTime}</span>
+            <input className="inp" type="time" value={mTime} onChange={(e) => setMTime(e.target.value)} />
+          </label>
+        </BottomSheet>
       )}
 
       {units.length > 0 && (

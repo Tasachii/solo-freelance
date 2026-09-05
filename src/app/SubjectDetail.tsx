@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../core/store'
 import { professionById } from '../professions'
 import { copy } from '../copy'
+import { summaryText } from '../core/messages'
+import { copyText, openLine } from './share'
 import { clientById, completionsIn, isCompleted, packageStatus, subjectById } from '../core/ledger'
 import { invoiceFor } from '../core/billing'
 import { currentEstimate } from '../core/messages'
@@ -71,6 +73,12 @@ export default function SubjectDetail() {
       )}
 
       <div className="btnrow">
+        <button className="btn btn--primary btn--sm" onClick={() => {
+          // ตอบ "ลูกเรียนไปกี่ครั้งแล้ว" กลางเดือนได้ทันที ไม่ต้องรอสิ้นเดือน
+          const text = summaryText(state, s, period)
+          if (!openLine(text)) { void copyText(text); toast.push({ text: copy.admin.lineBlocked, tone: 'warn' }) }
+          track('send_summary')
+        }}>{copy.detail.sendSummary}</button>
         <button className="btn btn--secondary btn--sm" onClick={() => nav(`/client/${s.clientId}`)}>{copy.detail.clientView}</button>
         <button className="btn btn--secondary btn--sm" onClick={() => nav(`/app/admin?tab=chat&chat=${s.clientId}`)}>{copy.detail.openChat}</button>
         {s.active && <button className="btn btn--ghost btn--sm" onClick={() => setStopping(true)}>{copy.subjects.stop}</button>}

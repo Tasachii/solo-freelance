@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useStore } from '../core/store'
 import { urlParam } from '../core/urlParams'
+import { pickBackup, saveBackup } from './backup'
+import { SCHEMA } from '../core/store'
+import { useToast } from './components/Toast'
 import { professionById } from '../professions'
 import { copy } from '../copy'
 import { draftCount } from '../core/selectors'
@@ -21,6 +24,7 @@ export default function AppShell() {
   const [dev, setDev] = useState(() => urlParam('dev') === '1')
   const [theme, setTheme] = useState<Theme>(readTheme)
   const real = state.mode === 'real'
+  const toast = useToast()
   const drafts = draftCount(state)
 
   // ยังไม่มีข้อมูลเลย = พาไป onboarding ก่อน
@@ -82,6 +86,18 @@ export default function AppShell() {
                 }}>{copy.menu.startReal}</button>
               </>
             )}
+            <button className="row" onClick={() => {
+              saveBackup(state, SCHEMA); dispatch({ type: 'backedUp' }); track('backup_save')
+              setMenu(false); toast.push({ text: copy.menu.backupDone, tone: 'ok' })
+            }}>{copy.menu.backup}</button>
+            <button className="row" onClick={async () => {
+              const res = await pickBackup(SCHEMA)
+              if (!res) return
+              if (!res.ok) { toast.push({ text: copy.menu.restoreBad[res.reason], tone: 'danger' }); return }
+              if (!window.confirm(copy.menu.restoreConfirm)) return
+              dispatch({ type: 'restore', state: res.state }); track('backup_restore')
+              setMenu(false); nav('/app/today'); toast.push({ text: copy.menu.restoreDone, tone: 'ok' })
+            }}>{copy.menu.restore}</button>
             <button className="row" onClick={() => { setDev(true); setMenu(false) }}>{copy.menu.dev}</button>
             {state.clients[0] && (
               <button className="row" onClick={() => { setMenu(false); nav(`/client/${state.clients[0].id}`) }}>

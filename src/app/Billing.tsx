@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../core/store'
 import { professionById } from '../professions'
 import { copy } from '../copy'
+import { daysSinceBackup } from '../core/backup'
+import { diffDays } from '../core/format'
 import { dashboard } from '../core/selectors'
 import { closableSubjects, invoiceFor } from '../core/billing'
 import { packageStatus } from '../core/ledger'
@@ -46,8 +48,15 @@ export default function Billing() {
     )
   }
 
+  const noBackup = state.mode === 'real' && daysSinceBackup(state, state.today, diffDays) > 7
+
   return (
     <div className="pane">
+      {noBackup && (
+        <p className="warnbar">{copy.billing.backupWarn.replace('{days}',
+          Number.isFinite(daysSinceBackup(state, state.today, diffDays))
+            ? String(daysSinceBackup(state, state.today, diffDays)) : '—')}</p>
+      )}
       <section className="card card--brand">
         <h2 className="h2">{periodThaiFull(period)}</h2>
         <div className="stats">

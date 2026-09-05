@@ -34,6 +34,11 @@ export type Action =
   | { type: 'bulkAddSubjects'; rows: { name: string; clientName: string; lineId?: string }[]; billing: Subject['billing'] }
   | { type: 'onboarded' }
   | { type: 'startReal' }
+  | { type: 'backedUp' }
+  | { type: 'restore'; state: AppState }
+  | { type: 'rescheduleUnit'; unitId: string; date: string; time: string }
+  | { type: 'cancelUnit'; unitId: string }
+  | { type: 'restoreUnit'; unitId: string }
   | { type: 'clearMessages' }
   | { type: 'replace'; state: AppState }
   | { type: 'track'; name: string; props?: Record<string, unknown> }
@@ -157,6 +162,32 @@ export function reducer(state: AppState, action: Action): AppState {
     }
     case 'onboarded':
       s = { ...s, onboarded: true }
+      break
+    case 'backedUp':
+      s = { ...s, lastBackupAt: s.today }
+      break
+    case 'restore':
+      s = action.state
+      break
+    case 'rescheduleUnit': {
+      const u = s.units.find((x) => x.id === action.unitId)
+      if (!u) break
+      // เลื่อนคาบไม่แตะเงิน — บิลคิดจาก completions ไม่ใช่ units
+      s = {
+        ...s,
+        units: s.units.map((x) => (x.id === action.unitId
+          ? { ...x, scheduledAt: action.date, time: action.time, movedFrom: x.movedFrom ?? x.scheduledAt, cancelled: false }
+          : x)),
+      }
+      break
+    }
+    case 'cancelUnit':
+      s = { ...s, units: s.units.map((x) => (x.id === action.unitId ? { ...x, cancelled: true } : x)) }
+      // คาบที่ยกเลิกต้องไม่ค้างเป็น 'เรียนแล้ว'
+      s = { ...s, completions: s.completions.filter((c) => c.unitId !== action.unitId) }
+      break
+    case 'restoreUnit':
+      s = { ...s, units: s.units.map((x) => (x.id === action.unitId ? { ...x, cancelled: false } : x)) }
       break
     case 'startReal':
       // เก็บชื่อ/พร้อมเพย์ที่กรอกไว้ ทิ้งข้อมูลสมมติทั้งหมด

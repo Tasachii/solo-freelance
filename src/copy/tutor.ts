@@ -15,6 +15,14 @@ export const tutorTemplates = {
     'เรียน{clientHonorific}{clientName} แพ็ก {packageTotal} ครั้งของ{subjectName} ครบแล้วครับ วันนี้เรียนเป็นครั้งที่ {overBy} นอกแพ็ก ต่อแพ็กใหม่ {packageTotal} ครั้ง {packagePrice} บาท ได้ที่ {invoiceUrl} ครับ',
   receipt:
     'ได้รับยอด {total} บาท ค่าเรียน{subjectName} เดือน{periodThai} แล้วครับ ขอบคุณครับ 🙏 ใบเสร็จ: {receiptUrl}',
+  moved:
+    'เรียน{clientHonorific}{clientName} ขอเลื่อนคาบ{subjectName}จากวัน{fromDayThai}ที่ {fromDateThai} ไปเป็นวัน{dayThai}ที่ {dateThai} เวลา {time} ครับ ขออภัยในความไม่สะดวกครับ 🙏',
+  cancelled:
+    'เรียน{clientHonorific}{clientName} ขอแจ้งงดคาบ{subjectName}วัน{dayThai}ที่ {dateThai} ครับ เดี๋ยวครูนัดชดเชยแล้วแจ้งอีกทีนะครับ 🙏',
+  summary:
+    'เรียน{clientHonorific}{clientName} สรุป{subjectName}เดือน{periodThai}ครับ เรียนไปแล้ว {qty} ครั้ง {amountLine}',
+  summaryAmount: 'ยอดตอนนี้ {total} บาท',
+  summaryPackage: 'เหลืออีก {remaining} จาก {packageTotal} ครั้ง',
   slipRequest:
     'เรียน{clientHonorific}{clientName} สลิปที่ส่งมายอด {slipAmount} บาท แต่ค่าเรียนเดือนนี้ {total} บาทครับ รบกวนตรวจสอบหรือส่งสลิปอีกครั้งได้ไหมครับ 🙏',
   faq: {

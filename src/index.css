@@ -407,3 +407,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 /* ทางเข้าโหมดใช้จริงในเมนู — เน้นกว่าแถวอื่นเพราะเป็นก้าวสำคัญ */
 .row--go{color:var(--brand);font-weight:600}
+
+/* เตือนว่ายังไม่ได้สำรองข้อมูล — ขึ้นหน้าบิลเพราะครูเข้าตอนสิ้นเดือน */
+.warnbar{margin:0 0 var(--space-3);padding:10px var(--space-3);border-radius:var(--radius-sm);
+  background:var(--warn-soft);color:var(--warn);font-size:var(--fs-small);font-weight:600}
+.urow__move{flex:none}

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { copy } from '../../copy'
 
@@ -175,16 +175,34 @@ export function BottomSheet(
 export function ConfirmSheet(
   { title, body, hint, confirmLabel, danger, onConfirm, onClose }: {
     title: string; body?: string; hint?: string; confirmLabel: string
-    danger?: boolean; onConfirm: () => void; onClose: () => void
+    danger?: boolean
+    onConfirm: () => boolean | void | Promise<boolean | void>
+    onClose: () => void
   },
 ) {
+  const [submitting, setSubmitting] = useState(false)
+  const submittingRef = useRef(false)
+  const confirm = async () => {
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setSubmitting(true)
+    try {
+      const result = await onConfirm()
+      // false means the requested operation did not finish; keep the context open
+      // so a cancelled backup or rejected write does not look like success.
+      if (result !== false) onClose()
+    } finally {
+      submittingRef.current = false
+      setSubmitting(false)
+    }
+  }
   return (
-    <BottomSheet title={title} onClose={onClose}
+    <BottomSheet title={title} onClose={submitting ? () => undefined : onClose}
       footer={
         <div className="btnrow">
-          <button className="btn btn--ghost" onClick={onClose}>{copy.common.cancel}</button>
+          <button className="btn btn--ghost" disabled={submitting} onClick={onClose}>{copy.common.cancel}</button>
           <button className={`btn ${danger ? 'btn--danger' : 'btn--primary'}`}
-            onClick={() => { onConfirm(); onClose() }}>{confirmLabel}</button>
+            disabled={submitting} onClick={() => void confirm()}>{confirmLabel}</button>
         </div>
       }>
       {body && <p className="p">{body}</p>}

@@ -110,11 +110,11 @@ export default function AppShell() {
             ) : (
               <>
                 <button className="row" onClick={() => { setKeys(true); setMenu(false) }}>{copy.menu.shortcuts}</button>
-            <button className="row" onClick={() => { void toggleFullscreen(); setMenu(false) }}>{copy.menu.fullscreen}</button>
             <button className="row" onClick={() => { resetDemo(); setMenu(false) }}>{copy.menu.reset}</button>
                 <button className="row row--go" onClick={() => { setMenu(false); setAsk('toReal') }}>{copy.menu.startReal}</button>
               </>
             )}
+            <button className="row" onClick={() => { void toggleFullscreen(); setMenu(false) }}>{copy.menu.fullscreen}</button>
             <button className="row" onClick={async () => {
               setMenu(false)
               const ok = await saveBackup(state)

@@ -189,9 +189,10 @@ export default function Today() {
           onClose={() => setConfirmCancel(false)}
           onConfirm={() => {
             draftNotice(movingUnit.id, 'cancelled')
-            if (!dispatch({ type: 'cancelUnit', unitId: movingUnit.id })) return
+            if (!dispatch({ type: 'cancelUnit', unitId: movingUnit.id })) return false
             track('unit_cancelled')
             setMoving(null); toast.push({ text: copy.today.cancelDone, tone: 'warn' })
+            return true
           }} />
       )}
 

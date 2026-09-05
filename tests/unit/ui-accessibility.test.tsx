@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render } from '@testing-library/react'
-import { BottomSheet, ProgressBar } from '../../src/app/components'
+import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
+import { BottomSheet, ConfirmSheet, ProgressBar } from '../../src/app/components'
 
 afterEach(() => cleanup())
 
@@ -45,5 +45,37 @@ describe('shared UI accessibility', () => {
     expect(background.hasAttribute('inert')).toBe(false)
     expect(background.getAttribute('aria-hidden')).toBe('false')
     background.remove()
+  })
+
+  it('keeps a confirmation open when an async operation reports failure', async () => {
+    const onClose = vi.fn()
+    const onConfirm = vi.fn(async () => false)
+    const { getByRole } = render(
+      <ConfirmSheet title="กู้คืนข้อมูล" confirmLabel="กู้คืน" onConfirm={onConfirm} onClose={onClose} />,
+    )
+
+    fireEvent.click(getByRole('button', { name: 'กู้คืน' }))
+    await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1))
+    expect(onClose).not.toHaveBeenCalled()
+    expect(getByRole('dialog', { name: 'กู้คืนข้อมูล' })).toBeTruthy()
+  })
+
+  it('closes once after a successful async confirmation', async () => {
+    let finish!: (value: boolean) => void
+    const onClose = vi.fn()
+    const onConfirm = vi.fn(() => new Promise<boolean>((resolve) => { finish = resolve }))
+    const { getByRole } = render(
+      <ConfirmSheet title="ยืนยัน" confirmLabel="ทำต่อ" onConfirm={onConfirm} onClose={onClose} />,
+    )
+
+    const confirm = getByRole('button', { name: 'ทำต่อ' })
+    fireEvent.click(confirm)
+    fireEvent.click(confirm)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(confirm.hasAttribute('disabled')).toBe(true)
+    finish(true)
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
   })
 })

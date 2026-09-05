@@ -435,3 +435,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .crash{display:grid;gap:var(--space-3);padding:var(--space-6) var(--space-4);max-width:520px;margin:0 auto}
 .crash__t{margin:0;font-size:var(--fs-h1)}
 .crash__p{margin:0;color:var(--muted)}
+
+/* คาบที่งดไปแล้ว — ยังเห็นอยู่เพื่อกู้คืนได้ แต่ต้องไม่แย่งความสนใจจากคาบจริง */
+.rows--muted{margin-top:var(--space-3);opacity:.72}
+.urow--off .urow__name{text-decoration:line-through;color:var(--muted)}
+.urow--off .urow__meta{color:var(--warn)}

@@ -20,6 +20,9 @@ export default function Today() {
   const [newUnit, setNewUnit] = useState({ subjectId: '', time: '17:00', label: '' })
 
   const units = useMemo(() => unitsOn(state, state.today), [state])
+  // คาบที่งดไปแล้ววันนี้ — โชว์แยกไว้ให้กู้คืนได้ ไม่ใช่หายไปเฉย ๆ
+  const cancelled = useMemo(
+    () => state.units.filter((u) => u.scheduledAt === state.today && u.cancelled), [state])
 
   // คาบที่กำลังเลื่อน
   const [moving, setMoving] = useState<string | null>(null)
@@ -156,6 +159,29 @@ export default function Today() {
             <input className="inp" type="time" value={mTime} onChange={(e) => setMTime(e.target.value)} />
           </label>
         </BottomSheet>
+      )}
+
+      {cancelled.length > 0 && (
+        <ul className="rows rows--muted">
+          {cancelled.map((u) => {
+            const s = subjectById(state, u.subjectId)
+            if (!s) return null
+            return (
+              <li className="urow urow--off" key={u.id}>
+                <span className="urow__time num">{u.time}</span>
+                <span className="urow__main">
+                  <span className="urow__name">{s.name}</span>
+                  <span className="urow__meta">{copy.today.cancelledTag}</span>
+                </span>
+                <button className="btn btn--secondary btn--sm" onClick={() => {
+                  dispatch({ type: 'restoreUnit', unitId: u.id })
+                  track('unit_restored')
+                  toast.push({ text: copy.today.restoreDone, tone: 'ok' })
+                }}>{copy.today.restoreUnit}</button>
+              </li>
+            )
+          })}
+        </ul>
       )}
 
       {units.length > 0 && (

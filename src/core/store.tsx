@@ -215,9 +215,9 @@ export function reducer(state: AppState, action: Action): AppState {
       break
     }
     case 'cancelUnit':
+      // เก็บ completion ไว้ ไม่ลบ — ledger มองข้ามคาบที่ถูกงดอยู่แล้ว
+      // ถ้าลบทิ้ง กดงดผิดครั้งเดียวแล้วเงินหายถาวร กู้ไม่ได้
       s = { ...s, units: s.units.map((x) => (x.id === action.unitId ? { ...x, cancelled: true } : x)) }
-      // คาบที่ยกเลิกต้องไม่ค้างเป็น 'เรียนแล้ว'
-      s = { ...s, completions: s.completions.filter((c) => c.unitId !== action.unitId) }
       break
     case 'restoreUnit':
       s = { ...s, units: s.units.map((x) => (x.id === action.unitId ? { ...x, cancelled: false } : x)) }

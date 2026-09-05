@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { reducer } from '../../src/core/store'
 import { buildScenario } from '../../src/core/scenarios'
-import { complete, isCompleted, subjectById, unitsOn } from '../../src/core/ledger'
+import { complete, isCompleted, packageStatus, subjectById, unitsOn } from '../../src/core/ledger'
 import { buildInvoice } from '../../src/core/billing'
 import { dashboard } from '../../src/core/selectors'
 import { cancelledText, movedText, summaryText } from '../../src/core/messages'
@@ -123,5 +123,59 @@ describe('การเว้นวรรคภาษาไทย', () => {
       expect(t, `เลขติดคำไทย: ${t}`).not.toMatch(/\d[ก-ฮ]/)
       expect(t, `คำติดเดือนย่อ: ${t}`).not.toMatch(/[ก-ฮ](?:ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.)/)
     }
+  })
+})
+
+describe('งดแล้วเอากลับมา เงินต้องเท่าเดิม', () => {
+  it('งดคาบที่เช็คชื่อแล้ว → เงินหาย · เอากลับมา → เงินคืนครบ', () => {
+    let s = s0()
+    const u = unitsOn(s, s.today).find((x) => x.subjectId === 's2')!
+    s = complete(s, u.id)
+    const withLesson = billFor(s, 's2')
+
+    s = reducer(s, { type: 'cancelUnit', unitId: u.id })
+    expect(billFor(s, 's2')).toBeLessThan(withLesson)
+    expect(isCompleted(s, u.id)).toBe(false)
+
+    s = reducer(s, { type: 'restoreUnit', unitId: u.id })
+    expect(billFor(s, 's2')).toBe(withLesson)      // เงินกลับมาเท่าเดิม
+    expect(isCompleted(s, u.id)).toBe(true)        // และยังนับว่าเรียนแล้ว
+  })
+
+  it('งดคาบแล้วแพ็กต้องไม่นับ และเอากลับมาแล้วนับเหมือนเดิม', () => {
+    let s = s0()
+    const u = unitsOn(s, s.today).find((x) => x.subjectId === 's7')!
+    s = complete(s, u.id)
+    const used = packageStatus(s, subjectById(s, 's7')!)!.used
+
+    s = reducer(s, { type: 'cancelUnit', unitId: u.id })
+    expect(packageStatus(s, subjectById(s, 's7')!)!.used).toBe(used - 1)
+
+    s = reducer(s, { type: 'restoreUnit', unitId: u.id })
+    expect(packageStatus(s, subjectById(s, 's7')!)!.used).toBe(used)
+  })
+})
+
+describe('เลื่อนคาบที่เช็คชื่อแล้ว ต้องย้ายเงินไปพร้อมกัน', () => {
+  it('เลื่อนข้ามเดือน เดือนเก่าลด เดือนใหม่เพิ่ม ไม่ใช่หายไปเฉย ๆ', () => {
+    let s = s0()
+    const u = unitsOn(s, s.today).find((x) => x.subjectId === 's2')!
+    s = complete(s, u.id)
+    const sep = billFor(s, 's2', '2025-09')
+
+    s = reducer(s, { type: 'rescheduleUnit', unitId: u.id, date: '2025-10-05', time: '17:00' })
+    expect(billFor(s, 's2', '2025-09')).toBe(sep - 500)   // ออกจากเดือนกันยา
+    expect(billFor(s, 's2', '2025-10')).toBe(500)          // ไปโผล่เดือนตุลา
+  })
+
+  it('แพ็กนับตามวันใหม่ ไม่ใช่วันที่เช็คชื่อไว้เดิม', () => {
+    let s = s0()
+    const u = unitsOn(s, s.today).find((x) => x.subjectId === 's7')!
+    s = complete(s, u.id)
+    const used = packageStatus(s, subjectById(s, 's7')!)!.used
+
+    // ย้ายไปก่อนวันซื้อแพ็ก → ต้องหลุดออกจากการนับ
+    s = reducer(s, { type: 'rescheduleUnit', unitId: u.id, date: '2025-07-01', time: '18:00' })
+    expect(packageStatus(s, subjectById(s, 's7')!)!.used).toBe(used - 1)
   })
 })

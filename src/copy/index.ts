@@ -95,6 +95,7 @@ export const copy = {
     fixLabel: 'แก้',
     move: 'เลื่อน', cancelUnit: 'งดคาบนี้', restoreUnit: 'เอากลับมา',
     moveTitle: 'เลื่อนคาบ', moveDate: 'วันใหม่', moveTime: 'เวลาใหม่',
+    cancelledTag: 'งดแล้ว', restoreDone: 'เอากลับมาแล้ว',
     moveDone: 'เลื่อนแล้ว — ร่างข้อความแจ้งให้แล้ว', cancelDone: 'งดคาบแล้ว — ร่างข้อความแจ้งให้แล้ว',
     cancelConfirm: 'งดคาบนี้และแจ้งผู้ปกครอง?',
   },

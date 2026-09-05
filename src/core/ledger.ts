@@ -4,7 +4,18 @@ import { periodOf } from './format'
 export const unitById = (s: AppState, id: string): ServiceUnit | undefined => s.units.find((u) => u.id === id)
 export const subjectById = (s: AppState, id: string): Subject | undefined => s.subjects.find((x) => x.id === id)
 export const clientById = (s: AppState, id: string) => s.clients.find((c) => c.id === id)
-export const isCompleted = (s: AppState, unitId: string): boolean => s.completions.some((c) => c.unitId === unitId)
+/**
+ * วันที่เรียนจริง — อ่านจาก unit เสมอ ไม่ใช่จาก completedAt ที่ถูกแช่ไว้ตอนเช็คชื่อ
+ * ถ้าอ่านสองที่ พอเลื่อนคาบแล้วบิลกับแพ็กจะนับคนละวัน
+ */
+export const occurredAt = (s: AppState, c: CompletionEvent): string =>
+  unitById(s, c.unitId)?.scheduledAt ?? c.completedAt
+
+/** คาบที่ถูกงดยังเก็บ completion ไว้ให้กู้คืนได้ แต่ต้องไม่ถูกนับที่ไหนเลย */
+const live = (s: AppState, c: CompletionEvent): boolean => !unitById(s, c.unitId)?.cancelled
+
+export const isCompleted = (s: AppState, unitId: string): boolean =>
+  s.completions.some((c) => c.unitId === unitId && live(s, c))
 
 export const unitsOn = (s: AppState, date: string): ServiceUnit[] =>
   s.units
@@ -16,12 +27,15 @@ export const unitsOn = (s: AppState, date: string): ServiceUnit[] =>
 export function completionsIn(s: AppState, subjectId: string, period: string): CompletionEvent[] {
   return s.completions.filter((c) => {
     const u = unitById(s, c.unitId)
-    return !!u && u.subjectId === subjectId && periodOf(u.scheduledAt) === period
+    return !!u && !u.cancelled && u.subjectId === subjectId && periodOf(u.scheduledAt) === period
   })
 }
 
 export function completionsOfSubject(s: AppState, subjectId: string): CompletionEvent[] {
-  return s.completions.filter((c) => unitById(s, c.unitId)?.subjectId === subjectId)
+  return s.completions.filter((c) => {
+    const u = unitById(s, c.unitId)
+    return !!u && !u.cancelled && u.subjectId === subjectId
+  })
 }
 
 /** complete แบบ idempotent — กดซ้ำไม่เพิ่มซ้ำ */
@@ -52,7 +66,7 @@ export function packageStatus(s: AppState, subject: Subject): PackageStatus | nu
   if (b.mode !== 'package') return null
   const carried = new Set(b.carriedUnitIds ?? [])
   const used = completionsOfSubject(s, subject.id)
-    .filter((c) => c.completedAt >= b.purchasedAt && !carried.has(c.unitId)).length
+    .filter((c) => occurredAt(s, c) >= b.purchasedAt && !carried.has(c.unitId)).length
   const remaining = Math.max(b.total - used, 0)
   const overBy = Math.max(used - b.total, 0)
   const state = overBy > 0 || remaining === 0 ? 'exhausted' : remaining <= 2 ? 'low' : 'ok'
@@ -68,7 +82,7 @@ export function renewPackage(s: AppState, subjectId: string): AppState {
   const subject = subjectById(s, subjectId)
   if (!subject || subject.billing.mode !== 'package') return s
   const carried = completionsOfSubject(s, subjectId)
-    .filter((c) => c.completedAt >= s.today)
+    .filter((c) => occurredAt(s, c) >= s.today)
     .map((c) => c.unitId)
   return {
     ...s,

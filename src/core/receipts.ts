@@ -25,6 +25,12 @@ export const receiptOfPayment = (s: AppState, paymentId: string): Receipt | unde
   s.receipts.find((r) => r.paymentId === paymentId)
 
 export const receiptOfInvoice = (s: AppState, invoiceId: string): Receipt | undefined => {
-  const pay = s.payments.find((p) => p.invoiceId === invoiceId)
-  return pay ? receiptOfPayment(s, pay.id) : undefined
+  // ใบเสร็จออกตอนปิดยอด จึงห้อยอยู่กับ payment ตัวสุดท้าย ไม่ใช่ตัวแรก
+  // บิลที่จ่ายเป็นงวดเคยหาไม่เจอเพราะเอาตัวแรกมาเทียบ
+  const pays = s.payments.filter((p) => p.invoiceId === invoiceId)
+  for (let i = pays.length - 1; i >= 0; i--) {
+    const r = s.receipts.find((x) => x.paymentId === pays[i].id)
+    if (r) return r
+  }
+  return undefined
 }

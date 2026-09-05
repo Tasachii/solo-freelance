@@ -163,7 +163,7 @@ function rerender(state: AppState, m: Message): string | null {
     const r = state.receipts.find((x) => x.id === m.meta?.receiptId)
     const pay = r ? state.payments.find((p) => p.id === r.paymentId) : undefined
     const inv = pay ? invOf(pay.invoiceId) : undefined
-    return r && pay && inv ? receiptText(state, inv, r.id, pay.amount) : null
+    return r && pay && inv ? receiptText(state, inv, r.id, inv.total) : null
   }
   if (m.kind === 'renewal' || m.kind === 'renewal_exhausted') {
     const subject = subjOf()
@@ -218,7 +218,8 @@ export function deriveDrafts(state: AppState): Message[] {
     if (!inv) continue
     const subject = subjectById(state, inv.subjectId)
     if (!subject) continue
-    push(mkMessage(state, 'receipt', inv.clientId, subject.id, receiptText(state, inv, r.id, p.amount),
+    // ยอดในใบเสร็จคือยอดบิล ไม่ใช่ยอดงวดสุดท้ายที่บังเอิญปิดยอดพอดี
+    push(mkMessage(state, 'receipt', inv.clientId, subject.id, receiptText(state, inv, r.id, inv.total),
       `rcp:${p.id}`, { receiptId: r.id }))
   }
 

@@ -440,3 +440,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .rows--muted{margin-top:var(--space-3);opacity:.72}
 .urow--off .urow__name{text-decoration:line-through;color:var(--muted)}
 .urow--off .urow__meta{color:var(--warn)}
+
+.confirm__left{display:inline-block;margin-left:var(--space-3);padding-left:var(--space-3);border-left:1px solid var(--line);font-style:normal;font-weight:600;
+  font-size:var(--fs-small);color:var(--muted)}

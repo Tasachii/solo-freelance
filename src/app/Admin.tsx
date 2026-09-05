@@ -12,9 +12,9 @@ import { useToast } from './components/Toast'
 import { copyText, openLine } from './share'
 import type { Message } from '../core/types'
 
-function MessageCard({ m, awaiting, onSend, onSent, onCancel, onCopy, onSkip, onEdit }: {
-  m: Message; awaiting: boolean
-  onSend: () => void; onSent: () => void; onCancel: () => void; onCopy: () => void
+function MessageCard({ m, awaiting, left, onSend, onSent, onCancel, onSkipQueue, onCopy, onSkip, onEdit }: {
+  m: Message; awaiting: boolean; left: number
+  onSend: () => void; onSent: () => void; onCancel: () => void; onSkipQueue: () => void; onCopy: () => void
   onSkip: () => void; onEdit: (t: string) => void
 }) {
   const { state } = useStore()
@@ -38,11 +38,15 @@ function MessageCard({ m, awaiting, onSend, onSent, onCancel, onCopy, onSkip, on
         // เปิด LINE ไปแล้ว — ยังไม่นับว่าส่งจนกว่าครูจะยืนยัน
         // การ์ดถามค้างไว้ ไม่ใช้ toast เพราะครูสลับไป LINE แล้ว toast หายไปก่อนกลับมา
         <div className="confirm">
-          <span className="confirm__q">{copy.admin.sentAsk}</span>
+          <span className="confirm__q">
+            {copy.admin.sentAsk}
+            {left > 0 && <i className="confirm__left">{copy.admin.queueLeft} {left}</i>}
+          </span>
           <div className="btnrow">
             <button className="btn btn--primary btn--sm" onClick={onSent}>{copy.admin.sentYes}</button>
             <button className="btn btn--ghost btn--sm" onClick={onCopy}>{copy.admin.copyText}</button>
-            <button className="btn btn--ghost btn--sm" onClick={onCancel}>{copy.admin.notYet}</button>
+            <button className="btn btn--ghost btn--sm" onClick={onSkipQueue}>{copy.admin.notYet}</button>
+            {left > 0 && <button className="btn btn--ghost btn--sm" onClick={onCancel}>{copy.admin.stopQueue}</button>}
           </div>
         </div>
       ) : (
@@ -76,19 +80,22 @@ export default function Admin() {
     (m) => (m.status === 'sent' || m.status === 'draft') && periodOf(m.createdAt) === period).length
   const minutes = Math.ceil((monthCount * 10) / 60)
 
-  // id ที่เปิด LINE ไปแล้วและรอครูยืนยัน · queue = คิวที่เหลือตอนส่งทีละคน
-  const [awaiting, setAwaiting] = useState<string | null>(null)
-  const [queue, setQueue] = useState<string[]>([])
+  // คิวอยู่ใน state ไม่ใช่ในคอมโพเนนต์ — สลับไป LINE แล้วกลับมาต้องยังรู้ว่าค้างที่ใคร
+  const awaiting = state.sending?.awaiting ?? null
+  const queue = state.sending?.queue ?? []
 
   const byId = (id: string): Message | undefined => state.messages.find((x) => x.id === id)
+  /** เอาเฉพาะที่ยังเป็นร่างอยู่ — ระหว่างคิวครูอาจกดข้ามบางใบไปแล้ว */
+  const nextDraft = (ids: string[]): Message | undefined =>
+    ids.map(byId).find((m): m is Message => m?.status === 'draft')
 
-  const openFor = (m: Message) => {
+  const openFor = (m: Message, rest: string[] = queue) => {
     if (!openLine(m.draft)) {
       // popup โดนบล็อก (มักบนเดสก์ท็อป) — คัดลอกให้แทน ครูวางเองได้
       void copyText(m.draft)
       toast.push({ text: copy.admin.lineBlocked, tone: 'warn' })
     }
-    setAwaiting(m.id)
+    dispatch({ type: 'sendingStart', awaiting: m.id, queue: rest })
     track('open_line', { kind: m.kind })
   }
 
@@ -99,12 +106,22 @@ export default function Admin() {
       track('send_message', { kind: m.kind })
       toast.push({ text: copy.toast.messageSent, tone: 'ok' })
     }
-    const [next, ...rest] = queue
-    const nextMsg = next ? byId(next) : undefined
-    if (nextMsg) { setQueue(rest); openFor(nextMsg) } else { setAwaiting(null); setQueue([]) }
+    const nextMsg = nextDraft(queue)
+    if (nextMsg) {
+      const rest = queue.slice(queue.indexOf(nextMsg.id) + 1)
+      openFor(nextMsg, rest)
+    } else {
+      dispatch({ type: 'sendingStop' })
+    }
   }
 
-  const cancelSend = () => { setAwaiting(null); setQueue([]) }
+  /** ยังไม่ได้ส่งใบนี้ — ไปใบถัดไปในคิว ไม่ใช่ทิ้งทั้งคิวเงียบ ๆ */
+  const skipInQueue = () => {
+    const nextMsg = nextDraft(queue)
+    if (nextMsg) openFor(nextMsg, queue.slice(queue.indexOf(nextMsg.id) + 1))
+    else dispatch({ type: 'sendingStop' })
+  }
+  const cancelSend = () => dispatch({ type: 'sendingStop' })
 
   if (!hydrated) return <div className="pane"><Skeleton rows={4} /></div>
 
@@ -149,13 +166,14 @@ export default function Admin() {
               <button className="btn btn--primary btn--block" disabled={awaiting !== null} onClick={() => {
                 const [first, ...rest] = drafts
                 if (!first) return
-                setQueue(rest.map((m) => m.id))
-                openFor(first)
+                openFor(first, rest.map((m) => m.id))
               }}>{copy.admin.sendAll} ({drafts.length})</button>
               <ul className="msgs">
                 {drafts.map((m) => (
                   <MessageCard key={m.id} m={m}
                     awaiting={awaiting === m.id}
+                    left={queue.filter((id) => byId(id)?.status === 'draft').length}
+                    onSkipQueue={skipInQueue}
                     onSend={() => openFor(m)}
                     onSent={confirmSent}
                     onCancel={cancelSend}

@@ -141,7 +141,7 @@ export const copy = {
   admin: {
     tabDrafts: 'รอส่ง', tabChat: 'แชท',
     draftedStat: 'เดือนนี้แอดมินร่างให้', timeSaved: 'เวลาที่ใช้', minutes: 'นาที',
-    sendAll: 'ส่งทีละคน', queueLeft: 'เหลืออีก',
+    sendAll: 'ส่งทีละคน', queueLeft: 'เหลืออีก', stopQueue: 'หยุดคิว',
     sendLine: 'ส่งใน LINE', sentAsk: 'ส่งใน LINE แล้วหรือยัง', sentYes: 'ส่งแล้ว',
     copyText: 'คัดลอกข้อความ', notYet: 'ยังไม่ได้ส่ง',
     lineBlocked: 'เปิด LINE ไม่ได้ — คัดลอกข้อความให้แล้ว วางในแชทได้เลย', emptyDrafts: 'ไม่มีอะไรรอส่ง วันนี้เรียบร้อยครับ ✓',

@@ -37,6 +37,9 @@ export type Action =
   | { type: 'onboarded' }
   | { type: 'startReal' }
   | { type: 'backedUp' }
+  | { type: 'sendingStart'; awaiting: string; queue: string[] }
+  | { type: 'sendingNext'; awaiting: string }
+  | { type: 'sendingStop' }
   | { type: 'restore'; state: AppState }
   | { type: 'rescheduleUnit'; unitId: string; date: string; time: string }
   | { type: 'cancelUnit'; unitId: string }
@@ -96,7 +99,8 @@ export function reducer(state: AppState, action: Action): AppState {
         payments: [...s.payments, pay],
         invoices: s.invoices.map((i) => (i.id === inv.id && settled ? { ...i, status: 'paid' } : i)),
       }
-      if (settled) s = issueReceipt(s, pay).state
+      // ใบเสร็จต้องบอกยอดของบิล ไม่ใช่ยอดงวดสุดท้ายที่บังเอิญปิดยอดพอดี
+      if (settled) s = issueReceipt(s, { ...pay, amount: inv.total }).state
       break
     }
     case 'renewPackage': {
@@ -194,6 +198,15 @@ export function reducer(state: AppState, action: Action): AppState {
       }
       break
     }
+    case 'sendingStart':
+      s = { ...s, sending: { awaiting: action.awaiting, queue: action.queue } }
+      break
+    case 'sendingNext':
+      s = { ...s, sending: { awaiting: action.awaiting, queue: (s.sending?.queue ?? []).slice(1) } }
+      break
+    case 'sendingStop':
+      s = { ...s, sending: undefined }
+      break
     case 'backedUp':
       s = { ...s, lastBackupAt: s.today }
       break
@@ -307,6 +320,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const timer = useRef<number | undefined>(undefined)
 
   useEffect(() => { const t = window.setTimeout(() => setHydrated(true), 300); return () => window.clearTimeout(t) }, [])
+
+  // PWA ที่ติดตั้งลงจอมักถูกเปิดค้างข้ามคืน — ถ้าไม่เดินวันเอง
+  // เช้าวันใหม่ครูจะยังเห็นคาบเมื่อวาน และเช็คชื่อลงวันผิด
+  useEffect(() => {
+    const tick = () => {
+      if (state.mode !== 'real') return
+      const now = todayISO()
+      if (now !== state.today) dispatch({ type: 'setToday', date: now })
+    }
+    document.addEventListener('visibilitychange', tick)
+    window.addEventListener('focus', tick)
+    return () => {
+      document.removeEventListener('visibilitychange', tick)
+      window.removeEventListener('focus', tick)
+    }
+  }, [state.mode, state.today])
 
   useEffect(() => {
     window.clearTimeout(timer.current)

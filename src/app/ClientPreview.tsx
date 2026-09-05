@@ -2,12 +2,11 @@ import { Link, useParams } from 'react-router-dom'
 import { useStore } from '../core/store'
 import { copy } from '../copy'
 import { PROMPTPAY_DISPLAY } from '../platform/config'
-import { clientById, packageStatus } from '../core/ledger'
-import { invoiceFor } from '../core/billing'
+import { balanceDue, clientById, packageStatus, paidAmount } from '../core/ledger'
 import { receiptOfInvoice } from '../core/receipts'
 import { money, periodOf, periodThai } from '../core/format'
 import { DemoBadge, EmptyState, ProgressBar, QRPlaceholder } from './components'
-import type { Invoice, Subject } from '../core/types'
+import { isPaymentDestination, normalizePaymentDestination } from '../core/paymentDestination'
 
 /** มุมมองผู้จ่าย — อ่านอย่างเดียว ตัวเลขทุกตัวมาจาก ledger ชุดเดียวกับฝั่งครู */
 export default function ClientPreview() {
@@ -27,23 +26,17 @@ export default function ClientPreview() {
     )
   }
 
-  const subjects = state.subjects.filter((s) => s.clientId === clientId && s.active)
+  const subjects = state.subjects.filter((s) => s.clientId === clientId)
 
-  // ผู้จ่ายกดลิงก์มาจากข้อความทวง ซึ่งพูดถึงบิลเดือนที่ค้าง ไม่ใช่เดือนปฏิทินปัจจุบัน
-  // จึงต้องโชว์ใบที่ยังค้างก่อน แล้วค่อย fallback เป็นใบของเดือนนี้
-  const openOf = (s: Subject): Invoice | undefined =>
-    state.invoices
-      .filter((i) => i.subjectId === s.id && (i.status === 'sent' || i.status === 'overdue'))
-      .sort((a, b) => a.period.localeCompare(b.period))[0]
-
-  const rows: { subject: Subject; invoice?: Invoice }[] = subjects.map((s) => ({
-    subject: s, invoice: openOf(s) ?? invoiceFor(state, s.id, period),
-  }))
-  const billed = rows.filter((r) => r.invoice && r.invoice.status !== 'draft')
-  const shownPeriod = billed[0]?.invoice?.period ?? period
-  const total = billed.reduce((n, r) => n + (r.invoice?.total ?? 0), 0)
-  const allPaid = billed.length > 0 && billed.every((r) => r.invoice?.status === 'paid')
-  const receipt = billed.map((r) => receiptOfInvoice(state, r.invoice!.id)).find(Boolean)
+  const history = state.invoices.filter(i => i.clientId === clientId && i.status !== 'draft')
+    .sort((a, b) => Number(a.status === 'paid') - Number(b.status === 'paid') || a.period.localeCompare(b.period))
+  const unpaid = history.filter(i => i.status !== 'paid')
+  const billed = unpaid.length ? unpaid : history
+  const total = billed.reduce((n, i) => n + i.total, 0)
+  const paid = billed.reduce((n, i) => n + paidAmount(state, i.id), 0)
+  const due = billed.reduce((n, i) => n + balanceDue(state, i.id), 0)
+  const allPaid = billed.length > 0 && due === 0
+  const receipts = billed.map(i => receiptOfInvoice(state, i.id)).filter(r => !!r)
 
   return (
     <div className="page page--client">
@@ -56,7 +49,7 @@ export default function ClientPreview() {
       )}
 
       <h1 className="cv__h1">{copy.clientView.invoiceTitle}</h1>
-      <p className="cv__who">{client.name} · {periodThai(shownPeriod)}</p>
+      <p className="cv__who">{client.name} · {periodThai(period)}</p>
 
       {billed.length === 0 ? (
         <EmptyState icon="🧾" title={copy.clientView.noInvoice} desc={copy.clientView.noInvoiceHint} />
@@ -64,9 +57,9 @@ export default function ClientPreview() {
         <>
           <ul className="cv__lines">
             {billed.map((r) => (
-              <li key={r.subject.id}>
-                <span>{r.subject.name}</span>
-                <b className="num">{money(r.invoice!.total)} {copy.common.baht}</b>
+              <li key={r.id}>
+                <span>{subjects.find(s => s.id === r.subjectId)?.name} · {periodThai(r.period)}</span>
+                <b className="num">{money(r.total)} {copy.common.baht}</b>
               </li>
             ))}
             <li className="cv__lines--sum">
@@ -74,18 +67,20 @@ export default function ClientPreview() {
               <b className="num">{money(total)} {copy.common.baht}</b>
             </li>
           </ul>
+          <p>รับแล้ว <b className="num">{money(paid)}</b> บาท · คงเหลือ <b className="num">{money(due)}</b> บาท</p>
 
           {allPaid ? (
             <div className="paid-ok">
               <span className="paid-ok__txt">{copy.clientView.paid}</span>
-              {receipt && (
-                <Link className="btn btn--sm btn--primary" to={`/receipt/${receipt.id}`}>{copy.clientView.viewReceipt}</Link>
-              )}
+              {receipts.map(receipt => <Link key={receipt.id} className="btn btn--sm btn--primary" to={`/receipt/${receipt.id}`}>{copy.clientView.viewReceipt} {receipt.number}</Link>)}
             </div>
           ) : (
             <div className="cv__pay">
               {/* เลขบัญชีของครูจริง — ของเดโมใช้ตัวอย่าง */}
-              <QRPlaceholder label={copy.clientView.scanToPay} sub={state.provider.promptpayId || PROMPTPAY_DISPLAY} />
+              {real ? (isPaymentDestination(state.provider.promptpayId)
+                ? <><p>โอนผ่านพร้อมเพย์</p><strong>{normalizePaymentDestination(state.provider.promptpayId)}</strong><p>ผู้รับเงิน: {state.provider.name}</p><p className="hint">ตรวจชื่อผู้รับในแอปธนาคารก่อนโอน แล้วส่งสลิปกลับในแชท</p></>
+                : <p role="status">ยังไม่ได้ตั้งค่าพร้อมเพย์ กรุณาติดต่อผู้ให้บริการเพื่อขอข้อมูลชำระเงิน</p>)
+                : <QRPlaceholder label="QR ตัวอย่าง — ใช้ชำระเงินจริงไม่ได้" sub={PROMPTPAY_DISPLAY} />}
               <p className="hint">{real ? copy.clientView.slipHow : copy.clientView.sample}</p>
             </div>
           )}

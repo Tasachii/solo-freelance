@@ -13,6 +13,12 @@ import { modeThai } from '../copy/tutor'
 import { BottomSheet, EmptyState, ProgressBar } from './components'
 import { useToast } from './components/Toast'
 import SubjectSheet from './SubjectSheet'
+import type { AppState } from '../core/types'
+
+export const mustArchiveSubject = (state: AppState, subjectId: string): boolean =>
+  state.mode === 'real' && state.invoices.some((invoice) => invoice.subjectId === subjectId)
+export const canRenewSubject = (subject: AppState['subjects'][number]): boolean =>
+  subject.active && subject.billing.mode === 'package'
 
 export default function SubjectDetail() {
   const { id = '' } = useParams()
@@ -35,6 +41,7 @@ export default function SubjectDetail() {
   const pk = packageStatus(state, s)
   const qty = completionsIn(state, s.id, period).length
   const inv = invoiceFor(state, s.id, period)
+  const mustArchive = mustArchiveSubject(state, s.id)
 
   const timeline = [
     ...state.units.filter((u) => u.subjectId === s.id && isCompleted(state, u.id))
@@ -65,11 +72,14 @@ export default function SubjectDetail() {
       {pk && (
         <section className="card">
           <h2 className="h2">{copy.subjects.filters.package}</h2>
-          <ProgressBar value={pk.used} max={pk.total} tone={pk.state === 'ok' ? 'ok' : pk.state === 'low' ? 'warn' : 'danger'} />
+          <ProgressBar value={pk.used} max={pk.total} label={`${copy.detail.usedOfTotal} ${pk.used}/${pk.total}`}
+            tone={pk.state === 'ok' ? 'ok' : pk.state === 'low' ? 'warn' : 'danger'} />
           <div className="kv"><span>{copy.detail.usedOfTotal}</span><b className="num">{pk.used}/{pk.total}</b></div>
           <div className="kv"><span>{copy.clientView.packRemain}</span><b className="num">{pk.remaining}{pk.overBy ? ` (เกิน ${pk.overBy})` : ''}</b></div>
           <div className="kv"><span>{copy.detail.boughtAt}</span><b>{dateThai(pk.purchasedAt)}</b></div>
-          <button className="btn btn--secondary btn--block" onClick={() => setBuying(true)}>{copy.detail.buyPackage}</button>
+          {canRenewSubject(s) && (
+            <button className="btn btn--secondary btn--block" onClick={() => setBuying(true)}>{copy.detail.buyPackage}</button>
+          )}
         </section>
       )}
 
@@ -87,10 +97,13 @@ export default function SubjectDetail() {
 
       {/* แยกปุ่มลบออกมาท้ายหน้า — เดิมอยู่ติด "หยุดเรียน" และเงียบกว่าปุ่มข้าง ๆ จึงกดพลาดง่าย */}
       <div className="danger-zone">
-        <button className="btn btn--ghost btn--sm btn--danger-text" onClick={() => setRemoving(true)}>
-          {copy.subjects.remove}
+        <button className="btn btn--ghost btn--sm btn--danger-text"
+          onClick={() => mustArchive ? setStopping(true) : setRemoving(true)}>
+          {mustArchive ? copy.subjects.stop : copy.subjects.remove}
         </button>
-        <span className="hint">{copy.subjects.removeHint}</span>
+        <span className="hint">{mustArchive
+          ? `มีประวัติการเงิน จึงเก็บบิลและใบเสร็จไว้ครบและย้ายไปกลุ่ม "${copy.subjects.inactiveGroup}"`
+          : copy.subjects.removeHint}</span>
       </div>
 
       <section className="card">
@@ -106,11 +119,11 @@ export default function SubjectDetail() {
 
       {editing && <SubjectSheet subject={s} onClose={() => setEditing(false)} />}
 
-      {buying && pk && (
+      {buying && pk && canRenewSubject(s) && (
         <BottomSheet title={copy.detail.buyConfirm} sub={`${pk.total} ครั้ง · ${money(pk.price)} ${copy.common.baht}`} onClose={() => setBuying(false)}
           footer={
             <button className="btn btn--primary btn--block" onClick={() => {
-              dispatch({ type: 'renewPackage', subjectId: s.id })
+              if (!dispatch({ type: 'renewPackage', subjectId: s.id })) return
               track('renew_package', { subjectId: s.id })
               setBuying(false); toast.push({ text: copy.toast.receiptIssued, tone: 'ok' })
             }}>{copy.common.confirm}</button>
@@ -125,7 +138,7 @@ export default function SubjectDetail() {
             <div className="btnrow">
               <button className="btn btn--ghost" onClick={() => setRemoving(false)}>{copy.common.cancel}</button>
               <button className="btn btn--danger" onClick={() => {
-                dispatch({ type: 'deleteSubject', subjectId: s.id })
+                if (!dispatch({ type: 'deleteSubject', subjectId: s.id })) return
                 track('delete_subject')
                 setRemoving(false); nav('/app/subjects')
                 toast.push({ text: copy.subjects.removed, tone: 'warn' })
@@ -141,7 +154,8 @@ export default function SubjectDetail() {
         <BottomSheet title={copy.subjects.stopConfirm} onClose={() => setStopping(false)}
           footer={
             <button className="btn btn--danger btn--block" onClick={() => {
-              dispatch({ type: 'deactivateSubject', subjectId: s.id }); setStopping(false); nav('/app/subjects')
+              if (!dispatch({ type: 'deactivateSubject', subjectId: s.id })) return
+              setStopping(false); nav('/app/subjects')
             }}>{copy.subjects.stop}</button>
           }>
           <p className="p">จะย้ายไปกลุ่ม "{copy.subjects.inactiveGroup}" ประวัติยังอยู่ครบ</p>

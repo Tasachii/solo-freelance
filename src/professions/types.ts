@@ -9,6 +9,25 @@ export interface FaqRule {
   priority: number
 }
 
+export interface ProfessionMessages {
+  invoice: string
+  invoiceFlat: string
+  reminder: { soft: string; clear: string; final: string }
+  renewal: string
+  renewalExhausted: string
+  receipt: string
+  moved: string
+  cancelled: string
+  summary: string
+  summaryAmount: string
+  summaryPackage: string
+  slipRequest: string
+  faq: {
+    currentInvoice: string; currentInvoiceNone: string; nextUnit: string; nextUnitNone: string
+    packageRemaining: string; packageNotPackage: string; paymentPaid: string; paymentUnpaid: string; fallback: string
+  }
+}
+
 export interface ProfessionTemplate {
   id: string
   name: string
@@ -28,5 +47,7 @@ export interface ProfessionTemplate {
   /** เปิดให้ติ๊ก "ให้ทีมช่วยตั้งให้" ตอนลงชื่อ — อาชีพที่ยังไม่ live ไม่ต้องมี */
   conciergeAvailable?: boolean
   faq?: FaqRule[]
+  messages?: ProfessionMessages
+  modeLabels?: Partial<Record<BillingMode['mode'], string>>
   mockScenarios?: Record<string, () => Partial<AppState>>
 }

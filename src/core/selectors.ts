@@ -1,5 +1,5 @@
 import type { AppState, Invoice } from './types'
-import { completionsIn, packageStatus, packageUnitPrice } from './ledger'
+import { balanceDue, completionsIn, packageStatus, packageUnitPrice } from './ledger'
 import { daysOverdue, invoiceFor } from './billing'
 import { periodOf } from './format'
 
@@ -29,10 +29,7 @@ export function dashboard(state: AppState, period: string): Dashboard {
   // ไม่งั้นเงิน 1,000 ที่รับมาจะถูกนับทั้งใน 'เข้าแล้ว' และ 'ค้าง' พร้อมกัน
   const outstanding = state.invoices
     .filter((i) => i.status === 'sent' || i.status === 'overdue')
-    .reduce((n, i) => {
-      const paid = state.payments.filter((p) => p.invoiceId === i.id).reduce((m, p) => m + p.amount, 0)
-      return n + Math.max(i.total - paid, 0)
-    }, 0)
+    .reduce((n, i) => n + balanceDue(state, i.id), 0)
 
   // 1) บิลที่เก็บได้หลังเคยทวง
   let dunned = 0
@@ -46,7 +43,9 @@ export function dashboard(state: AppState, period: string): Dashboard {
   let counted = 0
   for (const s of state.subjects) {
     if (s.billing.mode !== 'per_unit') continue
-    counted += completionsIn(state, s.id, period).length * s.billing.rate
+    const rate = s.billing.rate
+    counted += completionsIn(state, s.id, period)
+      .reduce((sum, completion) => sum + (completion.unitPrice ?? rate), 0)
   }
   // 3) ครั้งที่เกินแพ็กซึ่งจับได้
   let overflow = 0

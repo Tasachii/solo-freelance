@@ -21,7 +21,11 @@ export interface ServiceUnit {
   /** วันเดิมก่อนเลื่อน เก็บไว้ให้ตรวจย้อนได้ */
   movedFrom?: ISODate
 }
-export interface CompletionEvent { unitId: string; completedAt: ISODate; note?: string }
+export interface CompletionEvent {
+  unitId: string; completedAt: ISODate; note?: string
+  /** ราคาที่ตกลงไว้ตอนยืนยันงาน ป้องกันการแก้ราคาใหม่ย้อนกลับไปเปลี่ยนงานเดิม */
+  unitPrice?: Money
+}
 export interface InvoiceLine { description: string; qty: number; unitPrice: Money; amount: Money }
 export interface Invoice {
   id: string; clientId: string; subjectId: string; period: string; kind: 'monthly' | 'package'

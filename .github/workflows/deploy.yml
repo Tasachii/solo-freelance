@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # ประตูก่อน deploy — เทส 107 ตัวกับ e2e 32 ตัวไม่มีประโยชน์ถ้า CI ไม่รันมัน
+  # ประตูก่อน deploy — รัน typecheck, unit tests และเส้นทาง E2E ทั้งหมดก่อน build
   test:
     runs-on: ubuntu-latest
     steps:

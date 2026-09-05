@@ -1,8 +1,7 @@
 import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useStore } from './core/store'
-import { useToast } from './app/components/Toast'
-import { copy } from './copy'
+import StorageStatus from './app/StorageStatus'
 
 import Landing from './platform/Landing'
 import Pricing from './platform/Pricing'
@@ -19,13 +18,12 @@ import ClientPreview from './app/ClientPreview'
 
 export default function App() {
   const { didReset, track } = useStore()
-  const toast = useToast()
 
   useEffect(() => { track('app_open') }, [track])
-  useEffect(() => { if (didReset) toast.push({ text: copy.toast.resetDone }) }, [didReset, toast])
+  if (didReset) return <StorageStatus />
 
   return (
-    <Routes>
+    <><StorageStatus /><Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/receipt/:id" element={<Receipt />} />
@@ -41,6 +39,6 @@ export default function App() {
         <Route path="onboarding" element={<Onboarding />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    </Routes></>
   )
 }

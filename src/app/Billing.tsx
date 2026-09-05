@@ -7,7 +7,7 @@ import { daysSinceBackup } from '../core/backup'
 import { diffDays } from '../core/format'
 import { dashboard, invoiceToActOn } from '../core/selectors'
 import { closableSubjects } from '../core/billing'
-import { packageStatus } from '../core/ledger'
+import { balanceDue, packageStatus } from '../core/ledger'
 import { download, monthCsv } from '../core/export'
 import { receiptOfInvoice } from '../core/receipts'
 import { money, periodOf, periodThaiFull } from '../core/format'
@@ -31,7 +31,7 @@ export default function Billing() {
   const dash = useMemo(() => dashboard(state, period), [state, period])
   const closable = useMemo(() => closableSubjects(state, period), [state, period])
 
-  const monthly = state.subjects.filter((s) => s.active && s.billing.mode !== 'package')
+  const monthly = state.subjects.filter((s) => s.billing.mode !== 'package' && (s.active || state.invoices.some(i => i.subjectId === s.id && i.status !== 'paid')))
   const packs = state.subjects
     .filter((s) => s.active)
     .map((s) => ({ s, pk: packageStatus(state, s) }))
@@ -91,7 +91,7 @@ export default function Billing() {
             <li className="srow" key={s.id}>
               <span className="srow__main">
                 <span className="srow__name">{s.name}</span>
-                <span className="srow__meta">{inv ? `${money(inv.total)} · ${copy.billing.status[inv.status]}` : copy.billing.noInvoices}</span>
+                <span className="srow__meta">{inv ? `${money(inv.total)} · ${copy.billing.status[inv.status]}${inv.status !== 'paid' ? ` · คงเหลือ ${money(balanceDue(state, inv.id))}` : ''}` : copy.billing.noInvoices}</span>
               </span>
               {inv?.status === 'draft' && <button className="btn btn--secondary btn--sm" onClick={() => nav('/app/admin?tab=drafts')}>{copy.billing.viewMessage}</button>}
               {(inv?.status === 'sent' || inv?.status === 'overdue') && <button className="btn btn--primary btn--sm" onClick={() => setSlipFor(inv)}>{state.mode === 'real' ? copy.billing.attachSlipReal : copy.billing.attachSlip}</button>}
@@ -132,7 +132,7 @@ export default function Billing() {
         <BottomSheet title={copy.billing.closeMonth} sub={`${copy.billing.closeConfirm} ${closable.length}`} onClose={() => setConfirmClose(false)}
           footer={
             <button className="btn btn--primary btn--block" onClick={() => {
-              dispatch({ type: 'closeMonth', period })
+              if (!dispatch({ type: 'closeMonth', period })) return
               track('close_month', { period, count: closable.length })
               setConfirmClose(false)
               toast.push({ text: `${copy.toast.invoicesCreated} ${closable.length}`, tone: 'ok', action: { label: copy.toast.goSend, run: () => nav('/app/admin?tab=drafts') } })

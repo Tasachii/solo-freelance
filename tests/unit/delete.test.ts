@@ -5,6 +5,13 @@ import { buildScenario } from '../../src/core/scenarios'
 const s0 = () => buildScenario('default')
 
 describe('ลบคนออก', () => {
+  it('โหมดจริงที่มีบิลต้อง archive และรักษาประวัติการเงิน', () => {
+    const before = { ...s0(), mode: 'real' as const }
+    const invoices = before.invoices.filter((i) => i.subjectId === 's2').map((i) => i.id)
+    const after = reducer(before, { type: 'deleteSubject', subjectId: 's2' })
+    expect(after.subjects.find((x) => x.id === 's2')?.active).toBe(false)
+    expect(after.invoices.filter((i) => invoices.includes(i.id))).toHaveLength(invoices.length)
+  })
   it('ลบแล้วไม่เหลือแถวกำพร้าที่ทำหน้าจอพัง', () => {
     const before = s0()
     const sub = before.subjects.find((x) => x.id === 's2')!

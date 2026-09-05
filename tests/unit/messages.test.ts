@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildScenario } from '../../src/core/scenarios'
-import { deriveDrafts, render } from '../../src/core/messages'
+import { deriveDrafts, reminderText, render } from '../../src/core/messages'
+import { reducer } from '../../src/core/store'
 import { complete, subjectById, unitsOn } from '../../src/core/ledger'
 import { closableSubjects } from '../../src/core/billing'
 import type { AppState } from '../../src/core/types'
@@ -68,5 +69,12 @@ describe('messages', () => {
     const s = withDrafts(buildScenario('default'))
     expect(s.messages.every((m) => !m.draft.includes('{'))).toBe(true)
     expect(subjectById(s, 's1')).toBeTruthy()
+  })
+  it('ข้อความทวงใช้ยอดคงเหลือหลังจ่ายบางส่วน', () => {
+    const before = buildScenario('default')
+    const invoice = before.invoices.find((row) => row.total === 3000 && row.status !== 'paid')!
+    const after = reducer(before, { type: 'recordPayment', invoiceId: invoice.id, amount: 1000, slipVerified: true })
+    expect(reminderText(after, invoice, 'soft')).toContain('2,000')
+    expect(reminderText(after, invoice, 'soft')).not.toContain('3,000')
   })
 })

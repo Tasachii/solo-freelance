@@ -1,6 +1,6 @@
-import type { AppState, Invoice, InvoiceLine, Subject } from './types'
-import { completionsIn, packageUnitPrice, subjectById } from './ledger'
-import { addDays, diffDays, periodThai } from './format'
+import type { AppState, BillingMode, Invoice, InvoiceLine, Subject } from './types'
+import { completionsIn, completionsOfSubject, occurredAt, packageUnitPrice, subjectById } from './ledger'
+import { addDays, diffDays, periodOf, periodThai } from './format'
 import { professionById } from '../professions'
 
 export const invoiceFor = (s: AppState, subjectId: string, period: string): Invoice | undefined =>
@@ -8,23 +8,50 @@ export const invoiceFor = (s: AppState, subjectId: string, period: string): Invo
 
 export const dueDaysOf = (s: AppState): number => professionById(s.professionId).dueDays ?? 3
 
+export type BillingChangeIssue = 'unbilled-mode-change' | 'unbilled-flat-price-change' | 'package-history-mode-change'
+
+export function hasUnbilledCompletions(state: AppState, subjectId: string): boolean {
+  const periods = new Set(completionsOfSubject(state, subjectId).map((completion) => periodOf(occurredAt(state, completion))))
+  return [...periods].some((period) => !state.invoices.some((invoice) =>
+    invoice.subjectId === subjectId && invoice.kind === 'monthly' && invoice.period === period))
+}
+
+/** คืนเหตุผลเดียวกันให้ UI และ reducer ใช้ ห้ามให้ UI guard เป็น source of truth */
+export function billingChangeIssue(state: AppState, current: Subject, next: BillingMode): BillingChangeIssue | null {
+  if (current.billing.mode === 'package' && next.mode !== 'package'
+    && (completionsOfSubject(state, current.id).length > 0
+      || state.invoices.some(i => i.subjectId === current.id && i.kind === 'package'))) return 'package-history-mode-change'
+  if (!hasUnbilledCompletions(state, current.id)) return null
+  if (current.billing.mode !== next.mode) return 'unbilled-mode-change'
+  if (current.billing.mode === 'flat_monthly' && next.mode === 'flat_monthly'
+    && current.billing.amount !== next.amount) return 'unbilled-flat-price-change'
+  return null
+}
+
 /** สร้างบิลรายเดือน — package คืน null (เก็บเงินตอนซื้อแพ็ก ไม่ใช่รายเดือน) */
 export function buildInvoice(subject: Subject, period: string, state: AppState): Invoice | null {
+  const profession = professionById(state.professionId)
   const b = subject.billing
-  const qty = completionsIn(state, subject.id, period).length
+  const completions = completionsIn(state, subject.id, period)
+  const qty = completions.length
   const label = subject.label ?? subject.name
   let lines: InvoiceLine[]
 
   if (b.mode === 'per_unit') {
     if (qty === 0) return null
-    lines = [{
-      description: `${label} ${periodThai(period)} — ${qty} × ${b.rate}`,
-      qty, unitPrice: b.rate, amount: qty * b.rate,
-    }]
+    const rates = new Map<number, number>()
+    for (const completion of completions) {
+      const rate = completion.unitPrice ?? b.rate
+      rates.set(rate, (rates.get(rate) ?? 0) + 1)
+    }
+    lines = [...rates.entries()].sort(([a], [z]) => a - z).map(([rate, count]) => ({
+      description: `${label} ${periodThai(period)} — ${count} ${profession.vocab.units} × ${rate}`,
+      qty: count, unitPrice: rate, amount: count * rate,
+    }))
   } else if (b.mode === 'flat_monthly') {
     // เหมาเดือน = 1 รายการ ไม่ใช่ qty × ยอดเหมา (ไม่งั้น qty × unitPrice ไม่เท่ากับ amount)
     lines = [{
-      description: `${label} ${periodThai(period)} (เหมา · ${qty} ครั้ง)`,
+      description: `${label} ${periodThai(period)} (เหมา · ${qty} ${profession.vocab.units})`,
       qty: 1, unitPrice: b.amount, amount: b.amount,
     }]
   } else {
@@ -45,7 +72,7 @@ export function buildPackageInvoice(subject: Subject, state: AppState, id: strin
   if (b.mode !== 'package') return null
   const label = subject.label ?? subject.name
   const lines: InvoiceLine[] = [{
-    description: `${label} — แพ็ก ${b.total} ครั้ง`, qty: b.total, unitPrice: packageUnitPrice(b), amount: b.price,
+    description: `${label} — แพ็ก ${b.total} ${professionById(state.professionId).vocab.units}`, qty: b.total, unitPrice: packageUnitPrice(b), amount: b.price,
   }]
   return {
     id, clientId: subject.clientId, subjectId: subject.id, period: state.today.slice(0, 7),

@@ -37,9 +37,8 @@ export default function WaitlistSheet({ preselect, onClose }: { preselect?: stri
       concierge: professionById(professionId).conciergeAvailable ? concierge : undefined,
       at: new Date().toISOString(),
     }
-    dispatch({ type: 'waitlist', entry })
+    if (!dispatch({ type: 'waitlist', entry })) { setSending(false); return }
     track('waitlist_submit', { professionId })
-    console.info('[solo] waitlist', entry)
 
     if (WAITLIST_ENDPOINT) {
       try {

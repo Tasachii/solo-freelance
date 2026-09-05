@@ -1,26 +1,14 @@
 import type { AppState } from './types'
+import { validateState } from './validation'
 
 export const BACKUP_FORMAT = 'solo-backup-1'
-
-/** ทุก collection ที่โค้ดวนลูปโดยไม่เช็คก่อน — ขาดตัวใดตัวหนึ่งคือจอขาว */
-const COLLECTIONS = [
-  'clients', 'subjects', 'units', 'completions', 'invoices',
-  'payments', 'receipts', 'messages', 'chats', 'waitlist', 'events',
-] as const
 
 /**
  * state ใช้งานได้จริงไหม — ไม่ใช่แค่ 'มี subjects'
  * ใช้ร่วมกับ migrate() เพราะไฟล์ที่ขาดครึ่งกับ storage ที่เขียนไม่จบ พังแบบเดียวกัน
  */
 export function isWellFormed(app: unknown): app is AppState {
-  const a = app as Record<string, unknown> | null
-  if (!a || typeof a !== 'object') return false
-  if (COLLECTIONS.some((k) => !Array.isArray(a[k]))) return false
-  const c = a.counters as Record<string, unknown> | undefined
-  if (!c || typeof c.receipt !== 'number' || typeof c.invoice !== 'number') return false
-  const p = a.provider as Record<string, unknown> | undefined
-  if (!p || typeof p.name !== 'string') return false
-  return typeof a.today === 'string' && a.today.length === 10
+  return validateState(app).ok
 }
 
 export interface BackupFile {
@@ -36,7 +24,7 @@ export function toBackup(state: AppState, at: string): string {
 
 export type RestoreResult =
   | { ok: true; state: AppState }
-  | { ok: false; reason: 'unreadable' | 'wrongFile' | 'wrongVersion' }
+  | { ok: false; reason: 'unreadable' | 'wrongFile' | 'wrongVersion'; details?: string[] }
 
 /**
  * กู้คืนไฟล์สำรอง — ปฏิเสธไฟล์ที่ไม่ใช่ของเรา
@@ -50,10 +38,17 @@ export function fromBackup(text: string, schema: number): RestoreResult {
     return { ok: false, reason: 'unreadable' }
   }
   const f = raw as Partial<BackupFile>
-  if (!f || f.format !== BACKUP_FORMAT || !isWellFormed(f.app)) {
+  if (!f || f.format !== BACKUP_FORMAT || !f.app || typeof f.app !== 'object') {
     return { ok: false, reason: 'wrongFile' }
   }
   if (f.app.schemaVersion !== schema) return { ok: false, reason: 'wrongVersion' }
+  const app = f.app as unknown as Record<string, unknown>
+  const requiredArrays = ['clients', 'subjects', 'units', 'completions', 'invoices', 'payments', 'receipts', 'messages', 'chats', 'waitlist', 'events']
+  if (requiredArrays.some((key) => !Array.isArray(app[key]))
+    || !app.counters || typeof app.counters !== 'object'
+    || !app.provider || typeof app.provider !== 'object') return { ok: false, reason: 'wrongFile' }
+  const validation = validateState(f.app)
+  if (!validation.ok) return { ok: false, reason: 'wrongFile', details: validation.errors }
   return { ok: true, state: f.app }
 }
 

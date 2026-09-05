@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useStore } from '../core/store'
 import { professionById } from '../professions'
 import { copy } from '../copy'
@@ -11,16 +11,19 @@ import { EmptyState, Skeleton, StatCard } from './components'
 import { useToast } from './components/Toast'
 import { copyText, openLine } from './share'
 import type { Message } from '../core/types'
+import { messageSendIssue } from '../core/messageDelivery'
+import { isPaymentDestination } from '../core/paymentDestination'
 
 function MessageCard({ m, awaiting, left, onSend, onSent, onCancel, onSkipQueue, onCopy, onSkip, onEdit }: {
   m: Message; awaiting: boolean; left: number
   onSend: () => void; onSent: () => void; onCancel: () => void; onSkipQueue: () => void; onCopy: () => void
   onSkip: () => void; onEdit: (t: string) => void
 }) {
-  const { state } = useStore()
+  const { state, dispatch } = useStore()
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(m.draft)
   const client = clientById(state, m.clientId)
+  const issue = messageSendIssue(state, m)
 
   return (
     <li className="msg">
@@ -34,6 +37,10 @@ function MessageCard({ m, awaiting, left, onSend, onSent, onCancel, onSkipQueue,
       ) : (
         <p className="p msg__body">{m.draft}</p>
       )}
+      {issue && <p className="hint" role="status">{issue}</p>}
+      {m.edited && issue && <button className="btn btn--secondary btn--sm" onClick={() => {
+        if (dispatch({ type: 'refreshMessage', id: m.id })) setEditing(false)
+      }}>ใช้ร่างยอดล่าสุดแทนข้อความที่แก้</button>}
       {awaiting ? (
         // เปิด LINE ไปแล้ว — ยังไม่นับว่าส่งจนกว่าครูจะยืนยัน
         // การ์ดถามค้างไว้ ไม่ใช้ toast เพราะครูสลับไป LINE แล้ว toast หายไปก่อนกลับมา
@@ -54,7 +61,7 @@ function MessageCard({ m, awaiting, left, onSend, onSent, onCancel, onSkipQueue,
           {editing ? (
             <button className="btn btn--secondary btn--sm" onClick={() => { onEdit(text); setEditing(false) }}>{copy.common.save}</button>
           ) : (
-            <button className="btn btn--ghost btn--sm" onClick={() => setEditing(true)}>{copy.common.edit}</button>
+            <button className="btn btn--ghost btn--sm" onClick={() => { setText(m.draft); setEditing(true) }}>{copy.common.edit}</button>
           )}
           <button className="btn btn--primary btn--sm" onClick={onSend}>{copy.admin.sendLine}</button>
           <button className="btn btn--ghost btn--sm" onClick={onSkip}>{copy.common.skip}</button>
@@ -90,19 +97,22 @@ export default function Admin() {
     ids.map(byId).find((m): m is Message => m?.status === 'draft')
 
   const openFor = (m: Message, rest: string[] = queue) => {
+    const issue = messageSendIssue(state, m)
+    if (issue) { toast.push({ text: issue, tone: 'warn' }); return }
+    // Commit the queue while the tab is still active, before LINE can suspend it.
+    if (!dispatch({ type: 'sendingStart', awaiting: m.id, queue: rest })) return
     if (!openLine(m.draft)) {
       // popup โดนบล็อก (มักบนเดสก์ท็อป) — คัดลอกให้แทน ครูวางเองได้
       void copyText(m.draft)
       toast.push({ text: copy.admin.lineBlocked, tone: 'warn' })
     }
-    dispatch({ type: 'sendingStart', awaiting: m.id, queue: rest })
     track('open_line', { kind: m.kind })
   }
 
   const confirmSent = () => {
     const m = awaiting ? byId(awaiting) : undefined
     if (m) {
-      dispatch({ type: 'sendMessage', id: m.id })
+      if (!dispatch({ type: 'sendMessage', id: m.id })) return
       track('send_message', { kind: m.kind })
       toast.push({ text: copy.toast.messageSent, tone: 'ok' })
     }
@@ -135,12 +145,14 @@ export default function Admin() {
     const a = answer(state, chatWith, text)
     track('chat_sim', { answerFrom: a.source ?? 'fallback' })
     const key = `faq:${chatWith}:${Date.now()}`
-    dispatch({ type: 'addMessage', message: mkMessage(state, 'faq_reply', chatWith, undefined, a.text, key, { answerFrom: a.source }) })
+    dispatch({ type: 'addMessage', message: mkMessage(state, 'faq_reply', chatWith, undefined, a.text, key, { answerFrom: a.source, question: text }) })
     setInput('')
   }
 
   return (
     <div className="pane">
+      {state.mode === 'real' && <p className="hint">ลิงก์เอกสารเป็นสำเนาตามวันที่ ผู้ที่ได้รับลิงก์อ่านข้อมูลได้ กรุณาตรวจผู้รับก่อนส่ง</p>}
+      {state.mode === 'real' && !isPaymentDestination(state.provider.promptpayId) && <p className="warnbar">ยังไม่ได้ตั้งค่าพร้อมเพย์ที่ถูกต้อง <Link to="/app/onboarding">ตั้งค่าข้อมูลรับเงิน</Link></p>}
       <div className="chips">
         <button className={`chip${tab === 'drafts' ? ' chip--on' : ''}`} onClick={() => setParams({ tab: 'drafts' })}>
           {copy.admin.tabDrafts} {drafts.length ? <span className="chip__n">{drafts.length}</span> : null}

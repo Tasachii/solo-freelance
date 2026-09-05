@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildScenario } from '../../src/core/scenarios'
 import { answer, matchSource } from '../../src/core/faq'
+import { reducer } from '../../src/core/store'
 
 const s = buildScenario('default')
 
@@ -31,5 +32,25 @@ describe('faq', () => {
   it('package remaining answers with count', () => {
     const a = answer(s, 'c6', 'เหลือกี่ครั้งคะ')
     expect(a.text).toMatch(/เหลือ 2/)
+  })
+  it('next unit skips cancelled and inactive subjects', () => {
+    const live = { id: 'next-live', subjectId: 's1', scheduledAt: '2025-09-04', time: '10:00', durationMin: 60 }
+    const cancelled = { ...live, id: 'next-cancelled', scheduledAt: '2025-09-03', cancelled: true }
+    const state = { ...s, units: [
+      ...s.units.map((u) => u.subjectId === 's1' && u.scheduledAt > s.today ? { ...u, cancelled: true } : u),
+      cancelled, live,
+    ] }
+    expect(answer(state, 'c1', 'เรียนวันไหน').text).toMatch(/4/)
+    const inactive = { ...state, subjects: state.subjects.map((x) => x.id === 's1' ? { ...x, active: false } : x) }
+    expect(answer(inactive, 'c1', 'เรียนวันไหน').source).toBeNull()
+  })
+  it('payment status reports cumulative amount and final receipt after installments', () => {
+    let state = buildScenario('default')
+    const invoice = state.invoices.find((row) => row.clientId === 'c2' && row.total === 3000)!
+    state = reducer(state, { type: 'recordPayment', invoiceId: invoice.id, amount: 1000, slipVerified: true })
+    state = reducer(state, { type: 'recordPayment', invoiceId: invoice.id, amount: 2000, slipVerified: true })
+    const result = answer(state, 'c2', 'จ่ายแล้วนะคะ')
+    expect(result.text).toContain('3,000')
+    expect(result.text).toContain('/receipt/')
   })
 })

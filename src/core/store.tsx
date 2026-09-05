@@ -1,5 +1,5 @@
 import {
-  createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode,
+  createContext, useCallback, useContext, useEffect, useMemo, useState, useRef, type ReactNode,
 } from 'react'
 import type { AppState, Message, Subject } from './types'
 import { buildReal, buildScenario, isScenario } from './scenarios'
@@ -7,10 +7,13 @@ import { appendEvent } from './events'
 import { todayISO } from './format'
 import { isWellFormed } from './backup'
 import { urlParam } from './urlParams'
-import { closableSubjects, markOverdue } from './billing'
+import { billingChangeIssue, closableSubjects, markOverdue } from './billing'
 import { deriveDrafts, refreshDrafts, retractDrafts, applySend } from './messages'
-import { complete as ledgerComplete, packageUnitPrice, renewPackage, uncomplete } from './ledger'
+import { balanceDue, complete as ledgerComplete, packageUnitPrice, renewPackage, snapshotLegacyPrices, uncomplete } from './ledger'
 import { issueReceipt } from './receipts'
+import { isBillingMode, isISODate, isMoney, isNonNegativeMoney, isTime } from './validation'
+import { professionById } from '../professions'
+import { messageSendIssue } from './messageDelivery'
 
 const KEY = 'solo-demo-v3'
 const SCHEMA = 4
@@ -22,6 +25,7 @@ export type Action =
   | { type: 'sendMessage'; id: string }
   | { type: 'skipMessage'; id: string }
   | { type: 'editMessage'; id: string; draft: string }
+  | { type: 'refreshMessage'; id: string }
   | { type: 'addMessage'; message: Message }
   | { type: 'recordPayment'; invoiceId: string; amount: number; slipVerified: boolean; slipAmount?: number }
   | { type: 'renewPackage'; subjectId: string }
@@ -58,6 +62,7 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'complete': s = ledgerComplete(s, action.unitId); break
     case 'uncomplete': s = uncomplete(s, action.unitId); break
     case 'closeMonth': {
+      if (!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(action.period)) return state
       const created = closableSubjects(s, action.period).map((c) => c.invoice)
       if (created.length) s = { ...s, invoices: [...s.invoices, ...created] }
       break
@@ -65,6 +70,7 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'sendMessage': {
       const msg = s.messages.find((m) => m.id === action.id)
       if (!msg) break
+      if (messageSendIssue(s, msg)) return state
       s = applySend(s, msg)
       s = { ...s, messages: s.messages.map((m) => (m.id === action.id ? { ...m, status: 'sent', sentAt: s.today } : m)) }
       if (msg.subjectId) {
@@ -78,6 +84,9 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'editMessage':
       s = { ...s, messages: s.messages.map((m) => (m.id === action.id ? { ...m, draft: action.draft, edited: true } : m)) }
       break
+    case 'refreshMessage':
+      s = { ...s, messages: s.messages.map(m => m.id === action.id ? { ...m, edited: false } : m) }
+      break
     case 'addMessage':
       if (s.messages.some((m) => m.dedupeKey === action.message.dedupeKey)) break
       s = { ...s, messages: [...s.messages, action.message] }
@@ -85,32 +94,32 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'recordPayment': {
       const inv = s.invoices.find((i) => i.id === action.invoiceId)
       if (!inv || inv.status === 'paid') break // กดยืนยันซ้ำต้องไม่ออกใบเสร็จสองใบ
+      if (!isMoney(action.amount) || action.amount > balanceDue(s, inv.id)) return state
+      if (typeof action.slipVerified !== 'boolean') return state
+      if (action.slipAmount !== undefined && !isNonNegativeMoney(action.slipAmount)) return state
       const pay = {
         id: nid('pay'), invoiceId: inv.id, amount: action.amount, paidAt: s.today,
         slipVerified: action.slipVerified,
         ...(action.slipAmount !== undefined ? { slipAmount: action.slipAmount } : {}),
       }
-      const paidSoFar = s.payments
-        .filter((x) => x.invoiceId === inv.id)
-        .reduce((n, x) => n + x.amount, 0) + pay.amount
-      const settled = paidSoFar >= inv.total // จ่ายไม่ครบ = ยังค้าง ยอด 'ค้าง' ต้องไม่หายไปทั้งก้อน
+      const settled = action.amount === balanceDue(s, inv.id)
       s = {
         ...s,
         payments: [...s.payments, pay],
         invoices: s.invoices.map((i) => (i.id === inv.id && settled ? { ...i, status: 'paid' } : i)),
       }
       // ใบเสร็จต้องบอกยอดของบิล ไม่ใช่ยอดงวดสุดท้ายที่บังเอิญปิดยอดพอดี
-      if (settled) s = issueReceipt(s, { ...pay, amount: inv.total }).state
+      if (settled) s = issueReceipt(s, pay).state
       break
     }
     case 'renewPackage': {
       const subject = s.subjects.find((x) => x.id === action.subjectId)
-      if (!subject || subject.billing.mode !== 'package') break
+      if (!subject?.active || subject.billing.mode !== 'package') return state
       const invId = nid('inv-pkg')
       const inv = {
         id: invId, clientId: subject.clientId, subjectId: subject.id, period: s.today.slice(0, 7),
         kind: 'package' as const,
-        lines: [{ description: `${subject.label ?? subject.name} — แพ็ก ${subject.billing.total} ครั้ง`, qty: subject.billing.total, unitPrice: packageUnitPrice(subject.billing), amount: subject.billing.price }],
+        lines: [{ description: `${subject.label ?? subject.name} — แพ็ก ${subject.billing.total} ${professionById(s.professionId).vocab.units}`, qty: subject.billing.total, unitPrice: packageUnitPrice(subject.billing), amount: subject.billing.price }],
         total: subject.billing.price, status: 'paid' as const, createdAt: s.today, sentAt: s.today,
       }
       const pay = { id: nid('pay'), invoiceId: invId, amount: subject.billing.price, paidAt: s.today, slipVerified: true }
@@ -120,14 +129,28 @@ export function reducer(state: AppState, action: Action): AppState {
       break
     }
     case 'upsertSubject': {
-      const exists = s.subjects.some((x) => x.id === action.subject.id)
+      if (!action.subject.id || !action.subject.clientId || !action.subject.name.trim()
+        || !action.clientName.trim() || !isISODate(action.subject.createdAt)
+        || typeof action.subject.active !== 'boolean' || !isBillingMode(action.subject.billing)) return state
+      const current = s.subjects.find((x) => x.id === action.subject.id)
+      const exists = !!current
+      if (current && billingChangeIssue(s, current, action.subject.billing)) return state
+      if (current) s = snapshotLegacyPrices(s, current.id)
+      const billing = current?.billing.mode === 'package' && action.subject.billing.mode === 'package'
+        ? {
+            ...action.subject.billing,
+            purchasedAt: current.billing.purchasedAt,
+            ...(current.billing.carriedUnitIds ? { carriedUnitIds: current.billing.carriedUnitIds } : {}),
+          }
+        : action.subject.billing
+      const subject = { ...action.subject, billing }
       const clientExists = s.clients.some((c) => c.id === action.subject.clientId)
       s = {
         ...s,
         clients: clientExists
           ? s.clients.map((c) => (c.id === action.subject.clientId ? { ...c, name: action.clientName, lineId: action.lineId ?? c.lineId } : c))
           : [...s.clients, { id: action.subject.clientId, name: action.clientName, lineId: action.lineId }],
-        subjects: exists ? s.subjects.map((x) => (x.id === action.subject.id ? action.subject : x)) : [...s.subjects, action.subject],
+        subjects: exists ? s.subjects.map((x) => (x.id === subject.id ? subject : x)) : [...s.subjects, subject],
       }
       break
     }
@@ -135,6 +158,7 @@ export function reducer(state: AppState, action: Action): AppState {
       s = { ...s, subjects: s.subjects.map((x) => (x.id === action.subjectId ? { ...x, active: false } : x)) }
       break
     case 'addUnit':
+      if (!s.subjects.some((subject) => subject.id === action.subjectId) || !isTime(action.time)) return state
       s = {
         ...s,
         units: [...s.units, {
@@ -147,15 +171,20 @@ export function reducer(state: AppState, action: Action): AppState {
       s = { ...s, chats: [...s.chats, { id: nid('ch'), clientId: action.clientId, from: action.from, text: action.text, at: s.today, viaAdmin: action.viaAdmin }] }
       break
     case 'waitlist':
+      if (!action.entry.professionId || !action.entry.name.trim() || !action.entry.contact.trim() || !isISODate(action.entry.at)) return state
       s = { ...s, waitlist: [...s.waitlist, action.entry] }
       break
     case 'setToday':
+      if (!isISODate(action.date)) return state
       s = { ...s, today: action.date }
       break
     case 'setProvider':
+      if (!action.name.trim() || typeof action.promptpayId !== 'string') return state
       s = { ...s, provider: { name: action.name, promptpayId: action.promptpayId } }
       break
     case 'bulkAddSubjects': {
+      if (!isBillingMode(action.billing) || action.rows.length === 0
+        || action.rows.some((row) => !row.name.trim() || !row.clientName.trim())) return state
       const clients = [...s.clients]
       const subjects = [...s.subjects]
       action.rows.forEach((r, i) => {
@@ -172,6 +201,10 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'deleteSubject': {
       const sub = s.subjects.find((x) => x.id === action.subjectId)
       if (!sub) break
+      if (s.mode === 'real' && s.invoices.some((invoice) => invoice.subjectId === sub.id)) {
+        s = { ...s, subjects: s.subjects.map((subject) => subject.id === sub.id ? { ...subject, active: false } : subject) }
+        break
+      }
       const unitIds = new Set(s.units.filter((u) => u.subjectId === sub.id).map((u) => u.id))
       const invIds = new Set(s.invoices.filter((i) => i.subjectId === sub.id).map((i) => i.id))
       const payIds = new Set(s.payments.filter((p) => invIds.has(p.invoiceId)).map((p) => p.id))
@@ -211,6 +244,7 @@ export function reducer(state: AppState, action: Action): AppState {
       s = { ...s, lastBackupAt: s.today }
       break
     case 'restore':
+      if (!isWellFormed(action.state)) return state
       // ไฟล์เก็บวันที่สำรองไว้ ถ้าเอามาทั้งก้อน 'วันนี้' จะแช่แข็งอยู่วันนั้น
       // เช็คชื่อทุกคาบหลังจากนี้จะลงวันผิดโดยไม่มีอะไรฟ้อง
       s = action.state.mode === 'real' ? { ...action.state, today: todayISO() } : action.state
@@ -218,6 +252,7 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'rescheduleUnit': {
       const u = s.units.find((x) => x.id === action.unitId)
       if (!u) break
+      if (!isISODate(action.date) || !isTime(action.time)) return state
       // เลื่อนคาบไม่แตะเงิน — บิลคิดจาก completions ไม่ใช่ units
       s = {
         ...s,
@@ -272,28 +307,26 @@ export function migrate(raw: unknown): AppState | null {
   const candidate = v3 ? { ...(s as AppState), schemaVersion: 4 as const, mode: 'demo' as const } : (s as AppState)
   if (!v3 && s.schemaVersion !== SCHEMA) return null
   // ตรวจครบทุก collection — ขาดตัวเดียวแล้วปล่อยผ่าน คือจอขาวตอน normalize
-  return isWellFormed(candidate) ? candidate : null
+  return isWellFormed(candidate) ? snapshotLegacyPrices(candidate) : null
 }
 
-function hydrate(scenarioFromUrl: string | null): { state: AppState; didReset: boolean } {
-  if (scenarioFromUrl && isScenario(scenarioFromUrl)) {
-    return { state: normalize(buildScenario(scenarioFromUrl)), didReset: false }
-  }
+function hydrate(scenarioFromUrl: string | null): { state: AppState; didReset: boolean; recoveryRaw: string | null } {
+  let raw: string | null = null
   try {
-    const raw = localStorage.getItem(KEY)
-    if (!raw) return { state: normalize(buildScenario('default')), didReset: false }
-    const saved = migrate(JSON.parse(raw))
-    if (!saved) {
-      // ของเดิมกำลังจะถูกเขียนทับใน 300ms — เก็บสำเนาดิบไว้ก่อน
-      // ครูที่ข้อมูลเสียจะได้ยังมีอะไรให้กู้ ไม่ใช่หายไปเฉย ๆ พร้อม toast 3 วินาที
-      try { localStorage.setItem(`${KEY}-broken-${Date.now()}`, raw) } catch { /* เต็มก็ปล่อย */ }
-      return { state: normalize(buildScenario('default')), didReset: true }
+    raw = localStorage.getItem(KEY)
+    if (raw) {
+      const saved = migrate(JSON.parse(raw))
+      if (!saved) throw new Error('invalid saved state')
+      // A demo query parameter must never overwrite an existing real workspace.
+      const chosen = saved.mode === 'demo' && scenarioFromUrl && isScenario(scenarioFromUrl)
+        ? buildScenario(scenarioFromUrl) : saved
+      const dated = chosen.mode === 'real' ? { ...chosen, today: todayISO() } : chosen
+      return { state: normalize(dated), didReset: false, recoveryRaw: null }
     }
-    // โหมดจริงต้องเดินวันตามเครื่อง ไม่งั้นเปิดพรุ่งนี้ยังเห็นคาบของเมื่อวาน
-    const dated = saved.mode === 'real' ? { ...saved, today: todayISO() } : saved
-    return { state: normalize(dated), didReset: false }
+    return { state: normalize(buildScenario(scenarioFromUrl && isScenario(scenarioFromUrl) ? scenarioFromUrl : 'default')), didReset: false, recoveryRaw: null }
   } catch {
-    return { state: normalize(buildScenario('default')), didReset: true }
+    // Preserve even syntactically broken JSON. Recovery is explicit; never autosave demo over it.
+    return { state: normalize(buildScenario('empty')), didReset: true, recoveryRaw: raw }
   }
 }
 
@@ -307,30 +340,59 @@ function normalize(s: AppState): AppState {
 
 interface StoreValue {
   state: AppState
-  dispatch: React.Dispatch<Action>
+  /** Synchronous durable transition. False means no state change was committed. */
+  dispatch: (action: Action) => boolean
   track: (name: string, props?: Record<string, unknown>) => void
-  resetDemo: (scenarioId?: string) => void
+  resetDemo: (scenarioId?: string) => boolean
   didReset: boolean
   hydrated: boolean
+  persistenceError: string | null
+  recoveryRaw: string | null
 }
 const Ctx = createContext<StoreValue | null>(null)
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const urlScenario = useMemo(() => urlParam('scenario'), [])
-  const initial = useMemo(() => hydrate(urlScenario), [urlScenario])
-  const [state, dispatch] = useReducer(reducer, initial.state)
-  // hydrate() ทำงานแบบ synchronous ตั้งแต่ useMemo ข้างบน ข้อมูลจึงพร้อมก่อนวาดเฟรมแรก
-  // ตั้ง true เลย ไม่ต้องหน่วง 300ms ให้ทุกแท็บโชว์ skeleton บนของที่มีอยู่แล้ว
-  const hydrated = true
-  const timer = useRef<number | undefined>(undefined)
+  const initial = useMemo(() => hydrate(urlParam('scenario')), [])
+  const [state, setState] = useState(initial.state)
+  const current = useRef(state)
+  const blocked = useRef(initial.didReset)
+  const [didReset, setDidReset] = useState(initial.didReset)
+  const [persistenceError, setPersistenceError] = useState<string | null>(initial.didReset ? 'เปิดข้อมูลเดิมไม่ได้ กรุณาเก็บสำเนาดิบแล้วกู้คืนจากไฟล์สำรอง' : null)
+  const [recoveryRaw, setRecoveryRaw] = useState(initial.recoveryRaw)
 
-  // PWA ที่ติดตั้งลงจอมักถูกเปิดค้างข้ามคืน — ถ้าไม่เดินวันเอง
-  // เช้าวันใหม่ครูจะยังเห็นคาบเมื่อวาน และเช็คชื่อลงวันผิด
+  const dispatch = useCallback((action: Action): boolean => {
+    if (blocked.current && action.type !== 'restore') return false
+    const next = reducer(current.current, action)
+    if (next === current.current) return false
+    try {
+      if (action.type === 'restore' || action.type === 'replace' || action.type === 'startReal') {
+        const previous = localStorage.getItem(KEY)
+        if (previous !== null) localStorage.setItem(`${KEY}-before-restore`, previous)
+      }
+      // localStorage is synchronous. On quota/security error keep the last committed state.
+      localStorage.setItem(KEY, JSON.stringify(next))
+      current.current = next
+      blocked.current = false
+      setState(next)
+      setDidReset(false)
+      setRecoveryRaw(null)
+      setPersistenceError(null)
+      return true
+    } catch {
+      setPersistenceError('บันทึกไม่สำเร็จ การเปลี่ยนแปลงล่าสุดยังไม่ถูกเก็บ กรุณาสำรองข้อมูล ตรวจพื้นที่ว่าง แล้วลองอีกครั้ง')
+      return false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!blocked.current) dispatch({ type: 'track', name: 'storage_ready' })
+  }, [dispatch])
+
   useEffect(() => {
     const tick = () => {
-      if (state.mode !== 'real') return
+      if (current.current.mode !== 'real') return
       const now = todayISO()
-      if (now !== state.today) dispatch({ type: 'setToday', date: now })
+      if (now !== current.current.today) dispatch({ type: 'setToday', date: now })
     }
     document.addEventListener('visibilitychange', tick)
     window.addEventListener('focus', tick)
@@ -338,28 +400,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       document.removeEventListener('visibilitychange', tick)
       window.removeEventListener('focus', tick)
     }
-  }, [state.mode, state.today])
-
-  useEffect(() => {
-    window.clearTimeout(timer.current)
-    timer.current = window.setTimeout(() => {
-      try { localStorage.setItem(KEY, JSON.stringify(state)) } catch { /* โหมดส่วนตัวเขียนไม่ได้ */ }
-    }, 300)
-    return () => window.clearTimeout(timer.current)
-  }, [state])
+  }, [dispatch])
 
   const track = useCallback((name: string, props?: Record<string, unknown>) => {
     dispatch({ type: 'track', name, props })
-  }, [])
-
-  const resetDemo = useCallback((scenarioId?: string) => {
-    dispatch({ type: 'replace', state: normalize(buildScenario(scenarioId ?? state.scenarioId)) })
-  }, [state.scenarioId])
-
-  const value = useMemo<StoreValue>(
-    () => ({ state, dispatch, track, resetDemo, didReset: initial.didReset, hydrated }),
-    [state, track, resetDemo, initial.didReset, hydrated],
-  )
+  }, [dispatch])
+  const resetDemo = useCallback((scenarioId?: string) =>
+    dispatch({ type: 'replace', state: normalize(buildScenario(scenarioId ?? current.current.scenarioId)) }), [dispatch])
+  const value = useMemo<StoreValue>(() => ({ state, dispatch, track, resetDemo, didReset,
+    hydrated: true, persistenceError, recoveryRaw }),
+  [state, dispatch, track, resetDemo, didReset, persistenceError, recoveryRaw])
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 

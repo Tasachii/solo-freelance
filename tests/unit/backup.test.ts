@@ -110,3 +110,94 @@ describe('กู้คืนแล้ววันต้องไม่แช่�
     expect(after.today).toBe('2025-09-02')
   })
 })
+
+describe('deep backup integrity', () => {
+  const wrapDeep = (app: unknown) => JSON.stringify({ format: BACKUP_FORMAT, exportedAt: '2026-09-06T00:00:00Z', app })
+  it.each([
+    ['invalid mode', (a: any) => { a.mode = 'invalid-mode' }],
+    ['invalid date', (a: any) => { a.today = '2025-02-30' }],
+    ['negative payment', (a: any) => { a.payments[0].amount = -500 }],
+    ['orphan payment', (a: any) => { a.payments[0].invoiceId = 'missing' }],
+    ['wrong invoice total', (a: any) => { a.invoices[0].total += 1 }],
+    ['stale receipt counter', (a: any) => { a.counters.receipt = 0 }],
+    ['null nested row', (a: any) => { a.invoices[0].lines[0] = null }],
+    ['invalid receipt number type', (a: any) => { a.receipts[0].number = 42 }],
+    ['invalid receipt id type', (a: any) => { a.receipts[0].id = 42 }],
+    ['null sending state', (a: any) => { a.sending = null }],
+    ['null subject billing', (a: any) => { a.subjects[0].billing = null }],
+    ['null receipt metadata', (a: any) => {
+      const message = a.messages.find((row: any) => row.kind === 'receipt'); message.meta = null
+    }],
+    ['null event props', (a: any) => { a.events.push({ at: '2026-09-06T00:00:00Z', name: 'test', props: null }) }],
+    ['invalid waitlist modes', (a: any) => { a.waitlist.push({ professionId: 'tutor', name: 'a', contact: 'b', at: a.today, modes: [null] }) }],
+    ['orphan invoice message metadata', (a: any) => {
+      const message = a.messages.find((row: any) => row.kind === 'receipt')
+      message.kind = 'invoice'; message.meta = { invoiceId: 'missing' }
+    }],
+    ['orphan receipt message metadata', (a: any) => {
+      const message = a.messages.find((row: any) => row.kind === 'receipt')
+      message.meta = { receiptId: 'missing' }
+    }],
+    ['receipt for unsettled invoice', (a: any) => {
+      const invoice = a.invoices.find((row: any) => row.status === 'sent' || row.status === 'overdue')
+      a.payments.push({ id: 'partial-for-receipt', invoiceId: invoice.id, amount: 1, paidAt: a.today, slipVerified: true })
+      a.counters.receipt += 1
+      a.receipts.push({ id: `rc-${a.counters.receipt}`, paymentId: 'partial-for-receipt', number: `SL-6909-${String(a.counters.receipt).padStart(4, '0')}`, issuedAt: a.today })
+    }],
+    ['invoice client does not own subject', (a: any) => { a.invoices[0].clientId = 'c2' }],
+    ['message client does not own subject', (a: any) => { a.messages[0].clientId = 'c2' }],
+    ['payment predates invoice', (a: any) => { a.payments[0].paidAt = '2020-01-01' }],
+    ['receipt date differs from linked payment', (a: any) => { a.receipts[0].issuedAt = '2025-09-01' }],
+    ['duplicate receipt for one invoice', (a: any) => {
+      const existing = a.receipts[0]
+      a.counters.receipt += 1
+      a.receipts.push({ ...existing, id: `rc-${a.counters.receipt}`, number: `SL-6809-${String(a.counters.receipt).padStart(4, '0')}` })
+    }],
+    ['receipt linked to an earlier installment on the same day', (a: any) => {
+      const receipt = a.receipts[0]
+      const payment = a.payments.find((row: any) => row.id === receipt.paymentId)
+      const invoice = a.invoices.find((row: any) => row.id === payment.invoiceId)
+      payment.amount = 1000
+      a.payments.push({ ...payment, id: 'final-same-day', amount: invoice.total - 1000 })
+    }],
+    ['invoice message points to another subject invoice', (a: any) => {
+      const message = a.messages[0]
+      message.kind = 'invoice'; message.meta = { invoiceId: a.invoices.find((row: any) => row.subjectId !== message.subjectId).id }
+    }],
+    ['invalid invoice month', (a: any) => { a.invoices[0].period = '2025-13' }],
+    ['duplicate carried completion', (a: any) => {
+      const subject = a.subjects.find((row: any) => row.billing.mode === 'package')
+      const unit = a.units.find((row: any) => row.subjectId === subject.id && a.completions.some((completion: any) => completion.unitId === row.id))
+      subject.billing.carriedUnitIds = [unit.id, unit.id]
+    }],
+    ['carried completion from another subject', (a: any) => {
+      const subject = a.subjects.find((row: any) => row.billing.mode === 'package')
+      const unit = a.units.find((row: any) => row.subjectId !== subject.id && a.completions.some((completion: any) => completion.unitId === row.id))
+      subject.billing.carriedUnitIds = [unit.id]
+    }],
+  ])('rejects %s with details', (_name, mutate) => {
+    const app: any = structuredClone(s0)
+    mutate(app)
+    const result = fromBackup(wrapDeep(app), SCHEMA)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.details?.length).toBeGreaterThan(0)
+  })
+
+  it.each(['clients', 'subjects', 'units', 'completions', 'invoices', 'payments', 'receipts', 'messages', 'chats', 'waitlist', 'events'])
+  ('rejects null row in %s without throwing', (collection) => {
+    const app: any = structuredClone(s0)
+    if (app[collection].length) app[collection][0] = null
+    else app[collection].push(null)
+    expect(() => fromBackup(wrapDeep(app), SCHEMA)).not.toThrow()
+    const result = fromBackup(wrapDeep(app), SCHEMA)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.details?.length).toBeGreaterThan(0)
+  })
+
+  it.each(['provider', 'counters'])('rejects null %s without throwing', (key) => {
+    const app: any = structuredClone(s0)
+    app[key] = null
+    expect(() => fromBackup(wrapDeep(app), SCHEMA)).not.toThrow()
+    expect(fromBackup(wrapDeep(app), SCHEMA).ok).toBe(false)
+  })
+})

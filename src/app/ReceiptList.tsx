@@ -44,7 +44,7 @@ export default function ReceiptList() {
               <li key={r.id}>
                 <button className="srow" onClick={() => nav(`/receipt/${r.id}`)}>
                   <span className="srow__main">
-                    <span className="srow__name">{s?.name ?? '—'} · {money(pay?.amount ?? 0)}</span>
+                    <span className="srow__name">{s?.name ?? '—'} · {money(inv?.total ?? 0)}</span>
                     <span className="srow__meta">{r.number} · {dateThai(r.issuedAt)}</span>
                   </span>
                   <span aria-hidden="true">›</span>

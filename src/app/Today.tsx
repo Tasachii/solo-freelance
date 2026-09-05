@@ -57,7 +57,7 @@ export default function Today() {
   }
 
   const onComplete = (unitId: string, subjectId: string) => {
-    dispatch({ type: 'complete', unitId })
+    if (!dispatch({ type: 'complete', unitId })) return
     track('complete_unit', { subjectId })
     const subject = subjectById(state, subjectId)
     if (!subject) return
@@ -138,7 +138,7 @@ export default function Today() {
             <div className="btnrow">
               <button className="btn btn--primary" disabled={!mDate || !mTime || mDate < state.today} onClick={() => {
                 draftNotice(movingUnit.id, 'moved', { date: mDate, time: mTime })
-                dispatch({ type: 'rescheduleUnit', unitId: movingUnit.id, date: mDate, time: mTime })
+                if (!dispatch({ type: 'rescheduleUnit', unitId: movingUnit.id, date: mDate, time: mTime })) return
                 track('unit_rescheduled')
                 setMoving(null); toast.push({ text: copy.today.moveDone, tone: 'ok' })
               }}>{copy.today.move}</button>
@@ -171,7 +171,7 @@ export default function Today() {
                   <span className="urow__meta">{copy.today.cancelledTag}</span>
                 </span>
                 <button className="btn btn--secondary btn--sm" onClick={() => {
-                  dispatch({ type: 'restoreUnit', unitId: u.id })
+                  if (!dispatch({ type: 'restoreUnit', unitId: u.id })) return
                   track('unit_restored')
                   toast.push({ text: copy.today.restoreDone, tone: 'ok' })
                 }}>{copy.today.restoreUnit}</button>
@@ -189,7 +189,7 @@ export default function Today() {
           onClose={() => setConfirmCancel(false)}
           onConfirm={() => {
             draftNotice(movingUnit.id, 'cancelled')
-            dispatch({ type: 'cancelUnit', unitId: movingUnit.id })
+            if (!dispatch({ type: 'cancelUnit', unitId: movingUnit.id })) return
             track('unit_cancelled')
             setMoving(null); toast.push({ text: copy.today.cancelDone, tone: 'warn' })
           }} />
@@ -206,7 +206,7 @@ export default function Today() {
             <button className="btn btn--primary btn--block"
               disabled={!newUnit.subjectId}
               onClick={() => {
-                dispatch({ type: 'addUnit', subjectId: newUnit.subjectId, time: newUnit.time, label: newUnit.label || undefined })
+                if (!dispatch({ type: 'addUnit', subjectId: newUnit.subjectId, time: newUnit.time, label: newUnit.label || undefined })) return
                 setAdding(false); toast.push({ text: copy.toast.saved, tone: 'ok' })
               }}>
               {copy.common.save}

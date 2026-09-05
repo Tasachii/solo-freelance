@@ -1,4 +1,5 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { copy } from '../../copy'
 
 export function DemoBadge() {
@@ -41,10 +42,15 @@ export function Chip({ label, count, on, onClick }: { label: string; count?: num
   )
 }
 
-export function ProgressBar({ value, max, tone }: { value: number; max: number; tone: 'ok' | 'warn' | 'danger' }) {
-  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0
+export function ProgressBar({ value, max, tone, label = 'ความคืบหน้า' }: { value: number; max: number; tone: 'ok' | 'warn' | 'danger'; label?: string }) {
+  const safeMax = Math.max(0, max)
+  const safeValue = Math.min(Math.max(0, value), safeMax)
+  const pct = safeMax > 0 ? (safeValue / safeMax) * 100 : 0
   return (
-    <span className={`bar bar--${tone}`} aria-hidden="true"><i style={{ width: `${pct}%` }} /></span>
+    <span className={`bar bar--${tone}`} role="progressbar" aria-label={label}
+      aria-valuemin={0} aria-valuenow={safeValue} aria-valuemax={safeMax}>
+      <i style={{ width: `${pct}%` }} />
+    </span>
   )
 }
 
@@ -57,23 +63,56 @@ export function QRPlaceholder({ label, sub }: { label: string; sub?: string }) {
   )
 }
 
+interface IsolationSnapshot { inert: boolean; ariaHidden: string | null }
+const modalStack: HTMLElement[] = []
+const isolationSnapshots = new Map<HTMLElement, IsolationSnapshot>()
+let bodyOverflowBeforeModal: string | null = null
+
+function restoreIsolation() {
+  for (const [element, snapshot] of isolationSnapshots) {
+    if (snapshot.inert) element.setAttribute('inert', '')
+    else element.removeAttribute('inert')
+    if (snapshot.ariaHidden === null) element.removeAttribute('aria-hidden')
+    else element.setAttribute('aria-hidden', snapshot.ariaHidden)
+  }
+  isolationSnapshots.clear()
+}
+
+function isolateToTopModal() {
+  restoreIsolation()
+  const top = modalStack[modalStack.length - 1]
+  if (!top) return
+  for (const element of Array.from(document.body.children) as HTMLElement[]) {
+    if (element === top) continue
+    isolationSnapshots.set(element, {
+      inert: element.hasAttribute('inert'),
+      ariaHidden: element.getAttribute('aria-hidden'),
+    })
+    element.setAttribute('inert', '')
+    element.setAttribute('aria-hidden', 'true')
+  }
+}
+
 export function BottomSheet(
   { title, sub, onClose, footer, children }:
   { title: string; sub?: string; onClose: () => void; footer?: ReactNode; children: ReactNode },
 ) {
   const ref = useRef<HTMLDivElement>(null)
+  const layerRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef(onClose)
+  const titleId = useId()
   closeRef.current = onClose
 
   // Escape ผูกครั้งเดียว อ่าน onClose ล่าสุดผ่าน ref
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (modalStack[modalStack.length - 1] !== layerRef.current) return
       if (e.key === 'Escape') { closeRef.current(); return }
       if (e.key !== 'Tab') return
       // aria-modal บอกว่าเป็น modal แล้วต้องทำให้จริง ไม่งั้น Tab หลุดไปหน้าหลัง
       const f = ref.current?.querySelectorAll<HTMLElement>(
         'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')
-      if (!f?.length) return
+      if (!f?.length) { e.preventDefault(); ref.current?.focus(); return }
       const first = f[0], last = f[f.length - 1]
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
@@ -86,18 +125,37 @@ export function BottomSheet(
   // และต้องหาในตัวเนื้อหา ไม่งั้นไปโดนปุ่ม ✕ ที่อยู่ก่อนหน้าใน DOM
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null
-    ref.current?.querySelector<HTMLElement>('.sheet__body input,.sheet__body select,.sheet__body textarea,.sheet__body button')?.focus()
-    return () => prev?.focus?.()
+    const layer = layerRef.current
+    if (layer) {
+      if (modalStack.length === 0) bodyOverflowBeforeModal = document.body.style.overflow
+      modalStack.push(layer)
+      isolateToTopModal()
+    }
+    document.body.style.overflow = 'hidden'
+    const initial = ref.current?.querySelector<HTMLElement>('.sheet__body input,.sheet__body select,.sheet__body textarea,.sheet__body button')
+    ;(initial ?? ref.current)?.focus()
+    return () => {
+      const index = layer ? modalStack.lastIndexOf(layer) : -1
+      if (index >= 0) modalStack.splice(index, 1)
+      isolateToTopModal()
+      if (modalStack.length === 0) {
+        document.body.style.overflow = bodyOverflowBeforeModal ?? ''
+        bodyOverflowBeforeModal = null
+      }
+      prev?.focus?.()
+    }
   }, [])
 
-  return (
-    <>
-      <div className="veil" onClick={onClose} />
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={title} ref={ref}>
+  return createPortal(
+    <div className="sheet-layer" ref={layerRef}>
+      <div className="veil" onClick={() => {
+        if (modalStack[modalStack.length - 1] === layerRef.current) onClose()
+      }} />
+      <div className="sheet" role="dialog" aria-modal="true" aria-labelledby={titleId} ref={ref} tabIndex={-1}>
         <div className="sheet__grip" />
         <div className="sheet__hd">
           <div>
-            <h3 className="sheet__t">{title}</h3>
+            <h3 className="sheet__t" id={titleId}>{title}</h3>
             {sub && <p className="sheet__s">{sub}</p>}
           </div>
           <button className="sheet__x" onClick={onClose} aria-label={copy.common.close}>✕</button>
@@ -105,7 +163,8 @@ export function BottomSheet(
         <div className="sheet__body">{children}</div>
         {footer && <div className="sheet__foot">{footer}</div>}
       </div>
-    </>
+    </div>,
+    document.body,
   )
 }
 

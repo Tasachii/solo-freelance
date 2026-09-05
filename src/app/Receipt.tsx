@@ -65,11 +65,11 @@ export default function Receipt() {
               <tr key={i}><td>{l.description}</td><td className="r num">{money(l.amount)}</td></tr>
             ))}
           </tbody>
-          <tfoot><tr><td>{copy.receipt.total}</td><td className="r num">{money(pay.amount)} {copy.common.baht}</td></tr></tfoot>
+          <tfoot><tr><td>{copy.receipt.total}</td><td className="r num">{money(inv.total)} {copy.common.baht}</td></tr></tfoot>
         </table>
 
         <p className="paper__ok">
-          {pay.slipVerified ? copy.receipt.verified : `${copy.receipt.manual}${state.provider.name}`}
+          {state.payments.filter(p => p.invoiceId === inv.id).every(p => p.slipVerified) ? copy.receipt.verified : `${copy.receipt.manual}${state.provider.name}`}
         </p>
         <p className="paper__fine">
           ออกโดย {copy.brand.name} ในนาม{state.provider.name} · {copy.receipt.footer}

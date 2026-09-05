@@ -5,8 +5,50 @@ import { professionById } from '../professions'
 import { copy } from '../copy'
 import { BottomSheet } from './components'
 import type { BillingMode, Subject } from '../core/types'
+import { isMoney } from '../core/validation'
+import { billingChangeIssue, type BillingChangeIssue } from '../core/billing'
 
 type Mode = BillingMode['mode']
+
+export function parseMoneyInput(value: string): number | null {
+  const amount = Number(value.replace(/[,\s]/g, ''))
+  return isMoney(amount) ? amount : null
+}
+
+export function buildBilling(
+  mode: Mode,
+  values: { rate: string; flat: string; packageTotal: string; packagePrice: string },
+  current: BillingMode | undefined,
+  today: string,
+): BillingMode | null {
+  const rate = parseMoneyInput(values.rate)
+  const flat = parseMoneyInput(values.flat)
+  const total = parseMoneyInput(values.packageTotal)
+  const price = parseMoneyInput(values.packagePrice)
+  if (mode === 'per_unit') return rate === null ? null : { mode, rate }
+  if (mode === 'flat_monthly') return flat === null ? null : { mode, amount: flat }
+  if (total === null || price === null) return null
+  return {
+    mode, total, price,
+    purchasedAt: current?.mode === 'package' ? current.purchasedAt : today,
+    ...(current?.mode === 'package' && current.carriedUnitIds
+      ? { carriedUnitIds: [...current.carriedUnitIds] }
+      : {}),
+  }
+}
+
+export function billingChangeMessage(issue: BillingChangeIssue | null): string | null {
+  if (issue === 'unbilled-mode-change') {
+    return 'ยังเปลี่ยนวิธีคิดเงินไม่ได้ เพราะมีงานที่ทำแล้วแต่ยังไม่ออกบิล กรุณาปิดยอดเดือนที่ค้างก่อน'
+  }
+  if (issue === 'unbilled-flat-price-change') {
+    return 'ยังเปลี่ยนยอดเหมาไม่ได้ เพราะมีงานที่ทำแล้วแต่ยังไม่ออกบิล กรุณาปิดยอดเดือนที่ค้างก่อน'
+  }
+  if (issue === 'package-history-mode-change') {
+    return 'แพ็กนี้มีประวัติใช้งานแล้ว ให้หยุดรายการเดิมและเพิ่มรายการใหม่เพื่อเปลี่ยนวิธีคิดเงิน'
+  }
+  return null
+}
 
 export default function SubjectSheet({ subject, onClose }: { subject?: Subject; onClose: () => void }) {
   const { state, dispatch } = useStore()
@@ -27,32 +69,28 @@ export default function SubjectSheet({ subject, onClose }: { subject?: Subject; 
   const [pkTotal, setPkTotal] = useState(String(b?.mode === 'package' ? b.total : 10))
   const [pkPrice, setPkPrice] = useState(String(b?.mode === 'package' ? b.price : 3500))
   const [err, setErr] = useState<Record<string, string>>({})
-
-  const pos = (x: string) => Number.isFinite(Number(x)) && Number(x) > 0
+  const nextBilling = buildBilling(mode, {
+    rate, flat, packageTotal: pkTotal, packagePrice: pkPrice,
+  }, b, state.today)
+  const changeIssue = subject && nextBilling ? billingChangeIssue(state, subject, nextBilling) : null
+  const changeIssueText = billingChangeMessage(changeIssue)
 
   const save = () => {
     const e: Record<string, string> = {}
     if (!name.trim()) e.name = copy.common.required
     if (!clientName.trim()) e.clientName = copy.common.required
-    if (mode === 'per_unit' && !pos(rate)) e.rate = copy.common.numberPositive
-    if (mode === 'flat_monthly' && !pos(flat)) e.flat = copy.common.numberPositive
-    if (mode === 'package' && (!pos(pkTotal) || !pos(pkPrice))) e.pk = copy.common.numberPositive
+    const billing = nextBilling
+    if (mode === 'per_unit' && !billing) e.rate = copy.common.numberPositive
+    if (mode === 'flat_monthly' && !billing) e.flat = copy.common.numberPositive
+    if (mode === 'package' && !billing) e.pk = copy.common.numberPositive
     setErr(e)
-    if (Object.keys(e).length) return
-
-    const billing: BillingMode =
-      mode === 'per_unit' ? { mode: 'per_unit', rate: Number(rate) }
-        : mode === 'flat_monthly' ? { mode: 'flat_monthly', amount: Number(flat) }
-          : {
-            mode: 'package', total: Number(pkTotal), price: Number(pkPrice),
-            purchasedAt: b?.mode === 'package' ? b.purchasedAt : state.today,
-          }
+    if (Object.keys(e).length || !billing || changeIssue) return
 
     // นับต่อท้ายด้วย เพราะเพิ่มสองคนติดกันในมิลลิวินาทีเดียว id จะชนกัน
     const stamp = `${Date.now().toString(36)}${(seq.current += 1).toString(36)}`
     const id = subject?.id ?? `s-${stamp}`
     const clientId = subject?.clientId ?? `c-${stamp}`
-    dispatch({
+    if (!dispatch({
       type: 'upsertSubject',
       subject: {
         id, name: name.trim(), clientId, billing,
@@ -60,7 +98,7 @@ export default function SubjectSheet({ subject, onClose }: { subject?: Subject; 
       },
       clientName: clientName.trim(),
       lineId: lineId.trim() || undefined,
-    })
+    })) return
     onClose()
   }
 
@@ -68,7 +106,7 @@ export default function SubjectSheet({ subject, onClose }: { subject?: Subject; 
     <BottomSheet
       title={subject ? `แก้ไข ${subject.name}` : `+ ${v.subject}`}
       onClose={onClose}
-      footer={<button className="btn btn--primary btn--block" onClick={save}>{copy.common.save}</button>}
+      footer={<button className="btn btn--primary btn--block" disabled={!!changeIssue} onClick={save}>{copy.common.save}</button>}
     >
       <label className="fld">
         <span className="fld__l">{copy.subjects.fieldName}</span>
@@ -94,6 +132,7 @@ export default function SubjectSheet({ subject, onClose }: { subject?: Subject; 
             </button>
           ))}
         </div>
+        {changeIssueText && <span className="hint hint--bad" role="alert">{changeIssueText}</span>}
       </div>
 
       {mode === 'per_unit' && (

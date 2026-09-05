@@ -44,6 +44,7 @@ export default function AppShell() {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return
       const el = e.target as HTMLElement | null
+      if (document.querySelector('[role="dialog"]')) return
       if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return
       const go = (i: number) => nav(['/app/today', '/app/subjects', '/app/billing', '/app/admin'][i])
       const sizes: DisplaySize[] = ['sm', 'lg', 'xl']
@@ -123,7 +124,7 @@ export default function AppShell() {
             <button className="row" onClick={async () => {
               const res = await pickBackup(SCHEMA)
               if (!res) return
-              if (!res.ok) { toast.push({ text: copy.menu.restoreBad[res.reason], tone: 'danger' }); return }
+              if (!res.ok) { toast.push({ text: `${copy.menu.restoreBad[res.reason]}${res.details?.length ? ` · ${res.details[0]}` : ''}`, tone: 'danger' }); return }
               // ไฟล์คนละโหมดกับที่ใช้อยู่ = กำลังจะทับข้อมูลจริงด้วยเดโม หรือกลับกัน
               setAsk({ restore: res.state, cross: res.state.mode !== state.mode })
             }}>{copy.menu.restore}</button>
@@ -215,7 +216,8 @@ export default function AppShell() {
           onConfirm={async () => {
             // ต้องได้ไฟล์สำรองก่อน ไม่งั้นข้อมูลเดือนหนึ่งหายโดยไม่มีทางกู้
             if (!(await saveBackup(state))) { toast.push({ text: copy.menu.backupFailed, tone: 'danger' }); return }
-            resetDemo('default'); setMenu(false); nav('/app/today')
+            if (!resetDemo('default')) return
+            setMenu(false); nav('/app/today')
           }} />
       )}
       {ask === 'toReal' && (
@@ -223,17 +225,19 @@ export default function AppShell() {
           confirmLabel={copy.menu.startReal}
           onClose={() => setAsk(null)}
           onConfirm={() => {
-            dispatch({ type: 'startReal' }); track('start_real')
+            if (!dispatch({ type: 'startReal' })) return
+            track('start_real')
             setMenu(false); nav('/app/onboarding')
           }} />
       )}
       {ask && typeof ask === 'object' && (
         <ConfirmSheet title={copy.menu.restore}
-          body={ask.cross ? copy.menu.restoreCrossMode : copy.menu.restoreConfirm}
+          body={`${ask.cross ? copy.menu.restoreCrossMode : copy.menu.restoreConfirm} (${ask.restore.subjects.length} รายการ · ${ask.restore.invoices.length} บิล · ${ask.restore.receipts.length} ใบเสร็จ) เก็บสำเนาข้อมูลปัจจุบันในเครื่องก่อนกู้คืน`}
           confirmLabel={copy.menu.restore} danger={ask.cross}
           onClose={() => setAsk(null)}
           onConfirm={() => {
-            dispatch({ type: 'restore', state: ask.restore }); track('backup_restore')
+            if (!dispatch({ type: 'restore', state: ask.restore })) return
+            track('backup_restore')
             setMenu(false); nav('/app/today'); toast.push({ text: copy.menu.restoreDone, tone: 'ok' })
           }} />
       )}

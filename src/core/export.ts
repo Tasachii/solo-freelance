@@ -1,12 +1,18 @@
 import { copy } from '../copy'
 import type { AppState } from './types'
-import { clientById, isCompleted, subjectById } from './ledger'
-import { modeThai } from '../copy/tutor'
+import { balanceDue, clientById, isCompleted, paidAmount, subjectById } from './ledger'
+import { modeLabelFor } from '../professions'
 import { dateThai, periodOf, periodThai } from './format'
 import { receiptOfInvoice } from './receipts'
 
 const BOM = '﻿' // ให้ Excel ไทยอ่าน UTF-8 ไม่เป็นตัวยึกยือ
-const esc = (v: unknown): string => `"${String(v ?? '').replace(/"/g, '""')}"`
+const safeCell = (value: unknown): string => {
+  const text = String(value ?? '').replace(/[\u0000-\u001f]/g, '')
+  const prefix = text.match(/^\s*/)?.[0] ?? ''
+  const rest = text.slice(prefix.length)
+  return /^[=+\-@]/.test(rest) ? `'${prefix}${rest}` : text
+}
+const esc = (v: unknown): string => `"${safeCell(v).replace(/"/g, '""')}"`
 const row = (cells: unknown[]): string => cells.map(esc).join(',')
 
 const STATUS_TH: Record<string, string> = copy.billing.status
@@ -33,25 +39,25 @@ export function attendanceCsv(state: AppState, period: string): string {
     const c = clientById(state, s.clientId)
     lines.push(row([
       dateThai(u.scheduledAt), u.time, s.name, c?.name ?? '', s.label ?? s.name,
-      isCompleted(state, u.id) ? 'ทำแล้ว' : 'ยังไม่ทำ',
+      u.cancelled ? 'งด' : isCompleted(state, u.id) ? 'ทำแล้ว' : 'ยังไม่ทำ',
     ]))
   }
   return BOM + lines.join('\n')
 }
 
 export function billingCsv(state: AppState, period: string): string {
-  const lines = [['เดือน', 'ชื่อ', 'วิธีเก็บเงิน', 'ยอด', 'สถานะ', 'วันที่ส่ง', 'วันที่จ่าย', 'เลขใบเสร็จ'].join(',')]
+  const lines = [['เดือน', 'ชื่อ', 'วิธีเก็บเงิน', 'ยอด', 'จ่ายแล้วสะสม', 'ยอดคงเหลือ', 'สถานะ', 'วันที่ส่ง', 'วันที่ปิดยอด', 'เลขใบเสร็จ'].join(',')]
   const invs = state.invoices
     .filter((i) => i.period === period)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
   for (const inv of invs) {
     const s = subjectById(state, inv.subjectId)
-    const pay = state.payments.find((p) => p.invoiceId === inv.id)
+    const pays = state.payments.filter((p) => p.invoiceId === inv.id).sort((a, b) => a.paidAt.localeCompare(b.paidAt))
     const rc = receiptOfInvoice(state, inv.id)
     lines.push(row([
-      periodThai(inv.period), s?.name ?? '', s ? modeThai(s.billing.mode) : '',
-      inv.total, STATUS_TH[inv.status] ?? inv.status,
-      inv.sentAt ? dateThai(inv.sentAt) : '', pay ? dateThai(pay.paidAt) : '', rc?.number ?? '',
+      periodThai(inv.period), s?.name ?? '', s ? modeLabelFor(state.professionId, s.billing.mode) : '',
+      inv.total, paidAmount(state, inv.id), balanceDue(state, inv.id), STATUS_TH[inv.status] ?? inv.status,
+      inv.sentAt ? dateThai(inv.sentAt) : '', rc && pays.length ? dateThai(pays.at(-1)!.paidAt) : '', rc?.number ?? '',
     ]))
   }
   return BOM + lines.join('\n')

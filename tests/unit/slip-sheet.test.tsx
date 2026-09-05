@@ -1,0 +1,53 @@
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import SlipSheet from '../../src/app/SlipSheet'
+import { buildScenario } from '../../src/core/scenarios'
+import { seedOf } from '../../src/core/share'
+
+const mocks = vi.hoisted(() => ({
+  state: null as unknown as ReturnType<typeof buildScenario>,
+  dispatch: vi.fn(() => true),
+  track: vi.fn(),
+  push: vi.fn(),
+}))
+
+vi.mock('../../src/core/store', () => ({
+  useStore: () => ({ state: mocks.state, dispatch: mocks.dispatch, track: mocks.track }),
+}))
+vi.mock('../../src/app/components/Toast', () => ({ useToast: () => ({ push: mocks.push }) }))
+
+afterEach(() => {
+  cleanup()
+  vi.useRealTimers()
+})
+
+beforeEach(() => {
+  mocks.dispatch.mockClear()
+  mocks.track.mockClear()
+  mocks.push.mockClear()
+})
+
+describe('demo slip fallback', () => {
+  it('can confirm the remaining balance when the simulated slip is unreadable', async () => {
+    vi.useFakeTimers()
+    const state = buildScenario('default')
+    const original = state.invoices.find((invoice) => invoice.status !== 'paid')!
+    let id = 'unreadable-0'
+    for (let index = 1; seedOf(id) < 0.95; index += 1) id = `unreadable-${index}`
+    const invoice = { ...original, id }
+    mocks.state = {
+      ...state,
+      invoices: [...state.invoices.filter((row) => row.id !== original.id), invoice],
+      payments: state.payments.filter((payment) => payment.invoiceId !== original.id),
+    }
+
+    render(<SlipSheet invoice={invoice} onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'เลือกรูปสลิป' }))
+    await act(async () => { vi.advanceTimersByTime(1500) })
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันเอง' }))
+
+    expect(mocks.dispatch).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'recordPayment', invoiceId: id, amount: invoice.total, slipVerified: false,
+    }))
+  })
+})

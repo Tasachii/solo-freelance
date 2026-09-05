@@ -455,3 +455,17 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   display:grid;gap:var(--space-1);justify-items:start}
 /* หน่วยของตัวเลขในแถวรายชื่อ */
 .srow__unit{display:block;font-style:normal;font-size:var(--fs-micro);color:var(--faint,var(--muted));text-align:right}
+
+/* แต่ละ modal เป็น stacking context ของตัวเอง เพื่อให้ veil ของชีทซ้อนทับชีทก่อนหน้าได้จริง */
+.sheet-layer{position:fixed;inset:0;z-index:40;pointer-events:none}
+.sheet-layer .veil{position:absolute;z-index:0;pointer-events:auto}
+.sheet-layer .sheet{position:absolute;z-index:1;pointer-events:auto}
+
+/* Keep the actual name readable beside time and attendance actions on narrow phones. */
+@media(max-width:480px){
+  .urow{display:grid;grid-template-columns:46px minmax(0,1fr) auto;row-gap:8px}
+  .urow__main{grid-column:2 / -1}
+  .urow__name{white-space:normal;overflow-wrap:anywhere}
+  .urow__move{grid-column:2;justify-self:end}
+  .urow>.btn:last-child{grid-column:3}
+}

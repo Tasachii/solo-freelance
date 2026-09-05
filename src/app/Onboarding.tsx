@@ -4,6 +4,8 @@ import { useStore } from '../core/store'
 import { professionById } from '../professions'
 import { copy } from '../copy'
 import type { BillingMode } from '../core/types'
+import { normalizePaymentDestination, isPaymentDestination } from '../core/paymentDestination'
+import { parseMoneyInput } from './SubjectSheet'
 
 interface Row { name: string; clientName: string; lineId?: string; error?: string }
 
@@ -27,28 +29,31 @@ export default function Onboarding() {
   const [name, setName] = useState(state.provider.name)
   const [pp, setPp] = useState(state.provider.promptpayId)
   const [text, setText] = useState('')
-  const [mode, setMode] = useState<BillingMode['mode']>('per_unit')
+  const [mode, setMode] = useState<BillingMode['mode']>(prof.defaultBilling ?? 'per_unit')
   // ราคาเริ่มต้นที่แก้ได้ก่อนกดเริ่ม — เดิมล็อกไว้ ครูที่คิดคนละราคาต้องไปแก้ทีละคน
   const [rate, setRate] = useState('400')
   const [flat, setFlat] = useState('3000')
   const [packTotal, setPackTotal] = useState('10')
   const [packPrice, setPackPrice] = useState('3500')
-  const num = (v: string) => Number(v.replace(/[,\s]/g, ''))
-  const priceOk = mode === 'per_unit' ? num(rate) > 0
-    : mode === 'flat_monthly' ? num(flat) > 0
-      : num(packTotal) > 0 && num(packPrice) > 0
+  const [promptpayError, setPromptpayError] = useState(false)
+  const normalizedPromptpay = normalizePaymentDestination(pp)
+  const promptpayOk = pp.trim() === '' || isPaymentDestination(pp)
+  const priceOk = mode === 'per_unit' ? parseMoneyInput(rate) !== null
+    : mode === 'flat_monthly' ? parseMoneyInput(flat) !== null
+      : parseMoneyInput(packTotal) !== null && parseMoneyInput(packPrice) !== null
 
   const rows = useMemo(() => parseRoster(text), [text])
   const good = rows.filter((r) => !r.error)
 
   const finish = () => {
-    dispatch({ type: 'setProvider', name: name.trim() || state.provider.name, promptpayId: pp.trim() })
+    if (!priceOk || !promptpayOk) return
+    if (!dispatch({ type: 'setProvider', name: name.trim() || state.provider.name, promptpayId: normalizedPromptpay ?? '' })) return
     const billing: BillingMode =
-      mode === 'per_unit' ? { mode: 'per_unit', rate: num(rate) }
-        : mode === 'flat_monthly' ? { mode: 'flat_monthly', amount: num(flat) }
-          : { mode: 'package', total: num(packTotal), price: num(packPrice), purchasedAt: state.today }
-    if (good.length) dispatch({ type: 'bulkAddSubjects', rows: good.map(({ name: n, clientName, lineId }) => ({ name: n, clientName, lineId })), billing })
-    dispatch({ type: 'onboarded' })
+      mode === 'per_unit' ? { mode: 'per_unit', rate: parseMoneyInput(rate)! }
+        : mode === 'flat_monthly' ? { mode: 'flat_monthly', amount: parseMoneyInput(flat)! }
+          : { mode: 'package', total: parseMoneyInput(packTotal)!, price: parseMoneyInput(packPrice)!, purchasedAt: state.today }
+    if (good.length && !dispatch({ type: 'bulkAddSubjects', rows: good.map(({ name: n, clientName, lineId }) => ({ name: n, clientName, lineId })), billing })) return
+    if (!dispatch({ type: 'onboarded' })) return
     track('onboarding_finish', { count: good.length })
     nav('/app/today')
   }
@@ -66,9 +71,14 @@ export default function Onboarding() {
           </label>
           <label className="fld">
             <span className="fld__l">{copy.onboarding.promptpay}</span>
-            <input className="inp" value={pp} onChange={(e) => setPp(e.target.value)} />
+            <input className="inp" inputMode="numeric" value={pp} aria-invalid={promptpayError || undefined}
+              onChange={(e) => { setPp(e.target.value); setPromptpayError(false) }} />
+            {promptpayError && <span className="fld__err">ใส่เบอร์มือถือไทย 10 หลัก หรือเลขบัตรประชาชน 13 หลักที่ถูกต้อง</span>}
           </label>
-          <button className="btn btn--primary btn--block" disabled={!name.trim()} onClick={() => setStep(2)}>{copy.onboarding.next}</button>
+          <button className="btn btn--primary btn--block" disabled={!name.trim()} onClick={() => {
+            if (!promptpayOk) { setPromptpayError(true); return }
+            setStep(2)
+          }}>{copy.onboarding.next}</button>
         </>
       )}
 
@@ -136,13 +146,16 @@ export default function Onboarding() {
           )}
           <span className="hint">{copy.subjects.priceHint}</span>
 
-          <button className="btn btn--primary btn--block" disabled={good.length === 0 || !priceOk} onClick={finish}>
+          {!priceOk && <span className="hint hint--bad">{copy.common.numberPositive}</span>}
+          <button className="btn btn--primary btn--block" disabled={good.length === 0 || !priceOk || !promptpayOk} onClick={finish}>
             {copy.onboarding.finish} ({good.length})
           </button>
           {/* ครูที่ไม่มีลิสต์อยู่ในมือ ต้องออกไปเพิ่มทีละคนได้ ไม่ใช่ถูกขังหรือถูกพากลับเดโม */}
           <button className="linkbtn" onClick={() => {
-            dispatch({ type: 'setProvider', name: name.trim() || state.provider.name, promptpayId: pp.trim() })
-            dispatch({ type: 'onboarded' }); track('onboarding_skip'); nav('/app/subjects')
+            if (!promptpayOk) { setStep(1); setPromptpayError(true); return }
+            if (!dispatch({ type: 'setProvider', name: name.trim() || state.provider.name, promptpayId: normalizedPromptpay ?? '' })) return
+            if (!dispatch({ type: 'onboarded' })) return
+            track('onboarding_skip'); nav('/app/subjects')
           }}>{copy.onboarding.skip}</button>
           {state.mode !== 'real' && (
             <button className="linkbtn" onClick={() => { resetDemo('default'); nav('/app/today') }}>

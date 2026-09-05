@@ -1,4 +1,5 @@
 import type { ProfessionTemplate } from './types'
+import { tutorTemplates } from '../copy/tutor'
 
 const tutor: ProfessionTemplate = {
   id: 'tutor',
@@ -20,6 +21,8 @@ const tutor: ProfessionTemplate = {
     { minDaysOverdue: 8, key: 'final' },
   ],
   conciergeAvailable: true,
+  messages: tutorTemplates,
+  modeLabels: { per_unit: 'รายครั้ง', flat_monthly: 'เหมารายเดือน', package: 'แพ็ก' },
   faq: [
     { priority: 1, keywords: ['จ่ายแล้ว', 'โอนแล้ว', 'ได้รับ', 'สลิป', 'ยังค้าง'], answerFrom: 'paymentStatus' },
     { priority: 2, keywords: ['เหลือกี่ครั้ง', 'เหลือ', 'แพ็ก', 'แพค', 'คอร์ส'], answerFrom: 'packageRemaining' },

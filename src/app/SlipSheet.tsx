@@ -7,6 +7,8 @@ import { useToast } from './components/Toast'
 import { mkMessage, slipRequestText } from '../core/messages'
 import type { Invoice } from '../core/types'
 import { seedOf } from '../core/share'
+import { balanceDue } from '../core/ledger'
+import { isMoney } from '../core/validation'
 
 type Phase = 'idle' | 'checking' | 'match' | 'mismatch' | 'unreadable'
 
@@ -20,7 +22,7 @@ export function rollSlip(total: number, rnd = Math.random()): { phase: Phase; sl
 export default function SlipSheet(
   { invoice, onClose, onPaid }: { invoice: Invoice; onClose: () => void; onPaid?: () => void },
 ) {
-  const { state, dispatch, track } = useStore()
+  const { state, dispatch, track, persistenceError } = useStore()
   const toast = useToast()
   const [phase, setPhase] = useState<Phase>('idle')
   const [slipAmount, setSlipAmount] = useState<number | undefined>(undefined)
@@ -29,7 +31,8 @@ export default function SlipSheet(
   const [manual, setManual] = useState(false)
   const [manualText, setManualText] = useState('')
   const manualValue = Number(manualText.replace(/[,\s]/g, ''))
-  const manualOk = Number.isFinite(manualValue) && manualValue > 0
+  const due = balanceDue(state, invoice.id)
+  const manualOk = isMoney(manualValue) && manualValue <= due
 
   const real = state.mode === 'real'
 
@@ -38,16 +41,17 @@ export default function SlipSheet(
     const t = window.setTimeout(() => {
       // ผลผูกกับเลขที่ใบแจ้ง ไม่ใช่ Math.random — เดโมเดิมสุ่มใหม่ทุกครั้ง
       // ตอนโชว์กรรมการอาจขึ้น "ยอดไม่ตรง" โดยไม่ตั้งใจ และเทสก็แกว่งตาม
-      const res = rollSlip(invoice.total, seedOf(invoice.id))
+      const res = rollSlip(due, seedOf(invoice.id))
       setPhase(res.phase); setSlipAmount(res.slipAmount)
       track('slip_verify', { result: res.phase })
     }, 1500)
     return () => window.clearTimeout(t)
-  }, [phase, invoice.total, track, real])
+  }, [phase, invoice.id, due, track, real])
 
   const pay = (amount: number, verified: boolean) => {
-    dispatch({ type: 'recordPayment', invoiceId: invoice.id, amount, slipVerified: verified, slipAmount })
-    toast.push({ text: copy.toast.receiptIssued, tone: 'ok' })
+    if (!isMoney(amount) || amount > due) return
+    if (!dispatch({ type: 'recordPayment', invoiceId: invoice.id, amount, slipVerified: verified, slipAmount })) return
+    toast.push({ text: amount === due ? copy.toast.receiptIssued : copy.toast.saved, tone: 'ok' })
     onPaid?.(); onClose()
   }
 
@@ -55,13 +59,13 @@ export default function SlipSheet(
     if (slipAmount === undefined) return
     const msg = mkMessage(state, 'faq_reply', invoice.clientId, invoice.subjectId,
       slipRequestText(state, invoice, slipAmount), `slip:${invoice.id}:${slipAmount}`)
-    dispatch({ type: 'addMessage', message: msg })
+    if (!dispatch({ type: 'addMessage', message: msg })) return
     toast.push({ text: copy.admin.draftedTag, tone: 'warn' })
     onClose()
   }
 
   return (
-    <BottomSheet title={real ? copy.billing.attachSlipReal : copy.billing.attachSlip} sub={`${money(invoice.total)} ${copy.common.baht}`} onClose={onClose}
+    <BottomSheet title={real ? copy.billing.attachSlipReal : copy.billing.attachSlip} sub={`${money(due)} ${copy.common.baht}`} onClose={onClose}
       footer={
         real
           // โหมดจริง: ไม่มีการอ่านสลิปอัตโนมัติ ครูเทียบยอดเองแล้วกดยืนยัน
@@ -74,34 +78,36 @@ export default function SlipSheet(
                   <button className="btn btn--ghost" onClick={() => setManual(false)}>{copy.common.cancel}</button>
                 </div>
               : <div className="btnrow">
-                  <button className="btn btn--primary" onClick={() => pay(invoice.total, false)}>{copy.billing.slipRealOk}</button>
-                  <button className="btn btn--secondary" onClick={() => { setManual(true); setManualText(String(invoice.total)) }}>
+                  <button className="btn btn--primary" onClick={() => pay(due, false)}>{copy.billing.slipRealOk}</button>
+                  <button className="btn btn--secondary" onClick={() => { setManual(true); setManualText(String(due)) }}>
                     {copy.billing.slipRealOther}
                   </button>
                 </div>)
         : phase === 'idle'
           ? <button className="btn btn--primary btn--block" onClick={() => setPhase('checking')}>{copy.billing.slipPick}</button>
           : phase === 'match'
-            ? <button className="btn btn--primary btn--block" onClick={() => pay(invoice.total, true)}>{copy.billing.slipConfirm}</button>
+            ? <button className="btn btn--primary btn--block" onClick={() => pay(due, true)}>{copy.billing.slipConfirm}</button>
             : phase === 'mismatch'
               ? <div className="btnrow">
-                  <button className="btn btn--primary" onClick={() => pay(slipAmount!, true)}>{copy.billing.slipAcceptAs}</button>
+                  <button className="btn btn--primary" disabled={!isMoney(slipAmount) || slipAmount > due}
+                    onClick={() => pay(slipAmount!, true)}>{copy.billing.slipAcceptAs}</button>
                   <button className="btn btn--secondary" onClick={askAgain}>{copy.billing.slipAskAgain}</button>
                 </div>
               : phase === 'unreadable'
                 ? <div className="btnrow">
                     <button className="btn btn--secondary" onClick={() => setPhase('checking')}>{copy.billing.slipRetry}</button>
-                    <button className="btn btn--primary" onClick={() => pay(invoice.total, false)}>{copy.billing.slipManual}</button>
+                    <button className="btn btn--primary" onClick={() => pay(due, false)}>{copy.billing.slipManual}</button>
                   </div>
                 : null
       }>
+      {persistenceError && <p className="warnbar" role="alert">{persistenceError}</p>}
       {phase === 'checking' && <><p className="p">{copy.billing.slipChecking}</p><Skeleton rows={2} /></>}
-      {phase === 'match' && <p className="p">{copy.billing.slipMatch} · {money(invoice.total)} {copy.common.baht}</p>}
+      {phase === 'match' && <p className="p">{copy.billing.slipMatch} · {money(due)} {copy.common.baht}</p>}
       {phase === 'mismatch' && (
         <>
           <p className="p">{copy.billing.slipMismatch}</p>
           <div className="kv"><span>{copy.billing.slipAmount}</span><b className="num">{money(slipAmount ?? 0)}</b></div>
-          <div className="kv"><span>{copy.billing.invoiceAmount}</span><b className="num">{money(invoice.total)}</b></div>
+          <div className="kv"><span>{copy.billing.invoiceAmount}</span><b className="num">{money(due)}</b></div>
         </>
       )}
       {phase === 'unreadable' && <p className="p">{copy.billing.slipUnreadable}</p>}
@@ -110,7 +116,9 @@ export default function SlipSheet(
           <span className="fld__l">{copy.billing.slipAmount}</span>
           <input className="inp" inputMode="numeric" autoFocus value={manualText}
             onChange={(e) => setManualText(e.target.value)} />
-          {!manualOk && manualText !== '' && <span className="hint hint--bad">{copy.common.numberPositive}</span>}
+          {!manualOk && manualText !== '' && <span className="hint hint--bad">
+            {manualValue > due ? `ยอดต้องไม่เกิน ${money(due)} ${copy.common.baht}` : copy.common.numberPositive}
+          </span>}
         </label>
       )}
       {real

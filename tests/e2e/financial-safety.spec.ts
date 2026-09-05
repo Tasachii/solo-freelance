@@ -1,0 +1,84 @@
+import { expect, test, type Page } from '@playwright/test'
+
+async function realInvoice(page: Page, destination = '0812345678') {
+  await page.goto('?scenario=empty#/app/onboarding')
+  await expect(page.locator('.shell')).toBeVisible()
+  await page.evaluate((promptpayId) => {
+    const s = JSON.parse(localStorage.getItem('solo-demo-v3')!)
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date())
+    const sent = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
+    const due = new Date(Date.now() - 4 * 86400000).toISOString().slice(0, 10)
+    Object.assign(s, { mode: 'real', onboarded: true, today, provider: { name: 'ผู้ให้บริการทดสอบ', promptpayId },
+      clients: [{ id: 'qa-client', name: 'ผู้จ่ายทดสอบ' }],
+      subjects: [{ id: 'qa-subject', clientId: 'qa-client', name: 'ผู้เรียนทดสอบ', active: true, createdAt: today, billing: { mode: 'per_unit', rate: 3000 } }],
+      invoices: [{ id: 'qa-invoice', clientId: 'qa-client', subjectId: 'qa-subject', kind: 'monthly', period: today.slice(0, 7), createdAt: sent,
+        sentAt: sent, dueAt: due, status: 'sent', total: 3000, lines: [{ description: 'ค่าบริการทดสอบ', qty: 1, unitPrice: 3000, amount: 3000 }] }],
+    })
+    localStorage.setItem('solo-demo-v3', JSON.stringify(s))
+  }, destination)
+  await page.goto('#/app/billing')
+  await page.reload()
+  await expect(page.locator('.srow').filter({ hasText: 'ผู้เรียนทดสอบ' })).toBeVisible()
+}
+const openPayment = (page: Page) => page.locator('.srow').filter({ hasText: 'ผู้เรียนทดสอบ' }).getByRole('button', { name: 'รับยอดจากสลิป' }).click()
+
+test('installments agree across balances, reminder, client, receipt and fresh recipient context', async ({ page, browser }) => {
+  await realInvoice(page)
+  await openPayment(page)
+  await page.getByRole('button', { name: 'ยอดไม่ตรง ใส่ยอดเอง' }).click()
+  await page.locator('.sheet input').fill('1000')
+  await page.getByRole('button', { name: 'ยืนยันรับยอด' }).click()
+  await expect(page.locator('.srow').filter({ hasText: 'ผู้เรียนทดสอบ' })).toContainText('คงเหลือ 2,000')
+  await page.goto('#/app/admin')
+  await expect(page.locator('.msg__body').first()).toContainText('2,000')
+  const invoiceUrl = (await page.locator('.msg__body').first().textContent())!.match(/https?:\/\/\S+\/document\/[\w-]+/)![0]
+  const recipient = await browser.newContext()
+  const fresh = await recipient.newPage()
+  await fresh.goto(invoiceUrl)
+  await expect(fresh.getByText('คงเหลือ', { exact: false }).first()).toContainText('2,000')
+  expect(await fresh.evaluate(() => localStorage.getItem('solo-demo-v3'))).toBeNull()
+  await page.goto('#/client/qa-client')
+  await expect(page.locator('.page--client')).toContainText('คงเหลือ 2,000')
+  await expect(page.locator('.qr__box')).toHaveCount(0)
+  await page.goto('#/app/billing')
+  await openPayment(page)
+  await expect(page.locator('.sheet__s')).toContainText('2,000')
+  await page.getByRole('button', { name: 'ยอดตรง รับเงินแล้ว' }).click()
+  await page.locator('.srow').getByRole('button', { name: 'ดูใบเสร็จ' }).click()
+  await expect(page.locator('tfoot')).toContainText('3,000')
+  await page.goto('#/app/admin')
+  const receiptUrl = (await page.locator('.msg__body').first().textContent())!.match(/https?:\/\/\S+\/document\/[\w-]+/)![0]
+  await fresh.goto(receiptUrl)
+  await expect(fresh.getByRole('heading', { name: 'ใบเสร็จรับเงิน' })).toBeVisible()
+  await expect(fresh.locator('tfoot')).toContainText('3,000')
+  await expect(fresh.getByText('คงเหลือ', { exact: false }).first()).toContainText('0 บาท')
+  expect(await fresh.evaluate(() => localStorage.getItem('solo-demo-v3'))).toBeNull()
+  await recipient.close()
+})
+
+test('quota failure cannot acknowledge or commit a payment', async ({ page }) => {
+  await realInvoice(page)
+  await openPayment(page)
+  await page.evaluate(() => { Storage.prototype.setItem = () => { throw new DOMException('full', 'QuotaExceededError') } })
+  await page.getByRole('button', { name: 'ยอดตรง รับเงินแล้ว' }).click()
+  await expect(page.getByRole('alert')).toContainText('บันทึกไม่สำเร็จ')
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.locator('.toast')).toHaveCount(0)
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('solo-demo-v3')!).payments)).toHaveLength(0)
+})
+
+test('corrupt storage is preserved and requires recovery', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('solo-demo-v3', '{broken'))
+  await page.goto('#/app/today')
+  await expect(page.getByRole('heading', { name: 'ข้อมูลเดิมต้องกู้คืน' })).toBeVisible()
+  await expect(page.locator('.shell')).toHaveCount(0)
+  expect(await page.evaluate(() => localStorage.getItem('solo-demo-v3'))).toBe('{broken')
+})
+
+test('missing payment destination prevents sending and keeps queue empty', async ({ page }) => {
+  await realInvoice(page, '')
+  await page.goto('#/app/admin')
+  await page.getByRole('button', { name: 'ส่งใน LINE', exact: true }).first().click()
+  await expect(page.locator('.toast')).toContainText('พร้อมเพย์ที่ถูกต้อง')
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('solo-demo-v3')!).sending)).toBeUndefined()
+})

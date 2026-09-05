@@ -4,6 +4,12 @@ import { periodOf } from './format'
 export const unitById = (s: AppState, id: string): ServiceUnit | undefined => s.units.find((u) => u.id === id)
 export const subjectById = (s: AppState, id: string): Subject | undefined => s.subjects.find((x) => x.id === id)
 export const clientById = (s: AppState, id: string) => s.clients.find((c) => c.id === id)
+export const paidAmount = (s: AppState, invoiceId: string): number =>
+  s.payments.filter((payment) => payment.invoiceId === invoiceId).reduce((sum, payment) => sum + payment.amount, 0)
+export const balanceDue = (s: AppState, invoiceId: string): number => {
+  const invoice = s.invoices.find((row) => row.id === invoiceId)
+  return invoice ? Math.max(invoice.total - paidAmount(s, invoiceId), 0) : 0
+}
 /**
  * วันที่เรียนจริง — อ่านจาก unit เสมอ ไม่ใช่จาก completedAt ที่ถูกแช่ไว้ตอนเช็คชื่อ
  * ถ้าอ่านสองที่ พอเลื่อนคาบแล้วบิลกับแพ็กจะนับคนละวัน
@@ -43,12 +49,31 @@ export function complete(s: AppState, unitId: string): AppState {
   if (isCompleted(s, unitId)) return s
   const u = unitById(s, unitId)
   if (!u || u.cancelled) return s // คาบที่ยกเลิกแล้วเช็คชื่อไม่ได้
-  return { ...s, completions: [...s.completions, { unitId, completedAt: u.scheduledAt }] }
+  const subject = subjectById(s, u.subjectId)
+  const unitPrice = subject?.billing.mode === 'per_unit' ? subject.billing.rate : undefined
+  return { ...s, completions: [...s.completions, {
+    unitId, completedAt: u.scheduledAt, ...(unitPrice !== undefined ? { unitPrice } : {}),
+  }] }
 }
 
 export function uncomplete(s: AppState, unitId: string): AppState {
   if (!isCompleted(s, unitId)) return s
   return { ...s, completions: s.completions.filter((c) => c.unitId !== unitId) }
+}
+
+/** เติมราคาให้ข้อมูลเก่าก่อนอนุญาตให้แก้เรต เพื่อให้ประวัติเดิมหยุดนิ่ง */
+export function snapshotLegacyPrices(s: AppState, onlySubjectId?: string): AppState {
+  let changed = false
+  const completions = s.completions.map((completion) => {
+    if (completion.unitPrice !== undefined) return completion
+    const unit = unitById(s, completion.unitId)
+    if (!unit || (onlySubjectId && unit.subjectId !== onlySubjectId)) return completion
+    const subject = subjectById(s, unit.subjectId)
+    if (subject?.billing.mode !== 'per_unit') return completion
+    changed = true
+    return { ...completion, unitPrice: subject.billing.rate }
+  })
+  return changed ? { ...s, completions } : s
 }
 
 export interface PackageStatus {

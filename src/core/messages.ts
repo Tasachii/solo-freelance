@@ -1,9 +1,12 @@
 import type { AppState, Invoice, Message, MessageKind, Subject } from './types'
-import { tutorTemplates } from '../copy/tutor'
-import { professionById } from '../professions'
-import { clientById, completionsIn, packageStatus, subjectById } from './ledger'
+import { professionById, templatesFor } from '../professions'
+import { balanceDue, clientById, completionsIn, packageStatus, subjectById } from './ledger'
 import { daysOverdue, dueDaysOf, invoiceFor, ladderFor } from './billing'
 import { addDays, dateThai, dayThai, money, periodThai } from './format'
+
+import { documentUrl, invoiceDocument, receiptDocument } from './documents'
+import { financialRevision } from './messageDelivery'
+import { answer } from './faq'
 
 type Vars = Record<string, string | number>
 
@@ -29,8 +32,21 @@ const appUrl = (hashPath: string): string => {
   const origin = typeof location !== 'undefined' ? location.origin : ''
   return `${origin}${base}#${hashPath}`
 }
-export const invoiceUrlOf = (clientId: string): string => appUrl(`/client/${clientId}`)
-export const receiptUrlOf = (receiptId: string): string => appUrl(`/receipt/${receiptId}`)
+export function invoiceUrlOf(clientId: string, state?: AppState, invoiceId?: string): string {
+  if (state?.mode !== 'real') return appUrl(`/client/${clientId}`)
+  const inv = invoiceId ? state.invoices.find(i => i.id === invoiceId && i.clientId === clientId)
+    : state.invoices.filter(i => i.clientId === clientId)
+      .sort((a, b) => Number(a.status === 'paid') - Number(b.status === 'paid') || a.period.localeCompare(b.period))[0]
+  const doc = inv && invoiceDocument(state, inv.id)
+  if (!doc) return 'ติดต่อผู้ให้บริการในแชทนี้เพื่อขอรายละเอียด'
+  try { return documentUrl(doc) } catch { return 'ติดต่อผู้ให้บริการในแชทนี้เพื่อขอเอกสาร PDF' }
+}
+export function receiptUrlOf(receiptId: string, state?: AppState): string {
+  if (state?.mode !== 'real') return appUrl(`/receipt/${receiptId}`)
+  const doc = receiptDocument(state, receiptId)
+  if (!doc) return 'ติดต่อผู้ให้บริการในแชทนี้เพื่อขอใบเสร็จ'
+  try { return documentUrl(doc) } catch { return 'ติดต่อผู้ให้บริการในแชทนี้เพื่อขอใบเสร็จ PDF' }
+}
 
 const stripHonorific = (name: string | undefined, honorific: string): string => {
   if (!name) return '—'
@@ -47,35 +63,39 @@ function baseVars(state: AppState, subject: Subject): Vars {
     clientHonorific: prof.vocab.clientHonorific,
     clientName: stripHonorific(client?.name, prof.vocab.clientHonorific),
     subjectName: subject.name,
-    invoiceUrl: invoiceUrlOf(subject.clientId),
+    invoiceUrl: invoiceUrlOf(subject.clientId, state),
   }
 }
 
 export function invoiceText(state: AppState, inv: Invoice): string {
+  const templates = templatesFor(state.professionId)
   const subject = subjectById(state, inv.subjectId)!
   const vars = {
     ...baseVars(state, subject),
+    invoiceUrl: invoiceUrlOf(subject.clientId, state, inv.id),
     periodThai: periodThai(inv.period),
-    qty: inv.lines.reduce((n, l) => n + l.qty, 0),
-    total: money(inv.total),
+    qty: inv.kind === 'monthly' ? completionsIn(state, inv.subjectId, inv.period).length : inv.lines.reduce((n, l) => n + l.qty, 0),
+    total: money(balanceDue(state, inv.id)),
   }
   const flat = subject.billing.mode === 'flat_monthly'
-  return render(flat ? tutorTemplates.invoiceFlat : tutorTemplates.invoice, vars)
+  return render(flat ? templates.invoiceFlat : templates.invoice, vars)
 }
 
 export function reminderText(state: AppState, inv: Invoice, key: 'soft' | 'clear' | 'final'): string {
+  const templates = templatesFor(state.professionId)
   const subject = subjectById(state, inv.subjectId)!
-  return render(tutorTemplates.reminder[key], {
+  return render(templates.reminder[key], {
     ...baseVars(state, subject),
+    invoiceUrl: invoiceUrlOf(subject.clientId, state, inv.id),
     periodThai: periodThai(inv.period),
-    total: money(inv.total),
+    total: money(balanceDue(state, inv.id)),
     daysOverdue: daysOverdue(state, inv),
   })
 }
 
 /** แจ้งเลื่อนคาบ — เกิดจากการกระทำของครู ไม่ใช่ derive จึงสร้างตอนกดเลื่อน */
 export function movedText(state: AppState, subject: Subject, from: { date: string }, to: { date: string; time: string }): string {
-  return render(tutorTemplates.moved, {
+  return render(templatesFor(state.professionId).moved, {
     ...baseVars(state, subject),
     fromDayThai: dayThai(from.date), fromDateThai: dateThai(from.date),
     dayThai: dayThai(to.date), dateThai: dateThai(to.date), time: to.time,
@@ -83,51 +103,55 @@ export function movedText(state: AppState, subject: Subject, from: { date: strin
 }
 
 export function cancelledText(state: AppState, subject: Subject, at: string): string {
-  return render(tutorTemplates.cancelled, {
+  return render(templatesFor(state.professionId).cancelled, {
     ...baseVars(state, subject), dayThai: dayThai(at), dateThai: dateThai(at),
   })
 }
 
 /** สรุปกลางเดือน — ตัวเลขมาจาก ledger ทั้งหมด */
 export function summaryText(state: AppState, subject: Subject, period: string): string {
+  const templates = templatesFor(state.professionId)
   const qty = completionsIn(state, subject.id, period).length
   const pk = packageStatus(state, subject)
   const amountLine = pk
-    ? render(tutorTemplates.summaryPackage, { remaining: pk.remaining, packageTotal: pk.total })
-    : render(tutorTemplates.summaryAmount, { total: money(currentEstimate(state, subject, period)) })
-  return render(tutorTemplates.summary, {
+    ? render(templates.summaryPackage, { remaining: pk.remaining, packageTotal: pk.total })
+    : render(templates.summaryAmount, { total: money(currentEstimate(state, subject, period)) })
+  return render(templates.summary, {
     ...baseVars(state, subject), periodThai: periodThai(period), qty, amountLine,
   })
 }
 
 export function renewalText(state: AppState, subject: Subject, exhausted: boolean): string {
+  const templates = templatesFor(state.professionId)
   const pk = packageStatus(state, subject)!
   const vars: Vars = {
     ...baseVars(state, subject),
+    ...(state.mode === 'real' ? { invoiceUrl: state.provider.promptpayId ? `พร้อมเพย์ ${state.provider.promptpayId} ผู้รับ ${state.provider.name} แล้วส่งสลิปกลับในแชท` : 'ติดต่อผู้ให้บริการเพื่อขอข้อมูลชำระเงิน' } : {}),
     packageTotal: pk.total, packagePrice: money(pk.price),
     remaining: pk.remaining,
     overBy: pk.overBy,
   }
-  if (exhausted) return render(tutorTemplates.renewalExhausted, vars)
-  return render(tutorTemplates.renewal, vars)
+  if (exhausted) return render(templates.renewalExhausted, vars)
+  return render(templates.renewal, vars)
 }
 
 export function receiptText(state: AppState, inv: Invoice, receiptId: string, total: number): string {
   const subject = subjectById(state, inv.subjectId)!
-  return render(tutorTemplates.receipt, {
+  return render(templatesFor(state.professionId).receipt, {
     ...baseVars(state, subject),
+    invoiceUrl: invoiceUrlOf(subject.clientId, state, inv.id),
     periodThai: periodThai(inv.period),
     total: money(total),
-    receiptUrl: receiptUrlOf(receiptId),
+    receiptUrl: receiptUrlOf(receiptId, state),
   })
 }
 
 export function slipRequestText(state: AppState, inv: Invoice, slipAmount: number): string {
   const subject = subjectById(state, inv.subjectId)!
-  return render(tutorTemplates.slipRequest, {
+  return render(templatesFor(state.professionId).slipRequest, {
     ...baseVars(state, subject),
     slipAmount: money(slipAmount),
-    total: money(inv.total),
+    total: money(balanceDue(state, inv.id)),
   })
 }
 
@@ -140,15 +164,23 @@ export function mkMessage(
   draft: string, dedupeKey: string, meta?: Record<string, unknown>,
 ): Message {
   seq += 1
-  return {
+  const message: Message = {
     id: `m-${dedupeKey}-${seq}`, clientId, subjectId, kind, draft,
     status: 'draft', createdAt: state.today, dedupeKey, ...(meta ? { meta } : {}),
   }
+  const revision = financialRevision(state, message)
+  return revision ? { ...message, meta: { ...meta, financialRevision: revision } } : message
 }
 
 function rerender(state: AppState, m: Message): string | null {
   const invOf = (id: unknown) => state.invoices.find((i) => i.id === id)
   const subjOf = () => (m.subjectId ? subjectById(state, m.subjectId) : undefined)
+
+  if (m.kind === 'faq_reply' && m.meta?.answerFrom) {
+    const question = typeof m.meta.question === 'string' ? m.meta.question
+      : professionById(state.professionId).faq?.find(f => f.answerFrom === m.meta?.answerFrom)?.keywords[0]
+    return question ? answer(state, m.clientId, question).text : null
+  }
 
   if (m.kind === 'reminder') {
     const inv = invOf(m.meta?.invoiceId)
@@ -182,7 +214,9 @@ export function refreshDrafts(state: AppState): Message[] {
   return state.messages.map((m) => {
     if (m.status !== 'draft' || m.edited) return m
     const fresh = rerender(state, m)
-    return !fresh || fresh === m.draft ? m : { ...m, draft: fresh }
+    const revision = financialRevision(state, m)
+    if (!fresh) return m
+    return { ...m, draft: fresh, ...(revision ? { meta: { ...m.meta, financialRevision: revision } } : {}) }
   })
 }
 
@@ -297,7 +331,8 @@ export function applySend(state: AppState, msg: Message): AppState {
 export const currentEstimate = (state: AppState, subject: Subject, period: string): number => {
   const b = subject.billing
   if (b.mode === 'flat_monthly') return b.amount
-  if (b.mode === 'per_unit') return completionsIn(state, subject.id, period).length * b.rate
+  if (b.mode === 'per_unit') return completionsIn(state, subject.id, period)
+    .reduce((sum, completion) => sum + (completion.unitPrice ?? b.rate), 0)
   return 0
 }
 

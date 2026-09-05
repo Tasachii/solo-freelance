@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const port = Number(process.env.SOLO_QA_PORT ?? 4173)
+const baseURL = `http://localhost:${port}/solo-freelance/`
+
 /** เทสวิ่งกับ build จริงเสมอ ไม่ใช่ dev server — เพราะสิ่งที่คนเห็นคือ dist */
 export default defineConfig({
   testDir: './tests/e2e',
@@ -8,7 +11,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'line' : 'list',
   use: {
-    baseURL: 'http://localhost:4173/solo-freelance/',
+    baseURL,
     trace: 'on-first-retry',
   },
   projects: [
@@ -16,8 +19,8 @@ export default defineConfig({
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 900 } } },
   ],
   webServer: {
-    command: 'npm run build && npx vite preview --port 4173',
-    url: 'http://localhost:4173/solo-freelance/',
+    command: `npm run build && npx vite preview --port ${port} --strictPort`,
+    url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

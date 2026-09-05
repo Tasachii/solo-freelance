@@ -98,3 +98,28 @@ export function BottomSheet(
     </>
   )
 }
+
+/**
+ * ถามยืนยันแบบชีท — แทน window.confirm ที่ Android ขึ้น "localhost says…"
+ * แปลไม่ได้ และบน iOS ที่ติดตั้งลงจอมักถูกกลืนหายไปเงียบ ๆ
+ */
+export function ConfirmSheet(
+  { title, body, hint, confirmLabel, danger, onConfirm, onClose }: {
+    title: string; body?: string; hint?: string; confirmLabel: string
+    danger?: boolean; onConfirm: () => void; onClose: () => void
+  },
+) {
+  return (
+    <BottomSheet title={title} onClose={onClose}
+      footer={
+        <div className="btnrow">
+          <button className="btn btn--ghost" onClick={onClose}>{copy.common.cancel}</button>
+          <button className={`btn ${danger ? 'btn--danger' : 'btn--primary'}`}
+            onClick={() => { onConfirm(); onClose() }}>{confirmLabel}</button>
+        </div>
+      }>
+      {body && <p className="p">{body}</p>}
+      {hint && <span className="hint">{hint}</span>}
+    </BottomSheet>
+  )
+}

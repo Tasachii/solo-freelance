@@ -24,6 +24,12 @@ export default function SlipSheet(
   const toast = useToast()
   const [phase, setPhase] = useState<Phase>('idle')
   const [slipAmount, setSlipAmount] = useState<number | undefined>(undefined)
+  // ใส่ยอดเองในโหมดจริง — เดิมใช้ window.prompt ซึ่ง iOS ที่ติดตั้งลงจอมักไม่เด้ง
+  // และพิมพ์ 1,200 มีลูกน้ำก็กลายเป็น NaN แล้วเงียบไปเฉย ๆ
+  const [manual, setManual] = useState(false)
+  const [manualText, setManualText] = useState('')
+  const manualValue = Number(manualText.replace(/[,\s]/g, ''))
+  const manualOk = Number.isFinite(manualValue) && manualValue > 0
 
   const real = state.mode === 'real'
 
@@ -60,13 +66,19 @@ export default function SlipSheet(
         real
           // โหมดจริง: ไม่มีการอ่านสลิปอัตโนมัติ ครูเทียบยอดเองแล้วกดยืนยัน
           // การสุ่มผลบนสลิปจริงคือหายนะ — บอกว่ายอดไม่ตรงทั้งที่ตรง
-          ? <div className="btnrow">
-              <button className="btn btn--primary" onClick={() => pay(invoice.total, false)}>{copy.billing.slipRealOk}</button>
-              <button className="btn btn--secondary" onClick={() => {
-                const v = Number(window.prompt(copy.billing.slipRealOther, String(invoice.total)) ?? '')
-                if (Number.isFinite(v) && v > 0) pay(v, false)
-              }}>{copy.billing.slipRealOther}</button>
-            </div>
+          ? (manual
+              ? <div className="btnrow">
+                  <button className="btn btn--primary" disabled={!manualOk} onClick={() => pay(manualValue, false)}>
+                    {copy.billing.slipConfirm}
+                  </button>
+                  <button className="btn btn--ghost" onClick={() => setManual(false)}>{copy.common.cancel}</button>
+                </div>
+              : <div className="btnrow">
+                  <button className="btn btn--primary" onClick={() => pay(invoice.total, false)}>{copy.billing.slipRealOk}</button>
+                  <button className="btn btn--secondary" onClick={() => { setManual(true); setManualText(String(invoice.total)) }}>
+                    {copy.billing.slipRealOther}
+                  </button>
+                </div>)
         : phase === 'idle'
           ? <button className="btn btn--primary btn--block" onClick={() => setPhase('checking')}>{copy.billing.slipPick}</button>
           : phase === 'match'
@@ -93,8 +105,16 @@ export default function SlipSheet(
         </>
       )}
       {phase === 'unreadable' && <p className="p">{copy.billing.slipUnreadable}</p>}
+      {real && manual && (
+        <label className="fld">
+          <span className="fld__l">{copy.billing.slipAmount}</span>
+          <input className="inp" inputMode="numeric" autoFocus value={manualText}
+            onChange={(e) => setManualText(e.target.value)} />
+          {!manualOk && manualText !== '' && <span className="hint hint--bad">{copy.common.numberPositive}</span>}
+        </label>
+      )}
       {real
-        ? <p className="p dim">{copy.billing.slipReal}</p>
+        ? !manual && <p className="p dim">{copy.billing.slipReal}</p>
         : phase === 'idle' && <p className="p dim">{copy.billing.slipSim}</p>}
     </BottomSheet>
   )

@@ -7,7 +7,7 @@ import { cancelledText, mkMessage, movedText } from '../core/messages'
 import { addDays } from '../core/format'
 import { isCompleted, packageStatus, subjectById, unitsOn } from '../core/ledger'
 import { dateThaiFull, dateThai } from '../core/format'
-import { BottomSheet, EmptyState, Skeleton, StatCard } from './components'
+import { BottomSheet, ConfirmSheet, EmptyState, Skeleton, StatCard } from './components'
 import { useToast } from './components/Toast'
 
 export default function Today() {
@@ -29,6 +29,7 @@ export default function Today() {
   const movingUnit = state.units.find((u) => u.id === moving)
   const [mDate, setMDate] = useState('')
   const [mTime, setMTime] = useState('')
+  const [confirmCancel, setConfirmCancel] = useState(false)
 
   const done = units.filter((u) => isCompleted(state, u.id)).length
 
@@ -141,13 +142,7 @@ export default function Today() {
                 track('unit_rescheduled')
                 setMoving(null); toast.push({ text: copy.today.moveDone, tone: 'ok' })
               }}>{copy.today.move}</button>
-              <button className="btn btn--danger" onClick={() => {
-                if (!window.confirm(copy.today.cancelConfirm)) return
-                draftNotice(movingUnit.id, 'cancelled')
-                dispatch({ type: 'cancelUnit', unitId: movingUnit.id })
-                track('unit_cancelled')
-                setMoving(null); toast.push({ text: copy.today.cancelDone, tone: 'warn' })
-              }}>{copy.today.cancelUnit}</button>
+              <button className="btn btn--danger" onClick={() => setConfirmCancel(true)}>{copy.today.cancelUnit}</button>
             </div>
           }>
           <label className="fld">
@@ -182,6 +177,20 @@ export default function Today() {
             )
           })}
         </ul>
+      )}
+
+      {confirmCancel && movingUnit && (
+        <ConfirmSheet
+          title={copy.today.cancelConfirm}
+          hint={copy.today.cancelHint}
+          confirmLabel={copy.today.cancelUnit} danger
+          onClose={() => setConfirmCancel(false)}
+          onConfirm={() => {
+            draftNotice(movingUnit.id, 'cancelled')
+            dispatch({ type: 'cancelUnit', unitId: movingUnit.id })
+            track('unit_cancelled')
+            setMoving(null); toast.push({ text: copy.today.cancelDone, tone: 'warn' })
+          }} />
       )}
 
       {units.length > 0 && (

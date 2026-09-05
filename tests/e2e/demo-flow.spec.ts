@@ -241,3 +241,28 @@ test('ทุกทางเข้าพาไปใช้งานได้เ�
   await expect(page.locator('.urow').first()).toBeVisible()
   await expect(page.locator('.sheet')).toHaveCount(0)
 })
+
+test('ไม่มี dialog ของเบราว์เซอร์เหลืออยู่ — งดคาบใช้ชีทที่แปลได้', async ({ page }) => {
+  // ถ้ามี window.confirm/prompt โผล่ Playwright จะ dismiss ให้อัตโนมัติ
+  // เราจับไว้เพื่อพิสูจน์ว่าไม่มีอันไหนถูกเรียกเลย
+  const native: string[] = []
+  page.on('dialog', async (d) => { native.push(d.type()); await d.dismiss() })
+
+  await open(page, '/app/today')
+  const row = page.locator('.urow').filter({ hasText: 'น้องเนย' })
+  await row.getByRole('button', { name: 'เลื่อน น้องเนย' }).click()
+  await page.locator('.sheet').getByRole('button', { name: 'งดคาบนี้' }).click()
+
+  // ชีทยืนยันของเราเอง ไม่ใช่ dialog ของระบบ
+  const confirmSheet = page.getByRole('dialog', { name: 'งดคาบนี้และแจ้งผู้ปกครอง?' })
+  await expect(confirmSheet).toBeVisible()
+  await confirmSheet.getByRole('button', { name: 'งดคาบนี้' }).click()
+
+  // คาบหายจากรายการหลัก แต่ยังกู้คืนได้
+  await expect(page.locator('.urow--off')).toHaveCount(1)
+  await page.locator('.urow--off').getByRole('button', { name: 'เอากลับมา' }).click()
+  await expect(page.locator('.urow--off')).toHaveCount(0)
+  await expect(page.locator('.urow').filter({ hasText: 'น้องเนย' })).toHaveCount(1)
+
+  expect(native, 'ห้ามมี dialog ของเบราว์เซอร์').toEqual([])
+})

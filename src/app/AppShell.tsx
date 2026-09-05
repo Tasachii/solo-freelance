@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useStore } from '../core/store'
+import type { AppState } from '../core/types'
 import { pickBackup, saveBackup } from './backup'
 import { SCHEMA } from '../core/store'
 import { useToast } from './components/Toast'
 import { professionById } from '../professions'
 import { copy } from '../copy'
 import { draftCount } from '../core/selectors'
-import { BottomSheet, DemoBadge } from './components'
+import { BottomSheet, ConfirmSheet, DemoBadge } from './components'
 import { SCENARIOS, SCENARIO_LABEL, type ScenarioId } from '../core/scenarios'
 import { applyTheme, readTheme, type Theme } from '../core/theme'
 import { applySize, readSize, type DisplaySize } from '../core/display'
@@ -20,6 +21,8 @@ export default function AppShell() {
   const [menu, setMenu] = useState(false)
   const [theme, setTheme] = useState<Theme>(readTheme)
   const [size, setSize] = useState<DisplaySize>(readSize)
+  // ask = สิ่งที่กำลังถามยืนยันอยู่ (แทน window.confirm ที่ใช้ไม่ได้บน PWA)
+  const [ask, setAsk] = useState<null | 'toDemo' | 'toReal' | { restore: AppState; cross: boolean }>(null)
   const real = state.mode === 'real'
   const toast = useToast()
   const drafts = draftCount(state)
@@ -63,24 +66,11 @@ export default function AppShell() {
         <BottomSheet title={copy.menu.title} onClose={() => setMenu(false)}>
           <div className="rows">
             {real ? (
-              <button className="row" onClick={async () => {
-                // ปุ่มนี้ลบข้อมูลจริง — ข้อความต้องบอกอย่างนั้น ไม่ใช่ยืมของ 'เริ่มใช้จริง'
-                // และต้องได้ไฟล์สำรองก่อน ไม่งั้นข้อมูลเดือนหนึ่งหายโดยไม่มีทางกู้
-                if (!window.confirm(copy.menu.backToDemoConfirm)) return
-                if (!(await saveBackup(state))) {
-                  toast.push({ text: copy.menu.backupFailed, tone: 'danger' })
-                  return
-                }
-                resetDemo('default'); setMenu(false); nav('/app/today')
-              }}>{copy.menu.backToDemo}</button>
+              <button className="row" onClick={() => setAsk('toDemo')}>{copy.menu.backToDemo}</button>
             ) : (
               <>
                 <button className="row" onClick={() => { resetDemo(); setMenu(false) }}>{copy.menu.reset}</button>
-                <button className="row row--go" onClick={() => {
-                  if (!window.confirm(copy.menu.startRealConfirm)) return
-                  dispatch({ type: 'startReal' }); track('start_real')
-                  setMenu(false); nav('/app/onboarding')
-                }}>{copy.menu.startReal}</button>
+                <button className="row row--go" onClick={() => setAsk('toReal')}>{copy.menu.startReal}</button>
               </>
             )}
             <button className="row" onClick={async () => {
@@ -95,10 +85,7 @@ export default function AppShell() {
               if (!res) return
               if (!res.ok) { toast.push({ text: copy.menu.restoreBad[res.reason], tone: 'danger' }); return }
               // ไฟล์คนละโหมดกับที่ใช้อยู่ = กำลังจะทับข้อมูลจริงด้วยเดโม หรือกลับกัน
-              const crossMode = res.state.mode !== state.mode
-              if (!window.confirm(crossMode ? copy.menu.restoreCrossMode : copy.menu.restoreConfirm)) return
-              dispatch({ type: 'restore', state: res.state }); track('backup_restore')
-              setMenu(false); nav('/app/today'); toast.push({ text: copy.menu.restoreDone, tone: 'ok' })
+              setAsk({ restore: res.state, cross: res.state.mode !== state.mode })
             }}>{copy.menu.restore}</button>
             {state.clients[0] && (
               <button className="row" onClick={() => { setMenu(false); nav(`/client/${state.clients[0].id}`) }}>
@@ -145,6 +132,35 @@ export default function AppShell() {
         </BottomSheet>
       )}
 
+      {ask === 'toDemo' && (
+        <ConfirmSheet title={copy.menu.backToDemo} body={copy.menu.backToDemoConfirm}
+          confirmLabel={copy.menu.backToDemo} danger
+          onClose={() => setAsk(null)}
+          onConfirm={async () => {
+            // ต้องได้ไฟล์สำรองก่อน ไม่งั้นข้อมูลเดือนหนึ่งหายโดยไม่มีทางกู้
+            if (!(await saveBackup(state))) { toast.push({ text: copy.menu.backupFailed, tone: 'danger' }); return }
+            resetDemo('default'); setMenu(false); nav('/app/today')
+          }} />
+      )}
+      {ask === 'toReal' && (
+        <ConfirmSheet title={copy.menu.startReal} body={copy.menu.startRealConfirm}
+          confirmLabel={copy.menu.startReal}
+          onClose={() => setAsk(null)}
+          onConfirm={() => {
+            dispatch({ type: 'startReal' }); track('start_real')
+            setMenu(false); nav('/app/onboarding')
+          }} />
+      )}
+      {ask && typeof ask === 'object' && (
+        <ConfirmSheet title={copy.menu.restore}
+          body={ask.cross ? copy.menu.restoreCrossMode : copy.menu.restoreConfirm}
+          confirmLabel={copy.menu.restore} danger={ask.cross}
+          onClose={() => setAsk(null)}
+          onConfirm={() => {
+            dispatch({ type: 'restore', state: ask.restore }); track('backup_restore')
+            setMenu(false); nav('/app/today'); toast.push({ text: copy.menu.restoreDone, tone: 'ok' })
+          }} />
+      )}
     </div>
   )
 }

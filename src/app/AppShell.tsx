@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useStore } from '../core/store'
-import { urlParam } from '../core/urlParams'
 import { pickBackup, saveBackup } from './backup'
 import { SCHEMA } from '../core/store'
 import { useToast } from './components/Toast'
@@ -9,10 +8,10 @@ import { professionById } from '../professions'
 import { copy } from '../copy'
 import { draftCount } from '../core/selectors'
 import { BottomSheet, DemoBadge } from './components'
-import DevBar from './DevBar'
 import WaitlistSheet from '../platform/WaitlistSheet'
 import { SCENARIOS, SCENARIO_LABEL, type ScenarioId } from '../core/scenarios'
 import { applyTheme, readTheme, type Theme } from '../core/theme'
+import { applySize, readSize, type DisplaySize } from '../core/display'
 
 export default function AppShell() {
   const { state, dispatch, resetDemo, track } = useStore()
@@ -21,8 +20,8 @@ export default function AppShell() {
   const loc = useLocation()
   const [menu, setMenu] = useState(false)
   const [lead, setLead] = useState(false)
-  const [dev, setDev] = useState(() => urlParam('dev') === '1')
   const [theme, setTheme] = useState<Theme>(readTheme)
+  const [size, setSize] = useState<DisplaySize>(readSize)
   const real = state.mode === 'real'
   const toast = useToast()
   const drafts = draftCount(state)
@@ -44,7 +43,7 @@ export default function AppShell() {
   return (
     <div className="shell">
       <header className="shell__hd">
-        <b className="shell__brand">{prof.name}</b>
+        <b className="shell__brand">{copy.brand.name}</b>
         <div className="shell__hdr">
           {!real && <DemoBadge />}
           <button className="shell__menu" onClick={() => setMenu(true)} aria-label={copy.menu.title}>⋯</button>
@@ -65,8 +64,6 @@ export default function AppShell() {
           </NavLink>
         ))}
       </nav>
-
-      {dev && <DevBar onClose={() => setDev(false)} />}
 
       {menu && (
         <BottomSheet title={copy.menu.title} onClose={() => setMenu(false)}>
@@ -98,12 +95,23 @@ export default function AppShell() {
               dispatch({ type: 'restore', state: res.state }); track('backup_restore')
               setMenu(false); nav('/app/today'); toast.push({ text: copy.menu.restoreDone, tone: 'ok' })
             }}>{copy.menu.restore}</button>
-            <button className="row" onClick={() => { setDev(true); setMenu(false) }}>{copy.menu.dev}</button>
             {state.clients[0] && (
               <button className="row" onClick={() => { setMenu(false); nav(`/client/${state.clients[0].id}`) }}>
                 {copy.menu.clientView}
               </button>
             )}
+          </div>
+          <div className="fld">
+            <div className="fld__l">{copy.menu.size}</div>
+            <div className="chips">
+              {(['sm', 'lg', 'xl'] as DisplaySize[]).map((z) => (
+                <button key={z} className={`chip${size === z ? ' chip--on' : ''}`}
+                  aria-pressed={size === z}
+                  onClick={() => { setSize(z); applySize(z); track('size_switch', { size: z }) }}>
+                  {copy.menu.sizes[z]}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="fld">
             <div className="fld__l">{copy.menu.theme}</div>

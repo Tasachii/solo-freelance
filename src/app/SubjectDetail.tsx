@@ -24,6 +24,7 @@ export default function SubjectDetail() {
   const [editing, setEditing] = useState(false)
   const [buying, setBuying] = useState(false)
   const [stopping, setStopping] = useState(false)
+  const [removing, setRemoving] = useState(false)
   const [limit, setLimit] = useState(20)
 
   const s = subjectById(state, id)
@@ -82,6 +83,7 @@ export default function SubjectDetail() {
         <button className="btn btn--secondary btn--sm" onClick={() => nav(`/client/${s.clientId}`)}>{copy.detail.clientView}</button>
         <button className="btn btn--secondary btn--sm" onClick={() => nav(`/app/admin?tab=chat&chat=${s.clientId}`)}>{copy.detail.openChat}</button>
         {s.active && <button className="btn btn--ghost btn--sm" onClick={() => setStopping(true)}>{copy.subjects.stop}</button>}
+        <button className="btn btn--ghost btn--sm btn--danger-text" onClick={() => setRemoving(true)}>{copy.subjects.remove}</button>
       </div>
 
       <section className="card">
@@ -107,6 +109,24 @@ export default function SubjectDetail() {
             }}>{copy.common.confirm}</button>
           }>
           <p className="p">บันทึกว่าได้รับเงินค่าแพ็กใหม่แล้ว จะออกใบเสร็จและร่างข้อความแจ้ง{client?.name}ให้</p>
+        </BottomSheet>
+      )}
+
+      {removing && (
+        <BottomSheet title={copy.subjects.removeTitle} onClose={() => setRemoving(false)}
+          footer={
+            <div className="btnrow">
+              <button className="btn btn--ghost" onClick={() => setRemoving(false)}>{copy.common.cancel}</button>
+              <button className="btn btn--danger" onClick={() => {
+                dispatch({ type: 'deleteSubject', subjectId: s.id })
+                track('delete_subject')
+                setRemoving(false); nav('/app/subjects')
+                toast.push({ text: copy.subjects.removed, tone: 'warn' })
+              }}>{copy.subjects.remove}</button>
+            </div>
+          }>
+          <p className="p">{copy.subjects.removeWarn}</p>
+          <p className="hint">{copy.subjects.removeHint}</p>
         </BottomSheet>
       )}
 

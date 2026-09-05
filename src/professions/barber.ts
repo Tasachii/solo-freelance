@@ -1,6 +1,6 @@
 import type { ProfessionTemplate } from './types'
 const barber: ProfessionTemplate = {
-  id: 'barber', name: 'Solo Barber', status: 'coming_soon', icon: '💈',
+  id: 'barber', name: 'ช่างตัดผม', status: 'coming_soon', icon: '💈',
   tagline: 'คิว เตือนถึงเวลาตัด เก็บเงิน ใบเสร็จ ให้ช่างที่ทำร้านคนเดียว',
   defaultBilling: 'per_unit',
   vocab: {

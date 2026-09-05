@@ -2,7 +2,7 @@ import type { ProfessionTemplate } from './types'
 
 const tutor: ProfessionTemplate = {
   id: 'tutor',
-  name: 'Solo Tutor',
+  name: 'ติวเตอร์',
   status: 'live',
   icon: '📚',
   tagline: 'เช็คชื่อ คิดเงิน ส่งบิล LINE ตรวจสลิป ใบเสร็จ ทวงแทน — ให้ติวเตอร์ที่สอนคนเดียว',

@@ -59,7 +59,7 @@ export interface AppState {
   professionId: string
   scenarioId: string
   provider: { name: string; promptpayId: string }
-  today: ISODate // เดโมล็อกวัน เปลี่ยนได้จาก DevBar
+  today: ISODate // เดโมล็อกวันไว้ · โหมดจริงเดินตามเครื่อง
   clients: Client[]; subjects: Subject[]; units: ServiceUnit[]; completions: CompletionEvent[]
   invoices: Invoice[]; payments: Payment[]; receipts: Receipt[]; messages: Message[]; chats: ChatTurn[]
   waitlist: WaitlistEntry[]; events: EventLog[]

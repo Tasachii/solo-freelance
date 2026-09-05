@@ -26,6 +26,7 @@ export type Action =
   | { type: 'renewPackage'; subjectId: string }
   | { type: 'upsertSubject'; subject: Subject; clientName: string; lineId?: string }
   | { type: 'deactivateSubject'; subjectId: string }
+  | { type: 'deleteSubject'; subjectId: string }
   | { type: 'addUnit'; subjectId: string; time: string; label?: string }
   | { type: 'chat'; clientId: string; from: 'client' | 'provider'; text: string; viaAdmin?: boolean }
   | { type: 'waitlist'; entry: AppState['waitlist'][number] }
@@ -163,6 +164,35 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'onboarded':
       s = { ...s, onboarded: true }
       break
+    case 'deleteSubject': {
+      const sub = s.subjects.find((x) => x.id === action.subjectId)
+      if (!sub) break
+      const unitIds = new Set(s.units.filter((u) => u.subjectId === sub.id).map((u) => u.id))
+      const invIds = new Set(s.invoices.filter((i) => i.subjectId === sub.id).map((i) => i.id))
+      const payIds = new Set(s.payments.filter((p) => invIds.has(p.invoiceId)).map((p) => p.id))
+      // ลบทุกอย่างที่ห้อยอยู่กับคนนี้ ไม่ให้เหลือแถวกำพร้าที่ทำหน้าจอพัง
+      s = {
+        ...s,
+        subjects: s.subjects.filter((x) => x.id !== sub.id),
+        units: s.units.filter((u) => u.subjectId !== sub.id),
+        completions: s.completions.filter((c) => !unitIds.has(c.unitId)),
+        invoices: s.invoices.filter((i) => i.subjectId !== sub.id),
+        payments: s.payments.filter((p) => !invIds.has(p.invoiceId)),
+        receipts: s.receipts.filter((r) => !payIds.has(r.paymentId)),
+        messages: s.messages.filter((m) => m.subjectId !== sub.id),
+      }
+      // ผู้จ่ายที่ไม่เหลือคนเรียนแล้ว ลบทิ้งพร้อมแชท
+      const stillUsed = s.subjects.some((x) => x.clientId === sub.clientId)
+      if (!stillUsed) {
+        s = {
+          ...s,
+          clients: s.clients.filter((c) => c.id !== sub.clientId),
+          chats: s.chats.filter((c) => c.clientId !== sub.clientId),
+          messages: s.messages.filter((m) => m.clientId !== sub.clientId),
+        }
+      }
+      break
+    }
     case 'backedUp':
       s = { ...s, lastBackupAt: s.today }
       break

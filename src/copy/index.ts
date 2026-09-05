@@ -1,6 +1,6 @@
 // ข้อความ UI ทั่วไป — คอมโพเนนต์ห้ามพิมพ์ string เอง (spec ข้อ 8)
 export const copy = {
-  brand: { name: 'Solo', tagline: 'แอดมินให้คนทำงานคนเดียว' },
+  brand: { name: 'Solo Freelance', tagline: 'แอดมินให้คนที่ทำงานคนเดียว' },
   demoBadge: 'เดโม · ข้อมูลสมมติ',
   common: {
     save: 'บันทึก', cancel: 'ยกเลิก', close: 'ปิด', edit: 'แก้', send: 'ส่ง', skip: 'ข้าม',
@@ -14,17 +14,18 @@ export const copy = {
     startReal: 'เริ่มใช้จริง', backToDemo: 'กลับไปโหมดเดโม',
     startRealConfirm: 'ล้างข้อมูลตัวอย่างทั้งหมด แล้วเริ่มจากรายชื่อจริงของคุณ',
     realOn: 'โหมดใช้จริง',
-    dev: 'เปิด DevBar', clientView: 'ดูมุมมองผู้ปกครอง',
+    clientView: 'ดูมุมมองผู้ปกครอง',
     backup: 'สำรองข้อมูล', restore: 'กู้คืนจากไฟล์',
     backupDone: 'บันทึกไฟล์สำรองแล้ว', restoreDone: 'กู้คืนข้อมูลแล้ว',
     restoreConfirm: 'ข้อมูลตอนนี้จะถูกแทนที่ด้วยไฟล์สำรอง',
     restoreBad: { unreadable: 'ไฟล์นี้อ่านไม่ออก', wrongFile: 'ไม่ใช่ไฟล์สำรองของ Solo', wrongVersion: 'ไฟล์สำรองมาจากเวอร์ชันอื่น' },
     theme: 'ธีม', themes: { system: 'ตามเครื่อง', light: 'สว่าง', dark: 'มืด' },
+    size: 'ขนาดจอ', sizes: { sm: 'ปกติ', lg: 'ใหญ่', xl: 'จอฉาย' },
   },
   landing: {
     h1: 'แอดมินให้คนที่ทำงานคนเดียว',
     sub: 'แตะยืนยันว่าให้บริการเสร็จครั้งเดียว ที่เหลือ Solo ร่างให้หมด — คิดเงิน ส่งบิล ตรวจสลิป ออกใบเสร็จ ทวงแทน',
-    ctaPrimary: 'ลอง Solo Tutor (เดโม)',
+    ctaPrimary: 'ลองใช้ (เดโม)',
     ctaSecondary: 'ดูราคา',
     moneyLine: 'เงินเข้าบัญชีคุณโดยตรง · Solo ไม่ถือเงินของใคร',
     pickerTitle: 'เลือกอาชีพของคุณ',
@@ -102,6 +103,10 @@ export const copy = {
     fieldName: 'ชื่อ', fieldClient: 'ชื่อผู้จ่าย', fieldLine: 'LINE ID', fieldMode: 'วิธีเก็บเงิน',
     fieldRate: 'ราคาต่อครั้ง', fieldFlat: 'ยอดเหมาต่อเดือน', fieldPackTotal: 'จำนวนครั้ง', fieldPackPrice: 'ราคาแพ็ก',
     stop: 'หยุดเรียน', stopConfirm: 'หยุดเรียนคนนี้?',
+    remove: 'ลบออก', removeTitle: 'ลบคนนี้ออก?',
+    removeWarn: 'ลบถาวร — ประวัติ บิล และใบเสร็จของคนนี้จะหายไปด้วย ย้อนไม่ได้',
+    removeHint: 'ถ้าแค่หยุดสอนชั่วคราว ใช้ "หยุดเรียน" แทน ประวัติจะยังอยู่',
+    removed: 'ลบออกแล้ว',
   },
   detail: {
     thisMonth: 'เดือนนี้', estimate: 'ยอดประมาณการ', fromPackage: 'ตัดจากแพ็ก',

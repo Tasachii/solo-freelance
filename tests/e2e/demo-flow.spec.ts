@@ -17,7 +17,7 @@ test('หน้าแรกมีทางเข้าเดียว ไม่�
   await expect(page.locator('a[href$="/app/today"]')).toHaveCount(1)
 
   // อาชีพที่ยังไม่เปิดบอกให้รู้ได้ แต่ต้องไม่ทำเป็นตัวเลือกให้กด
-  await expect(page.locator('.soonline')).toContainText('Solo Nail')
+  await expect(page.locator('.soonline')).toContainText('ช่างเล็บ')
   await expect(page.locator('.picker__i')).toHaveCount(0)
 
   // ของสำหรับนำเสนอไม่ควรอยู่หน้าที่ผู้ใช้เข้ามาใช้งาน

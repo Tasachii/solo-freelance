@@ -11,6 +11,17 @@ const row = (cells: unknown[]): string => cells.map(esc).join(',')
 
 const STATUS_TH: Record<string, string> = copy.billing.status
 
+/** รวมสองตารางไว้ในไฟล์เดียว — มือถือบล็อกดาวน์โหลดไฟล์ที่สองที่ยิงตามมา */
+export function monthCsv(state: AppState, period: string): string {
+  return [
+    `# ${copy.billing.exportAttendance} ${periodThai(period)}`,
+    attendanceCsv(state, period).replace(BOM, ''),
+    '',
+    `# ${copy.billing.exportBilling} ${periodThai(period)}`,
+    billingCsv(state, period).replace(BOM, ''),
+  ].join('\n')
+}
+
 export function attendanceCsv(state: AppState, period: string): string {
   const lines = [['วันที่', 'เวลา', 'ชื่อ', 'ผู้จ่าย', 'รายการ', 'สถานะ'].join(',')]
   const rows = state.units

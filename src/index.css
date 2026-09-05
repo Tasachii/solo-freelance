@@ -83,7 +83,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .shell__main{flex:1;min-height:0;overflow-y:auto;padding-bottom:96px}
 .pane,.page{padding:var(--space-4)}
 
-.shell:has(.devbar) .tabbar{margin-bottom:44px}
 .tabbar{position:sticky;bottom:0;flex:none;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;
   gap:2px;padding:var(--space-1) var(--space-1) calc(var(--space-1) + env(safe-area-inset-bottom));
   background:var(--surface);border-top:1px solid var(--line)}
@@ -156,7 +155,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .srow{display:flex;align-items:center;gap:var(--space-3);width:100%;text-align:left;padding:var(--space-3);
   background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);min-height:var(--tap)}
 .srow__main{flex:1;min-width:0}
-.srow__name{display:block;font-weight:600}
+.srow__name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;font-weight:600}
 .srow__meta{display:block;font-size:var(--fs-small);color:var(--muted)}
 .srow__side{flex:none;font-weight:600}
 .badge{display:inline-block;margin-left:var(--space-2);padding:0 6px;border-radius:5px;
@@ -234,12 +233,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .qr__t b{display:block}
 .qr__t span{display:block;font-size:var(--fs-small);color:var(--muted)}
 
-.devbar{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;gap:6px;align-items:center;
-  padding:8px var(--space-3) calc(8px + env(safe-area-inset-bottom));background:var(--ink);color:var(--on-ink);
-  font-size:var(--fs-small);overflow-x:auto}
-.devbar button,.devbar select{min-height:34px;padding:0 10px;border-radius:6px;
-  background:var(--on-ink-soft);color:var(--on-ink);white-space:nowrap}
-.devbar__now{font-weight:700;white-space:nowrap}
 
 /* ── admin ──────────────────────────────────────────── */
 .msgs{list-style:none;margin:var(--space-3) 0 0;padding:0;display:grid;gap:var(--space-3)}
@@ -286,7 +279,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .sharecanvas{width:100%;height:auto;border-radius:var(--radius);border:1px solid var(--line)}
 .card--brand{background:var(--brand-soft);border-color:transparent}
 @media print{
-  .no-print,.tabbar,.shell__hd,.devbar,.toasts{display:none!important}
+  .no-print,.tabbar,.shell__hd,.toasts{display:none!important}
   body{background:#fff} /* พิมพ์ลงกระดาษ = ขาวเสมอ ไม่ใช้ token */
   .paper{border:none;padding:0}
 }
@@ -304,25 +297,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .land__cta{display:flex;gap:var(--space-2);flex-wrap:wrap;margin-top:var(--space-4)}
 .land__cta .btn,.land__sec--cta .btn,.plan__cta{text-decoration:none}
 .land__money{margin:var(--space-3) 0 0;font-size:var(--fs-small);color:var(--brand-ink)}
-.land__banner{margin:var(--space-4) 0 0;padding:10px var(--space-3);border-radius:var(--radius-sm);
-  background:var(--brand-soft);color:var(--brand-ink);font-size:var(--fs-small);font-weight:600}
 .land__sec{padding:var(--space-6) 0;border-top:1px solid var(--line)}
 .land__sec--cta{text-align:center}
 .land__h2{margin:0 0 var(--space-4);font-size:var(--fs-h2)}
-.land__why,.land__steps,.land__notes,.qa,.picker,.plans,.pitch__list{list-style:none;margin:0;padding:0}
-.land__why{display:grid;gap:var(--space-3)}
-@media(min-width:640px){.land__why{grid-template-columns:repeat(3,1fr)}}
-.land__why li{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
-  padding:var(--space-4);display:grid;gap:var(--space-2);align-content:start}
-.land__why b{font-size:var(--fs-body)}
-.land__why span{color:var(--muted);font-size:var(--fs-small)}
 .land__steps{display:grid;gap:var(--space-3)}
 .land__steps li{display:flex;gap:var(--space-3);align-items:flex-start}
 .land__num{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
   background:var(--brand-soft);color:var(--brand-ink);font-size:var(--fs-small);font-weight:700}
 .land__steps b{display:block}
 .land__steps span:not(.land__num){color:var(--muted);font-size:var(--fs-small)}
-.land__pitchlink{margin-top:var(--space-4);text-decoration:none}
 .land__last{margin:0 0 var(--space-3);font-weight:600}
 .land__notes{display:grid;gap:var(--space-2);margin-top:var(--space-4)}
 .land__notes li{color:var(--muted);font-size:var(--fs-small);padding-left:16px;position:relative}
@@ -331,28 +314,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   padding:var(--space-6) 0;border-top:1px solid var(--line);color:var(--muted);font-size:var(--fs-small)}
 .land__foot a{color:var(--brand)}
 
-.picker{display:grid;gap:var(--space-2)}
-.picker__i{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);
-  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
-.picker__i--live{border-color:var(--brand);background:var(--brand-soft)}
-.picker__icon{font-size:22px;line-height:1}
-.picker__txt{flex:1;min-width:0;display:grid;gap:2px}
-.picker__name{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap}
-.picker__soon{font-weight:600;font-size:var(--fs-micro);padding:2px 7px;border-radius:999px;
-  background:var(--line);color:var(--muted)}
-.picker__tag{color:var(--muted);font-size:var(--fs-small)}
-.picker__i .btn{flex:none;text-decoration:none}
 
 .tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-.engine{border-collapse:collapse;width:100%;min-width:520px;font-size:var(--fs-small)}
-.engine__cap{caption-side:bottom;padding-top:var(--space-3);color:var(--muted);
-  font-size:var(--fs-small);text-align:left}
-.engine th,.engine td{padding:10px var(--space-3);text-align:left;border-bottom:1px solid var(--line);
-  white-space:nowrap}
-.engine thead th{color:var(--muted);font-weight:600}
-.engine tbody th{color:var(--muted);font-weight:400}
-.engine tbody td{color:var(--ink)}
-.engine tbody tr:first-child td{font-weight:600}
 
 .toggle{display:inline-flex;align-items:center;gap:var(--space-2);min-height:var(--tap);
   font-size:var(--fs-small);color:var(--muted)}
@@ -377,20 +340,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   min-height:var(--tap);display:flex;align-items:center}
 .qa p{margin:0;padding:0 var(--space-4) var(--space-3);color:var(--muted);font-size:var(--fs-small)}
 
-.pitch__dots{list-style:none;display:flex;gap:var(--space-2);margin:0 0 var(--space-2);padding:0}
-.pitch__dot{width:100%;min-height:var(--tap);background:none;display:flex;align-items:center}
-.pitch__dot::after{content:'';display:block;width:100%;height:5px;border-radius:999px;background:var(--line)}
-.pitch__dot--on::after{background:var(--brand)}
-.pitch__dots li{flex:1}
-.pitch__list{display:grid;gap:var(--space-2)}
-.pitch__list li{display:flex;gap:var(--space-3);align-items:flex-start;padding:var(--space-3);
-  border-radius:var(--radius);border:1px solid transparent}
-.pitch__list li.is-on{background:var(--surface);border-color:var(--line)}
-.pitch__n{flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;
-  background:var(--line);color:var(--muted);font-size:var(--fs-micro);font-weight:700}
-.pitch__list li.is-on .pitch__n{background:var(--brand);color:var(--surface)}
-.pitch__list b{display:block}
-.pitch__list li>div>span{color:var(--muted);font-size:var(--fs-small)}
 
 /* ── client preview ─────────────────────────────────── */
 .page--client{max-width:560px;margin:0 auto;padding:var(--space-4)}
@@ -492,3 +441,17 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   border:1px solid var(--line);border-radius:var(--radius-sm);padding:4px 8px;text-align:center;
   font-size:var(--fs-small);color:var(--ink)}
 .fld2{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)}
+
+.msg__hd .dim{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52%}
+
+.paper__meta dd{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ป้ายบอกว่ากำลังใช้ข้อมูลจริง — ครูต้องแยกออกจากเดโมได้ตลอดเวลา */
+.realtag{padding:3px 9px;border-radius:999px;background:var(--ok-soft);color:var(--ok);
+  font-size:var(--fs-micro);font-weight:700;letter-spacing:.02em}
+
+/* โซนอันตราย — แยกออกจากปุ่มที่กดบ่อย */
+.danger-zone{margin-top:var(--space-6);padding-top:var(--space-4);border-top:1px solid var(--line);
+  display:grid;gap:var(--space-1);justify-items:start}
+/* หน่วยของตัวเลขในแถวรายชื่อ */
+.srow__unit{display:block;font-style:normal;font-size:var(--fs-micro);color:var(--faint,var(--muted));text-align:right}

@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useStore } from '../core/store'
+import { packageStatus } from '../core/ledger'
 import { professionById } from '../professions'
 import { copy } from '../copy'
 import { BottomSheet } from './components'
@@ -14,12 +15,15 @@ export default function SubjectSheet({ subject, onClose }: { subject?: Subject; 
   const client = subject ? state.clients.find((c) => c.id === subject.clientId) : undefined
   const b = subject?.billing
 
+  const seq = useRef(0)
   const [name, setName] = useState(subject?.name ?? '')
   const [clientName, setClientName] = useState(client?.name ?? '')
   const [lineId, setLineId] = useState(client?.lineId ?? '')
   const [mode, setMode] = useState<Mode>(b?.mode ?? 'per_unit')
   const [rate, setRate] = useState(String(b?.mode === 'per_unit' ? b.rate : 400))
   const [flat, setFlat] = useState(String(b?.mode === 'flat_monthly' ? b.amount : 3000))
+  // แพ็กที่ลูกค้าใช้ไปแล้ว การแก้จำนวน/ราคาทำให้ยอดคงเหลือกระโดดทันที — ต้องเตือนก่อน
+  const usedPack = subject && b?.mode === 'package' ? packageStatus(state, subject)?.used ?? 0 : 0
   const [pkTotal, setPkTotal] = useState(String(b?.mode === 'package' ? b.total : 10))
   const [pkPrice, setPkPrice] = useState(String(b?.mode === 'package' ? b.price : 3500))
   const [err, setErr] = useState<Record<string, string>>({})
@@ -44,8 +48,10 @@ export default function SubjectSheet({ subject, onClose }: { subject?: Subject; 
             purchasedAt: b?.mode === 'package' ? b.purchasedAt : state.today,
           }
 
-    const id = subject?.id ?? `s-${Date.now().toString(36)}`
-    const clientId = subject?.clientId ?? `c-${Date.now().toString(36)}`
+    // นับต่อท้ายด้วย เพราะเพิ่มสองคนติดกันในมิลลิวินาทีเดียว id จะชนกัน
+    const stamp = `${Date.now().toString(36)}${(seq.current += 1).toString(36)}`
+    const id = subject?.id ?? `s-${stamp}`
+    const clientId = subject?.clientId ?? `c-${stamp}`
     dispatch({
       type: 'upsertSubject',
       subject: {
@@ -110,7 +116,8 @@ export default function SubjectSheet({ subject, onClose }: { subject?: Subject; 
             <span className="fld__l">{copy.subjects.fieldPackTotal}</span>
             <div className="chips">
               {(prof.packagePresets ?? [10, 20]).map((n) => (
-                <button key={n} className={`chip${pkTotal === String(n) ? ' chip--on' : ''}`} onClick={() => setPkTotal(String(n))}>{n}</button>
+                <button key={n} className={`chip${pkTotal === String(n) ? ' chip--on' : ''}`}
+                  aria-pressed={pkTotal === String(n)} onClick={() => setPkTotal(String(n))}>{n}</button>
               ))}
             </div>
             <input className="inp" inputMode="numeric" value={pkTotal} onChange={(e) => setPkTotal(e.target.value)} />
@@ -119,6 +126,11 @@ export default function SubjectSheet({ subject, onClose }: { subject?: Subject; 
             <span className="fld__l">{copy.subjects.fieldPackPrice}</span>
             <input className="inp" inputMode="numeric" value={pkPrice} onChange={(e) => setPkPrice(e.target.value)} />
             {err.pk && <span className="fld__err">{err.pk}</span>}
+            {usedPack > 0 && (
+              <span className="hint hint--bad">
+                {copy.subjects.packEditWarn.replace('{used}', String(usedPack))}
+              </span>
+            )}
           </label>
         </>
       )}

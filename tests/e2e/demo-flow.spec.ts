@@ -39,9 +39,11 @@ test('หน้าราคามีปุ่มกลับหน้าแร�
   await expect(page.locator('.plans')).toHaveCount(0)
 })
 
-test('ตาราง engine อยู่หน้า pitch และสร้างจาก vocab จริง', async ({ page }) => {
+test('เส้นทางที่ไม่มีจริงพากลับหน้าแรก ไม่ใช่จอว่าง', async ({ page }) => {
+  // /pitch ถูกลบไปแล้ว — ของสำหรับนำเสนอไม่ใช่ของโปรดักต์
   await page.goto('#/pitch')
-  await expect(page.locator('.engine tbody tr').first()).toContainText('ผู้ปกครอง')
+  await expect(page.locator('.land__h1')).toBeVisible()
+  await expect(page.locator('.engine')).toHaveCount(0)
 })
 
 test('วันนี้มี 4 คาบ ยืนยันแล้ว 1 รอ 3', async ({ page }) => {

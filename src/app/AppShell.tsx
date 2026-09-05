@@ -82,6 +82,8 @@ export default function AppShell() {
     <div className="shell">
       <header className="shell__hd">
         <b className="shell__brand">{copy.brand.name}</b>
+        {/* ครูต้องรู้ตลอดว่ากำลังแตะข้อมูลจริงหรือข้อมูลสมมติ */}
+        {real && <span className="realtag">{copy.menu.realOn}</span>}
         <div className="shell__hdr">
           {!real && <DemoBadge />}
           <button className="shell__menu" onClick={() => setMenu(true)} aria-label={copy.menu.title}>⋯</button>

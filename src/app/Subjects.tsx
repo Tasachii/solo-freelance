@@ -110,8 +110,15 @@ export default function Subjects() {
                   </span>
                   {pk && <ProgressBar value={pk.used} max={pk.total} tone={tone} />}
                 </span>
-                <span className="srow__side num">
-                  {pk ? `${money(pk.price)}` : money(currentEstimate(state, s, period))}
+                {/* เดิมเป็นตัวเลขเปล่า ๆ ที่หมายถึงคนละอย่างในแต่ละแถว */}
+                <span className="srow__side">
+                  <b className="num">{pk ? money(pk.price) : money(currentEstimate(state, s, period))}</b>
+                  <i className="srow__unit">
+                    {pk ? copy.subjects.unitPack
+                      : s.billing.mode === 'per_unit' ? copy.subjects.unitPer
+                        : s.billing.mode === 'flat_monthly' ? copy.subjects.unitMonth
+                          : copy.subjects.unitEst}
+                  </i>
                 </span>
               </button>
             </li>

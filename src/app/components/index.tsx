@@ -67,7 +67,17 @@ export function BottomSheet(
 
   // Escape ผูกครั้งเดียว อ่าน onClose ล่าสุดผ่าน ref
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeRef.current() }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { closeRef.current(); return }
+      if (e.key !== 'Tab') return
+      // aria-modal บอกว่าเป็น modal แล้วต้องทำให้จริง ไม่งั้น Tab หลุดไปหน้าหลัง
+      const f = ref.current?.querySelectorAll<HTMLElement>(
+        'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')
+      if (!f?.length) return
+      const first = f[0], last = f[f.length - 1]
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])

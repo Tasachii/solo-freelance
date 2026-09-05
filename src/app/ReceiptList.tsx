@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../core/store'
 import { copy } from '../copy'
 import { subjectById } from '../core/ledger'
-import { attendanceCsv, billingCsv, download } from '../core/export'
+import { download, monthCsv } from '../core/export'
 import { dateThai, money, periodOf, periodThaiFull } from '../core/format'
 import { EmptyState } from './components'
 import { useToast } from './components/Toast'
@@ -56,8 +56,7 @@ export default function ReceiptList() {
       )}
 
       <button className="btn btn--secondary btn--block" style={{ marginTop: 'var(--space-4)' }} onClick={() => {
-        download(attendanceCsv(state, period), `attendance-${period}.csv`, 'text/csv;charset=utf-8')
-        window.setTimeout(() => download(billingCsv(state, period), `billing-${period}.csv`, 'text/csv;charset=utf-8'), 350)
+        download(monthCsv(state, period), `solo-${period}.csv`, 'text/csv;charset=utf-8')
         track('export_csv', { period }); toast.push({ text: copy.toast.exported, tone: 'ok' })
       }}>{copy.billing.exportCsv}</button>
     </div>

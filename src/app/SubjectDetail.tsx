@@ -83,7 +83,14 @@ export default function SubjectDetail() {
         <button className="btn btn--secondary btn--sm" onClick={() => nav(`/client/${s.clientId}`)}>{copy.detail.clientView}</button>
         <button className="btn btn--secondary btn--sm" onClick={() => nav(`/app/admin?tab=chat&chat=${s.clientId}`)}>{copy.detail.openChat}</button>
         {s.active && <button className="btn btn--ghost btn--sm" onClick={() => setStopping(true)}>{copy.subjects.stop}</button>}
-        <button className="btn btn--ghost btn--sm btn--danger-text" onClick={() => setRemoving(true)}>{copy.subjects.remove}</button>
+      </div>
+
+      {/* แยกปุ่มลบออกมาท้ายหน้า — เดิมอยู่ติด "หยุดเรียน" และเงียบกว่าปุ่มข้าง ๆ จึงกดพลาดง่าย */}
+      <div className="danger-zone">
+        <button className="btn btn--ghost btn--sm btn--danger-text" onClick={() => setRemoving(true)}>
+          {copy.subjects.remove}
+        </button>
+        <span className="hint">{copy.subjects.removeHint}</span>
       </div>
 
       <section className="card">

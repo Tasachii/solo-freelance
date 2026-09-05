@@ -16,7 +16,6 @@ import ReceiptList from './app/ReceiptList'
 import Onboarding from './app/Onboarding'
 import Receipt from './app/Receipt'
 import ClientPreview from './app/ClientPreview'
-import Pitch from './app/Pitch'
 
 export default function App() {
   const { didReset, track } = useStore()
@@ -29,7 +28,6 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/pricing" element={<Pricing />} />
-      <Route path="/pitch" element={<Pitch />} />
       <Route path="/receipt/:id" element={<Receipt />} />
       <Route path="/client/:clientId" element={<ClientPreview />} />
       <Route path="/app" element={<AppShell />}>

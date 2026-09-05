@@ -25,9 +25,14 @@ export function dashboard(state: AppState, period: string): Dashboard {
     .filter((p) => periodOf(p.paidAt) === period)
     .reduce((n, p) => n + p.amount, 0)
 
+  // จ่ายบางส่วนแล้วต้องเหลือค้างเท่าส่วนที่ยังไม่ได้ ไม่ใช่เต็มใบ
+  // ไม่งั้นเงิน 1,000 ที่รับมาจะถูกนับทั้งใน 'เข้าแล้ว' และ 'ค้าง' พร้อมกัน
   const outstanding = state.invoices
     .filter((i) => i.status === 'sent' || i.status === 'overdue')
-    .reduce((n, i) => n + i.total, 0)
+    .reduce((n, i) => {
+      const paid = state.payments.filter((p) => p.invoiceId === i.id).reduce((m, p) => m + p.amount, 0)
+      return n + Math.max(i.total - paid, 0)
+    }, 0)
 
   // 1) บิลที่เก็บได้หลังเคยทวง
   let dunned = 0
@@ -80,7 +85,10 @@ export const clientsWithChats = (state: AppState): string[] => {
 export function invoiceToActOn(state: AppState, subjectId: string, period: string): Invoice | undefined {
   const mine = state.invoices.filter((i) => i.subjectId === subjectId && i.kind === 'monthly')
   const rank = (i: Invoice): number =>
-    i.status === 'overdue' ? 0 : i.status === 'sent' ? 1 : i.period === period ? 2 : 3
+    i.status === 'overdue' ? 0
+      : i.status === 'sent' ? 1
+        : i.status === 'paid' ? 4               // จ่ายแล้วไม่ต้องลงมือทำอะไร ไปท้ายสุด
+          : i.period === period ? 2 : 3
   return [...mine].sort((a, b) =>
     rank(a) - rank(b) || b.period.localeCompare(a.period))[0]
 }

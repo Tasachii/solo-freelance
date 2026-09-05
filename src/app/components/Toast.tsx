@@ -18,7 +18,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     seq.current += 1
     const id = seq.current
     const item: ToastItem = { ...t, id }
-    setItems((prev) => [...prev, item].slice(-2)) // ซ้อนได้ไม่เกิน 2
+    // เบียดเฉพาะตัวที่ไม่มีปุ่มถอย — ทิ้ง undo ไปคือทิ้งทางเดียวที่ผู้ใช้แก้ได้
+    setItems((prev) => {
+      const next = [...prev, item]
+      if (next.length <= 3) return next
+      const i = next.findIndex((x) => !x.action)
+      return i === -1 ? next.slice(-3) : [...next.slice(0, i), ...next.slice(i + 1)]
+    })
     // ตั้งเวลาของตัวเองตอนเกิด — ถ้าไปตั้งใน effect ที่ผูกกับ items
     // toast ใหม่จะรีเซ็ตเวลาของอันเก่า ทำให้ค้างทับแถบแท็บ
     timers.current.push(window.setTimeout(

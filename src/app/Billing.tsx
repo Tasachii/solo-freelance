@@ -8,7 +8,7 @@ import { diffDays } from '../core/format'
 import { dashboard, invoiceToActOn } from '../core/selectors'
 import { closableSubjects } from '../core/billing'
 import { packageStatus } from '../core/ledger'
-import { attendanceCsv, billingCsv, download } from '../core/export'
+import { download, monthCsv } from '../core/export'
 import { receiptOfInvoice } from '../core/receipts'
 import { money, periodOf, periodThaiFull } from '../core/format'
 import { BottomSheet, EmptyState, Skeleton, StatCard } from './components'
@@ -121,8 +121,8 @@ export default function Billing() {
       <div className="btnrow">
         <button className="btn btn--secondary btn--sm" onClick={() => nav('/app/receipts')}>{copy.billing.allReceipts}</button>
         <button className="btn btn--secondary btn--sm" onClick={() => {
-          download(attendanceCsv(state, period), `attendance-${period}.csv`, 'text/csv;charset=utf-8')
-          window.setTimeout(() => download(billingCsv(state, period), `billing-${period}.csv`, 'text/csv;charset=utf-8'), 350)
+          // ไฟล์เดียว — มือถือบล็อกดาวน์โหลดตัวที่สองที่ยิงตามมา แต่ toast บอกว่าสำเร็จ
+          download(monthCsv(state, period), `solo-${period}.csv`, 'text/csv;charset=utf-8')
           track('export_csv', { period }); toast.push({ text: copy.toast.exported, tone: 'ok' })
         }}>{copy.billing.exportCsv}</button>
       </div>

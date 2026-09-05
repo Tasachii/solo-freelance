@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildScenario } from '../../src/core/scenarios'
+import { reducer } from '../../src/core/store'
 import { dashboard, invoiceToActOn } from '../../src/core/selectors'
 import { complete, unitsOn } from '../../src/core/ledger'
 import { closableSubjects } from '../../src/core/billing'
@@ -42,5 +43,32 @@ describe('ใบที่ต้องลงมือทำ', () => {
     const shown = invoiceToActOn(s, 's1', '2025-09')!
     expect(shown.period).toBe('2025-09')
     expect(shown.status).toBe('draft')
+  })
+})
+
+describe('ยอดค้างกับใบที่ต้องลงมือทำ', () => {
+  it('จ่ายบางส่วนแล้ว ยอดค้างต้องเหลือเฉพาะส่วนที่ยังไม่ได้', () => {
+    let s = buildScenario('default')
+    const inv = s.invoices.find((i) => i.status === 'sent' || i.status === 'overdue')!
+    const before = dashboard(s, '2025-09').outstanding
+
+    s = reducer(s, { type: 'recordPayment', invoiceId: inv.id, amount: 1000, slipVerified: true })
+    const after = dashboard(s, '2025-09')
+    expect(after.outstanding).toBe(before - 1000)
+    expect(after.received).toBe(1000)
+    // เงินก้อนเดียวห้ามอยู่สองฝั่งพร้อมกัน
+    expect(after.outstanding + after.received).toBe(before)
+  })
+
+  it('ใบที่จ่ายแล้วต้องไม่แย่งที่ร่างของเดือนนี้', () => {
+    let s = buildScenario('default')
+    const paidNow = {
+      id: 'inv-paid-now', clientId: 'c1', subjectId: 's1', period: '2025-09', kind: 'monthly' as const,
+      lines: [{ description: 'x', qty: 1, unitPrice: 400, amount: 400 }],
+      total: 400, status: 'paid' as const, createdAt: s.today,
+    }
+    const draftNow = { ...paidNow, id: 'inv-draft-now', status: 'draft' as const }
+    s = { ...s, invoices: [...s.invoices, paidNow, draftNow] }
+    expect(invoiceToActOn(s, 's1', '2025-09')!.id).toBe('inv-draft-now')
   })
 })

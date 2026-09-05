@@ -98,7 +98,8 @@ export default function WaitlistSheet({ preselect, onClose }: { preselect?: stri
         <span className="fld__l">{copy.waitlist.size}</span>
         <div className="chips">
           {copy.waitlist.sizes.map((sz) => (
-            <button key={sz} className={`chip${size === sz ? ' chip--on' : ''}`} onClick={() => setSize(sz)}>{sz}</button>
+            <button key={sz} className={`chip${size === sz ? ' chip--on' : ''}`}
+              aria-pressed={size === sz} onClick={() => setSize(sz)}>{sz}</button>
           ))}
         </div>
       </div>

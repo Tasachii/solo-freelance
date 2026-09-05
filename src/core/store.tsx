@@ -1,5 +1,5 @@
 import {
-  createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode,
+  createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode,
 } from 'react'
 import type { AppState, Message, Subject } from './types'
 import { buildReal, buildScenario, isScenario } from './scenarios'
@@ -319,10 +319,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const urlScenario = useMemo(() => urlParam('scenario'), [])
   const initial = useMemo(() => hydrate(urlScenario), [urlScenario])
   const [state, dispatch] = useReducer(reducer, initial.state)
-  const [hydrated, setHydrated] = useState(false)
+  // hydrate() ทำงานแบบ synchronous ตั้งแต่ useMemo ข้างบน ข้อมูลจึงพร้อมก่อนวาดเฟรมแรก
+  // ตั้ง true เลย ไม่ต้องหน่วง 300ms ให้ทุกแท็บโชว์ skeleton บนของที่มีอยู่แล้ว
+  const hydrated = true
   const timer = useRef<number | undefined>(undefined)
-
-  useEffect(() => { const t = window.setTimeout(() => setHydrated(true), 300); return () => window.clearTimeout(t) }, [])
 
   // PWA ที่ติดตั้งลงจอมักถูกเปิดค้างข้ามคืน — ถ้าไม่เดินวันเอง
   // เช้าวันใหม่ครูจะยังเห็นคาบเมื่อวาน และเช็คชื่อลงวันผิด

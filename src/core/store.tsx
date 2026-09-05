@@ -8,7 +8,7 @@ import { todayISO } from './format'
 import { isWellFormed } from './backup'
 import { urlParam } from './urlParams'
 import { closableSubjects, markOverdue } from './billing'
-import { deriveDrafts, refreshDrafts, applySend } from './messages'
+import { deriveDrafts, refreshDrafts, retractDrafts, applySend } from './messages'
 import { complete as ledgerComplete, packageUnitPrice, renewPackage, uncomplete } from './ledger'
 import { issueReceipt } from './receipts'
 
@@ -253,6 +253,8 @@ export function reducer(state: AppState, action: Action): AppState {
   }
 
   s = markOverdue(s)
+  // ถอนก่อน แล้วค่อยสะกิดตัวเลข — ไม่งั้นจะไป render ร่างที่กำลังจะถูกถอนอยู่ดี
+  s = { ...s, messages: retractDrafts(s) }
   s = { ...s, messages: refreshDrafts(s) }
   const add = deriveDrafts(s)
   if (add.length) s = { ...s, messages: [...s.messages, ...add] }
@@ -297,6 +299,7 @@ function hydrate(scenarioFromUrl: string | null): { state: AppState; didReset: b
 
 function normalize(s: AppState): AppState {
   let withOverdue = markOverdue(s)
+  withOverdue = { ...withOverdue, messages: retractDrafts(withOverdue) }
   withOverdue = { ...withOverdue, messages: refreshDrafts(withOverdue) }
   const add = deriveDrafts(withOverdue)
   return add.length ? { ...withOverdue, messages: [...withOverdue.messages, ...add] } : withOverdue

@@ -28,6 +28,15 @@ export default function Onboarding() {
   const [pp, setPp] = useState(state.provider.promptpayId)
   const [text, setText] = useState('')
   const [mode, setMode] = useState<BillingMode['mode']>('per_unit')
+  // ราคาเริ่มต้นที่แก้ได้ก่อนกดเริ่ม — เดิมล็อกไว้ ครูที่คิดคนละราคาต้องไปแก้ทีละคน
+  const [rate, setRate] = useState('400')
+  const [flat, setFlat] = useState('3000')
+  const [packTotal, setPackTotal] = useState('10')
+  const [packPrice, setPackPrice] = useState('3500')
+  const num = (v: string) => Number(v.replace(/[,\s]/g, ''))
+  const priceOk = mode === 'per_unit' ? num(rate) > 0
+    : mode === 'flat_monthly' ? num(flat) > 0
+      : num(packTotal) > 0 && num(packPrice) > 0
 
   const rows = useMemo(() => parseRoster(text), [text])
   const good = rows.filter((r) => !r.error)
@@ -35,9 +44,9 @@ export default function Onboarding() {
   const finish = () => {
     dispatch({ type: 'setProvider', name: name.trim() || state.provider.name, promptpayId: pp.trim() })
     const billing: BillingMode =
-      mode === 'per_unit' ? { mode: 'per_unit', rate: 400 }
-        : mode === 'flat_monthly' ? { mode: 'flat_monthly', amount: 3000 }
-          : { mode: 'package', total: 10, price: 3500, purchasedAt: state.today }
+      mode === 'per_unit' ? { mode: 'per_unit', rate: num(rate) }
+        : mode === 'flat_monthly' ? { mode: 'flat_monthly', amount: num(flat) }
+          : { mode: 'package', total: num(packTotal), price: num(packPrice), purchasedAt: state.today }
     if (good.length) dispatch({ type: 'bulkAddSubjects', rows: good.map(({ name: n, clientName, lineId }) => ({ name: n, clientName, lineId })), billing })
     dispatch({ type: 'onboarded' })
     track('onboarding_finish', { count: good.length })
@@ -101,7 +110,33 @@ export default function Onboarding() {
             </div>
           </div>
 
-          <button className="btn btn--primary btn--block" disabled={good.length === 0} onClick={finish}>
+          {mode === 'per_unit' && (
+            <label className="fld">
+              <span className="fld__l">{copy.subjects.fieldRate}</span>
+              <input className="inp" inputMode="numeric" value={rate} onChange={(e) => setRate(e.target.value)} />
+            </label>
+          )}
+          {mode === 'flat_monthly' && (
+            <label className="fld">
+              <span className="fld__l">{copy.subjects.fieldFlat}</span>
+              <input className="inp" inputMode="numeric" value={flat} onChange={(e) => setFlat(e.target.value)} />
+            </label>
+          )}
+          {mode === 'package' && (
+            <div className="fld2">
+              <label className="fld">
+                <span className="fld__l">{copy.subjects.fieldPackTotal}</span>
+                <input className="inp" inputMode="numeric" value={packTotal} onChange={(e) => setPackTotal(e.target.value)} />
+              </label>
+              <label className="fld">
+                <span className="fld__l">{copy.subjects.fieldPackPrice}</span>
+                <input className="inp" inputMode="numeric" value={packPrice} onChange={(e) => setPackPrice(e.target.value)} />
+              </label>
+            </div>
+          )}
+          <span className="hint">{copy.subjects.priceHint}</span>
+
+          <button className="btn btn--primary btn--block" disabled={good.length === 0 || !priceOk} onClick={finish}>
             {copy.onboarding.finish} ({good.length})
           </button>
           {/* ครูที่ไม่มีลิสต์อยู่ในมือ ต้องออกไปเพิ่มทีละคนได้ ไม่ใช่ถูกขังหรือถูกพากลับเดโม */}

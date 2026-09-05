@@ -77,3 +77,7 @@ npm run dev
 `WAITLIST_ENDPOINT` ใน `src/platform/config.ts` ว่างไว้ = ข้อมูลถูก log ลง console เท่านั้น
 ไม่ถูกส่งออกไปไหน ใส่ URL ของ Google Form `formResponse` และแก้ `WAITLIST_FIELDS`
 ให้ตรงกับ entry id จริงเมื่อพร้อมเก็บข้อมูล
+
+## สัญญาอนุญาต
+
+MIT — ดูไฟล์ [LICENSE](LICENSE)

@@ -136,7 +136,7 @@ export default function Today() {
           onClose={() => setMoving(null)}
           footer={
             <div className="btnrow">
-              <button className="btn btn--primary" onClick={() => {
+              <button className="btn btn--primary" disabled={!mDate || !mTime || mDate < state.today} onClick={() => {
                 draftNotice(movingUnit.id, 'moved', { date: mDate, time: mTime })
                 dispatch({ type: 'rescheduleUnit', unitId: movingUnit.id, date: mDate, time: mTime })
                 track('unit_rescheduled')
@@ -147,7 +147,9 @@ export default function Today() {
           }>
           <label className="fld">
             <span className="fld__l">{copy.today.moveDate}</span>
-            <input className="inp" type="date" value={mDate} onChange={(e) => setMDate(e.target.value)} />
+            {/* Android ล้างช่องวันที่ได้ ถ้าปล่อยผ่าน scheduledAt จะเป็น '' แล้วคาบหายถาวร */}
+            <input className="inp" type="date" min={state.today} value={mDate}
+              onChange={(e) => setMDate(e.target.value)} />
           </label>
           <label className="fld">
             <span className="fld__l">{copy.today.moveTime}</span>

@@ -190,6 +190,44 @@ export function refreshDrafts(state: AppState): Message[] {
  * สร้าง draft ที่ยังไม่มี — ไม่สร้างซ้ำถ้า dedupeKey เคยมีแล้ว (ไม่ว่าสถานะไหน)
  * reminder ระดับสูงกว่า = key ใหม่ จึงสร้างได้อีก
  */
+/**
+ * ร่างยังมีเหตุผลให้มีอยู่ไหม — ใช้เงื่อนไขชุดเดียวกับตอน deriveDrafts สร้างมัน
+ * ร่างที่ผู้ใช้ส่งหรือข้ามไปแล้วไม่แตะ เพราะนั่นคือการตัดสินใจของเขา
+ */
+function stillStands(state: AppState, m: Message): boolean {
+  const invOf = (id: unknown) => state.invoices.find((i) => i.id === id)
+
+  if (m.kind === 'invoice') {
+    const inv = invOf(m.meta?.invoiceId)
+    return !!inv && inv.kind === 'monthly' && inv.status === 'draft'
+  }
+  if (m.kind === 'reminder') {
+    const inv = invOf(m.meta?.invoiceId)
+    if (!inv || (inv.status !== 'sent' && inv.status !== 'overdue')) return false
+    return ladderFor(state, inv) === m.meta?.ladder
+  }
+  if (m.kind === 'renewal' || m.kind === 'renewal_exhausted') {
+    const subject = m.subjectId ? subjectById(state, m.subjectId) : undefined
+    if (!subject?.active) return false
+    const pk = packageStatus(state, subject)
+    if (!pk) return false
+    return m.kind === 'renewal_exhausted'
+      ? pk.overBy >= 1
+      : pk.overBy === 0 && pk.remaining >= 1 && pk.remaining <= 2
+  }
+  // receipt ออกแล้วออกเลย · moved/cancelled/summary/faq_reply เกิดจากการกระทำ ไม่ใช่เงื่อนไข
+  return true
+}
+
+/**
+ * ถอนร่างที่เงื่อนไขหายไปแล้ว
+ * ไม่มีขั้นนี้ ครูที่กด "แก้" ถอนเช็คชื่อจะเหลือร่างที่เขียนว่า
+ * "วันนี้เรียนเป็นครั้งที่ 0 นอกแพ็ก" ค้างรอให้กดส่งหาผู้ปกครอง
+ */
+export function retractDrafts(state: AppState): Message[] {
+  return state.messages.filter((m) => m.status !== 'draft' || stillStands(state, m))
+}
+
 export function deriveDrafts(state: AppState): Message[] {
   const add: Message[] = []
   const seen = new Set(state.messages.map((m) => m.dedupeKey))

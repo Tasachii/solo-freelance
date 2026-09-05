@@ -117,6 +117,7 @@ export const copy = {
     emptyTitle: 'ยังไม่มีรายชื่อ', noneInFilter: 'ไม่พบรายชื่อในกลุ่มนี้', addOneByOne: 'เพิ่มทีละคน', pasteExcel: 'วางรายชื่อจาก Excel',
     fieldName: 'ชื่อ', fieldClient: 'ชื่อผู้จ่าย', fieldLine: 'LINE ID', fieldMode: 'วิธีเก็บเงิน',
     fieldRate: 'ราคาต่อครั้ง', fieldFlat: 'ยอดเหมาต่อเดือน', fieldPackTotal: 'จำนวนครั้ง', fieldPackPrice: 'ราคาแพ็ก',
+    priceHint: 'ตั้งเป็นค่าเริ่มต้นให้ทุกคน แก้รายคนทีหลังได้',
     stop: 'หยุดเรียน', stopConfirm: 'หยุดเรียนคนนี้?',
     remove: 'ลบออก', removeTitle: 'ลบคนนี้ออก?',
     removeWarn: 'ลบถาวร — ประวัติ บิล และใบเสร็จของคนนี้จะหายไปด้วย ย้อนไม่ได้',
@@ -148,6 +149,7 @@ export const copy = {
     firstMonthHint: 'เริ่มใช้เดือนแรก ตัวเลขจะชัดสิ้นเดือน',
     share: 'แชร์การ์ด',
     status: { draft: 'ยังไม่ส่ง', sent: 'ส่งแล้ว', overdue: 'ค้างจ่าย', paid: 'จ่ายแล้ว' },
+    recoveredHow: 'นับจากบิลที่เก็บได้หลังทวง · ครั้งที่ระบบนับให้ · และครั้งที่เกินแพ็กซึ่งจับได้',
     dash: { expected: 'รายได้ที่ควรได้', received: 'เข้าแล้ว', outstanding: 'ค้าง', recovered: 'Solo ช่วยไว้' },
   },
   admin: {

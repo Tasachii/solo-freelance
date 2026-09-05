@@ -5,6 +5,7 @@ import type { AppState, Message, Subject } from './types'
 import { buildReal, buildScenario, isScenario } from './scenarios'
 import { appendEvent } from './events'
 import { todayISO } from './format'
+import { isWellFormed } from './backup'
 import { urlParam } from './urlParams'
 import { closableSubjects, markOverdue } from './billing'
 import { deriveDrafts, refreshDrafts, applySend } from './messages'
@@ -197,7 +198,9 @@ export function reducer(state: AppState, action: Action): AppState {
       s = { ...s, lastBackupAt: s.today }
       break
     case 'restore':
-      s = action.state
+      // ไฟล์เก็บวันที่สำรองไว้ ถ้าเอามาทั้งก้อน 'วันนี้' จะแช่แข็งอยู่วันนั้น
+      // เช็คชื่อทุกคาบหลังจากนี้จะลงวันผิดโดยไม่มีอะไรฟ้อง
+      s = action.state.mode === 'real' ? { ...action.state, today: todayISO() } : action.state
       break
     case 'rescheduleUnit': {
       const u = s.units.find((x) => x.id === action.unitId)
@@ -249,11 +252,12 @@ export function reducer(state: AppState, action: Action): AppState {
  */
 export function migrate(raw: unknown): AppState | null {
   const s = raw as (Omit<Partial<AppState>, 'schemaVersion'> & { schemaVersion?: number })
-  if (!s || !Array.isArray(s.subjects)) return null
-  if (s.schemaVersion === 3) {
-    return { ...(s as AppState), schemaVersion: 4, mode: 'demo' }
-  }
-  return s.schemaVersion === SCHEMA ? (s as AppState) : null
+  if (!s || typeof s !== 'object') return null
+  const v3 = s.schemaVersion === 3
+  const candidate = v3 ? { ...(s as AppState), schemaVersion: 4 as const, mode: 'demo' as const } : (s as AppState)
+  if (!v3 && s.schemaVersion !== SCHEMA) return null
+  // ตรวจครบทุก collection — ขาดตัวเดียวแล้วปล่อยผ่าน คือจอขาวตอน normalize
+  return isWellFormed(candidate) ? candidate : null
 }
 
 function hydrate(scenarioFromUrl: string | null): { state: AppState; didReset: boolean } {
@@ -264,7 +268,12 @@ function hydrate(scenarioFromUrl: string | null): { state: AppState; didReset: b
     const raw = localStorage.getItem(KEY)
     if (!raw) return { state: normalize(buildScenario('default')), didReset: false }
     const saved = migrate(JSON.parse(raw))
-    if (!saved) return { state: normalize(buildScenario('default')), didReset: true }
+    if (!saved) {
+      // ของเดิมกำลังจะถูกเขียนทับใน 300ms — เก็บสำเนาดิบไว้ก่อน
+      // ครูที่ข้อมูลเสียจะได้ยังมีอะไรให้กู้ ไม่ใช่หายไปเฉย ๆ พร้อม toast 3 วินาที
+      try { localStorage.setItem(`${KEY}-broken-${Date.now()}`, raw) } catch { /* เต็มก็ปล่อย */ }
+      return { state: normalize(buildScenario('default')), didReset: true }
+    }
     // โหมดจริงต้องเดินวันตามเครื่อง ไม่งั้นเปิดพรุ่งนี้ยังเห็นคาบของเมื่อวาน
     const dated = saved.mode === 'real' ? { ...saved, today: todayISO() } : saved
     return { state: normalize(dated), didReset: false }

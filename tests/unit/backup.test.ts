@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { BACKUP_FORMAT, daysSinceBackup, fromBackup, toBackup } from '../../src/core/backup'
 import { buildScenario } from '../../src/core/scenarios'
 import { reducer, SCHEMA } from '../../src/core/store'
-import { diffDays } from '../../src/core/format'
+import { diffDays, todayISO } from '../../src/core/format'
 import { copy } from '../../src/copy'
 
 const s0 = buildScenario('default')
@@ -69,5 +69,44 @@ describe('ข้อความเตือนอ่านรู้เรื่�
     const shown = copy.billing.backupWarn.replace('{days}', String(daysSinceBackup(s, '2025-09-02', diffDays)))
     expect(shown).toContain('13 วัน')
     expect(shown).not.toMatch(/\{days\}/)
+  })
+})
+
+describe('ไฟล์ที่ขาดครึ่งต้องไม่ผ่าน', () => {
+  const wrap = (app: unknown) => JSON.stringify({ format: BACKUP_FORMAT, exportedAt: 'x', app })
+
+  it('มีแค่ subjects แต่ขาด collection อื่น = ปฏิเสธ ไม่ใช่ปล่อยไปทำจอขาว', () => {
+    expect(fromBackup(wrap({ schemaVersion: SCHEMA, subjects: [] }), SCHEMA))
+      .toEqual({ ok: false, reason: 'wrongFile' })
+  })
+
+  it('ขาด messages อย่างเดียวก็ไม่ผ่าน — normalize วนลูปมันทุกครั้ง', () => {
+    const app = JSON.parse(JSON.stringify(s0)) as Record<string, unknown>
+    delete app.messages
+    expect(fromBackup(wrap(app), SCHEMA)).toEqual({ ok: false, reason: 'wrongFile' })
+  })
+
+  it('ขาด counters ก็ไม่ผ่าน — เลขที่ใบเสร็จเดินต่อไม่ได้', () => {
+    const app = JSON.parse(JSON.stringify(s0)) as Record<string, unknown>
+    delete app.counters
+    expect(fromBackup(wrap(app), SCHEMA)).toEqual({ ok: false, reason: 'wrongFile' })
+  })
+
+  it('ไฟล์ครบถ้วนยังผ่านเหมือนเดิม', () => {
+    expect(fromBackup(wrap(s0), SCHEMA).ok).toBe(true)
+  })
+})
+
+describe('กู้คืนแล้ววันต้องไม่แช่แข็ง', () => {
+  it('ไฟล์โหมดจริงที่สำรองไว้สัปดาห์ก่อน กู้แล้ว today ต้องเป็นวันนี้', () => {
+    const old = { ...s0, mode: 'real' as const, today: '2026-08-01' }
+    const after = reducer(s0, { type: 'restore', state: old })
+    expect(after.today).toBe(todayISO())
+    expect(after.mode).toBe('real')
+  })
+
+  it('ไฟล์เดโมยังคงวันที่ล็อกไว้ตามเดิม', () => {
+    const after = reducer(s0, { type: 'restore', state: { ...s0, today: '2025-09-02' } })
+    expect(after.today).toBe('2025-09-02')
   })
 })

@@ -20,6 +20,7 @@ export const copy = {
     backupDone: 'บันทึกไฟล์สำรองแล้ว', restoreDone: 'กู้คืนข้อมูลแล้ว',
     backupFailed: 'ยังไม่ได้เซฟไฟล์ — ลองอีกครั้ง หรือเปิดจาก Safari แทนแอป',
     restoreConfirm: 'ข้อมูลตอนนี้จะถูกแทนที่ด้วยไฟล์สำรอง',
+    restoreCrossMode: 'ไฟล์นี้มาจากอีกโหมดหนึ่ง — ข้อมูลที่ใช้อยู่ตอนนี้จะถูกแทนที่ทั้งหมด แน่ใจไหม',
     restoreBad: { unreadable: 'ไฟล์นี้อ่านไม่ออก', wrongFile: 'ไม่ใช่ไฟล์สำรองของ Solo', wrongVersion: 'ไฟล์สำรองมาจากเวอร์ชันอื่น' },
     theme: 'ธีม', themes: { system: 'ตามเครื่อง', light: 'สว่าง', dark: 'มืด' },
     size: 'ขนาดจอ', sizes: { sm: 'ปกติ', lg: 'ใหญ่', xl: 'จอฉาย' },

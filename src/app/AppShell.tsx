@@ -94,7 +94,9 @@ export default function AppShell() {
               const res = await pickBackup(SCHEMA)
               if (!res) return
               if (!res.ok) { toast.push({ text: copy.menu.restoreBad[res.reason], tone: 'danger' }); return }
-              if (!window.confirm(copy.menu.restoreConfirm)) return
+              // ไฟล์คนละโหมดกับที่ใช้อยู่ = กำลังจะทับข้อมูลจริงด้วยเดโม หรือกลับกัน
+              const crossMode = res.state.mode !== state.mode
+              if (!window.confirm(crossMode ? copy.menu.restoreCrossMode : copy.menu.restoreConfirm)) return
               dispatch({ type: 'restore', state: res.state }); track('backup_restore')
               setMenu(false); nav('/app/today'); toast.push({ text: copy.menu.restoreDone, tone: 'ok' })
             }}>{copy.menu.restore}</button>

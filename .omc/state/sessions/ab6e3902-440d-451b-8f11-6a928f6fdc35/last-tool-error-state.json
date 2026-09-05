@@ -1,7 +1,7 @@
 {
-  "tool_name": "mcp__Claude_Browser__browser_batch",
-  "tool_input_preview": "{\"actions\":[{\"name\":\"navigate\",\"input\":{\"url\":\"http://localhost:4173/solo/?scenario=default#/app/admin\"}},{\"name\":\"resize_window\",\"input\":{\"preset\":\"mobile\",\"colorScheme\":\"light\"}},{\"name\":\"computer\",...",
-  "error": "actions[0] (navigate) failed: The Browser pane isn't open yet, and a `browser_batch` step can't open it. Call `navigate` with this url on its own, outside `browser_batch` (that opens the pane), then batch the rest. (0 completed, 3 remaining)",
-  "timestamp": "2026-09-05T07:28:54.348Z",
+  "tool_name": "mcp__Claude_Browser__javascript_tool",
+  "tool_input_preview": "{\"action\":\"javascript_exec\",\"text\":\"location.reload();\\nawait new Promise(r => setTimeout(r, 2000));\\nlocation.hash = '#/app/admin';\\nawait new Promise(r => setTimeout(r, 1000));\\n({ warn: document.qu...",
+  "error": "javascript_tool failed: Inspected target navigated or closed The page navigated or was closed mid-evaluation (if the script itself navigated, it likely succeeded; otherwise re-run against the current page).",
+  "timestamp": "2026-09-05T08:33:38.165Z",
   "retry_count": 1
 }

@@ -20,7 +20,7 @@ export const tutorTemplates = {
   cancelled:
     'เรียน{clientHonorific}{clientName} ขอแจ้งงดคาบ{subjectName}วัน{dayThai}ที่ {dateThai} ครับ เดี๋ยวครูนัดชดเชยแล้วแจ้งอีกทีนะครับ 🙏',
   summary:
-    'เรียน{clientHonorific}{clientName} สรุป{subjectName}เดือน{periodThai}ครับ เรียนไปแล้ว {qty} ครั้ง {amountLine}',
+    'เรียน{clientHonorific}{clientName} สรุป{subjectName} เดือน {periodThai} ครับ เรียนไปแล้ว {qty} ครั้ง {amountLine}',
   summaryAmount: 'ยอดตอนนี้ {total} บาท',
   summaryPackage: 'เหลืออีก {remaining} จาก {packageTotal} ครั้ง',
   slipRequest:

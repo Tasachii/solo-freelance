@@ -3,6 +3,7 @@ import { BACKUP_FORMAT, daysSinceBackup, fromBackup, toBackup } from '../../src/
 import { buildScenario } from '../../src/core/scenarios'
 import { reducer, SCHEMA } from '../../src/core/store'
 import { diffDays } from '../../src/core/format'
+import { copy } from '../../src/copy'
 
 const s0 = buildScenario('default')
 
@@ -49,5 +50,24 @@ describe('เตือนเมื่อไม่ได้สำรองนา�
     const s = { ...s0, lastBackupAt: '2025-08-20' }
     expect(daysSinceBackup(s, '2025-09-02', diffDays)).toBe(13)
     expect(daysSinceBackup(reducer(s, { type: 'backedUp' }), '2025-09-02', diffDays)).toBe(0)
+  })
+})
+
+describe('ข้อความเตือนอ่านรู้เรื่อง', () => {
+  it('ยังไม่เคยสำรอง ต้องไม่ขึ้นว่า "มา — วัน"', () => {
+    const never = daysSinceBackup(s0, '2025-09-02', diffDays)
+    const shown = Number.isFinite(never)
+      ? copy.billing.backupWarn.replace('{days}', String(never))
+      : copy.billing.backupNever
+    expect(shown).toBe(copy.billing.backupNever)
+    expect(shown).not.toMatch(/—\s*วัน/)
+    expect(shown).not.toMatch(/\{days\}/)
+  })
+
+  it('เคยสำรองแล้ว บอกจำนวนวันเป็นตัวเลข', () => {
+    const s = { ...s0, lastBackupAt: '2025-08-20' }
+    const shown = copy.billing.backupWarn.replace('{days}', String(daysSinceBackup(s, '2025-09-02', diffDays)))
+    expect(shown).toContain('13 วัน')
+    expect(shown).not.toMatch(/\{days\}/)
   })
 })

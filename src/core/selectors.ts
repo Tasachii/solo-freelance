@@ -1,4 +1,4 @@
-import type { AppState } from './types'
+import type { AppState, Invoice } from './types'
 import { completionsIn, packageStatus, packageUnitPrice } from './ledger'
 import { daysOverdue, invoiceFor } from './billing'
 import { periodOf } from './format'
@@ -70,3 +70,17 @@ export const clientsWithChats = (state: AppState): string[] => {
   return [...ids]
 }
 
+
+/**
+ * ใบที่ควรโชว์ในแถวของวิชานี้ — เรียงตาม "ต้องลงมือทำแค่ไหน"
+ * เกินกำหนด > ส่งแล้วรอเงิน > ร่างของเดือนนี้ > ล่าสุด
+ * ถ้าเอาใบเดือนปัจจุบันมาก่อนเสมอ พอปิดยอดเดือนใหม่ บิลค้างเดือนก่อนจะหายไปจากจอ
+ * ทั้งที่ยอด "ค้าง" ยังนับมันอยู่ — ครูจะเก็บเงินก้อนนั้นไม่ได้เลย
+ */
+export function invoiceToActOn(state: AppState, subjectId: string, period: string): Invoice | undefined {
+  const mine = state.invoices.filter((i) => i.subjectId === subjectId && i.kind === 'monthly')
+  const rank = (i: Invoice): number =>
+    i.status === 'overdue' ? 0 : i.status === 'sent' ? 1 : i.period === period ? 2 : 3
+  return [...mine].sort((a, b) =>
+    rank(a) - rank(b) || b.period.localeCompare(a.period))[0]
+}

@@ -5,8 +5,8 @@ import { professionById } from '../professions'
 import { copy } from '../copy'
 import { daysSinceBackup } from '../core/backup'
 import { diffDays } from '../core/format'
-import { dashboard } from '../core/selectors'
-import { closableSubjects, invoiceFor } from '../core/billing'
+import { dashboard, invoiceToActOn } from '../core/selectors'
+import { closableSubjects } from '../core/billing'
 import { packageStatus } from '../core/ledger'
 import { attendanceCsv, billingCsv, download } from '../core/export'
 import { receiptOfInvoice } from '../core/receipts'
@@ -48,14 +48,17 @@ export default function Billing() {
     )
   }
 
-  const noBackup = state.mode === 'real' && daysSinceBackup(state, state.today, diffDays) > 7
+  const sinceBackup = daysSinceBackup(state, state.today, diffDays)
+  const noBackup = state.mode === 'real' && sinceBackup > 7
 
   return (
     <div className="pane">
       {noBackup && (
-        <p className="warnbar">{copy.billing.backupWarn.replace('{days}',
-          Number.isFinite(daysSinceBackup(state, state.today, diffDays))
-            ? String(daysSinceBackup(state, state.today, diffDays)) : '—')}</p>
+        <p className="warnbar">
+          {Number.isFinite(sinceBackup)
+            ? copy.billing.backupWarn.replace('{days}', String(sinceBackup))
+            : copy.billing.backupNever}
+        </p>
       )}
       <section className="card card--brand">
         <h2 className="h2">{periodThaiFull(period)}</h2>
@@ -83,7 +86,7 @@ export default function Billing() {
       <h2 className="h2" style={{ marginTop: 'var(--space-4)' }}>{copy.billing.groupMonthly}</h2>
       <ul className="rows">
         {monthly.map((s) => {
-          const inv = invoiceFor(state, s.id, period) ?? state.invoices.find((i) => i.subjectId === s.id && i.kind === 'monthly' && i.status !== 'paid')
+          const inv = invoiceToActOn(state, s.id, period)
           const rc = inv ? receiptOfInvoice(state, inv.id) : undefined
           return (
             <li className="srow" key={s.id}>

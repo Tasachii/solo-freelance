@@ -109,3 +109,19 @@ describe('สรุปกลางเดือน', () => {
     expect(text).not.toMatch(/บาท/)
   })
 })
+
+describe('การเว้นวรรคภาษาไทย', () => {
+  it('ไม่มีตัวเลขติดกับคำ และไม่มีคำติดกับชื่อเดือนย่อ', () => {
+    const s = s0()
+    const texts = [
+      summaryText(s, subjectById(s, 's7')!, '2025-09'),
+      summaryText(s, subjectById(s, 's2')!, '2025-09'),
+      movedText(s, subjectById(s, 's7')!, { date: '2025-09-02' }, { date: '2025-09-20', time: '18:00' }),
+      cancelledText(s, subjectById(s, 's7')!, '2025-09-02'),
+    ]
+    for (const t of texts) {
+      expect(t, `เลขติดคำไทย: ${t}`).not.toMatch(/\d[ก-ฮ]/)
+      expect(t, `คำติดเดือนย่อ: ${t}`).not.toMatch(/[ก-ฮ](?:ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.)/)
+    }
+  })
+})

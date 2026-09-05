@@ -106,12 +106,13 @@ export default function AppShell() {
         <BottomSheet title={copy.menu.title} onClose={() => setMenu(false)}>
           <div className="rows">
             {real ? (
-              <button className="row" onClick={() => setAsk('toDemo')}>{copy.menu.backToDemo}</button>
+              <button className="row" onClick={() => { setMenu(false); setAsk('toDemo') }}>{copy.menu.backToDemo}</button>
             ) : (
               <>
                 <button className="row" onClick={() => { setKeys(true); setMenu(false) }}>{copy.menu.shortcuts}</button>
+            <button className="row" onClick={() => { void toggleFullscreen(); setMenu(false) }}>{copy.menu.fullscreen}</button>
             <button className="row" onClick={() => { resetDemo(); setMenu(false) }}>{copy.menu.reset}</button>
-                <button className="row row--go" onClick={() => setAsk('toReal')}>{copy.menu.startReal}</button>
+                <button className="row row--go" onClick={() => { setMenu(false); setAsk('toReal') }}>{copy.menu.startReal}</button>
               </>
             )}
             <button className="row" onClick={async () => {
@@ -122,6 +123,7 @@ export default function AppShell() {
               else toast.push({ text: copy.menu.backupFailed, tone: 'danger' })
             }}>{copy.menu.backup}</button>
             <button className="row" onClick={async () => {
+              setMenu(false) // ปิดเมนูก่อนเปิดตัวเลือกไฟล์ของระบบ
               const res = await pickBackup(SCHEMA)
               if (!res) return
               if (!res.ok) { toast.push({ text: `${copy.menu.restoreBad[res.reason]}${res.details?.length ? ` · ${res.details[0]}` : ''}`, tone: 'danger' }); return }
@@ -143,9 +145,6 @@ export default function AppShell() {
                   {copy.menu.frames[f]}
                 </button>
               ))}
-              <button className="chip" onClick={() => { void toggleFullscreen(); setMenu(false) }}>
-                {copy.menu.fullscreen}
-              </button>
             </div>
           </div>
           <div className="fld">
@@ -215,9 +214,10 @@ export default function AppShell() {
           onClose={() => setAsk(null)}
           onConfirm={async () => {
             // ต้องได้ไฟล์สำรองก่อน ไม่งั้นข้อมูลเดือนหนึ่งหายโดยไม่มีทางกู้
-            if (!(await saveBackup(state))) { toast.push({ text: copy.menu.backupFailed, tone: 'danger' }); return }
-            if (!resetDemo('default')) return
+            if (!(await saveBackup(state))) { toast.push({ text: copy.menu.backupFailed, tone: 'danger' }); return false }
+            if (!resetDemo('default')) return false
             setMenu(false); nav('/app/today')
+            return true
           }} />
       )}
       {ask === 'toReal' && (
@@ -225,9 +225,10 @@ export default function AppShell() {
           confirmLabel={copy.menu.startReal}
           onClose={() => setAsk(null)}
           onConfirm={() => {
-            if (!dispatch({ type: 'startReal' })) return
+            if (!dispatch({ type: 'startReal' })) return false
             track('start_real')
             setMenu(false); nav('/app/onboarding')
+            return true
           }} />
       )}
       {ask && typeof ask === 'object' && (
@@ -236,9 +237,10 @@ export default function AppShell() {
           confirmLabel={copy.menu.restore} danger={ask.cross}
           onClose={() => setAsk(null)}
           onConfirm={() => {
-            if (!dispatch({ type: 'restore', state: ask.restore })) return
+            if (!dispatch({ type: 'restore', state: ask.restore })) return false
             track('backup_restore')
             setMenu(false); nav('/app/today'); toast.push({ text: copy.menu.restoreDone, tone: 'ok' })
+            return true
           }} />
       )}
     </div>

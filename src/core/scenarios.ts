@@ -8,7 +8,7 @@ import { todayISO } from './format'
 export const SCENARIOS = ['default', 'package-heavy', 'monthly-heavy', 'empty'] as const
 export type ScenarioId = (typeof SCENARIOS)[number]
 export const SCENARIO_LABEL: Record<ScenarioId, string> = {
-  default: 'ผสม (ใช้ pitch)', 'package-heavy': 'แพ็กเป็นหลัก', 'monthly-heavy': 'รายเดือนเป็นหลัก', empty: 'เริ่มจากศูนย์',
+  default: 'ผสม', 'package-heavy': 'แพ็กเป็นหลัก', 'monthly-heavy': 'รายเดือนเป็นหลัก', empty: 'เริ่มจากศูนย์',
 }
 
 const PKG = (total: number, price: number, purchasedAt: string) =>

@@ -430,3 +430,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .backlink{display:inline-flex;align-items:center;min-height:var(--tap);
   font-size:var(--fs-h2);font-weight:700;color:var(--brand);text-decoration:none}
 .backlink:hover{text-decoration:underline}
+
+/* หน้าพัง — ต้องมีหน้าตา และต้องเสนอทางที่ไม่เสียข้อมูลก่อน */
+.crash{display:grid;gap:var(--space-3);padding:var(--space-6) var(--space-4);max-width:520px;margin:0 auto}
+.crash__t{margin:0;font-size:var(--fs-h1)}
+.crash__p{margin:0;color:var(--muted)}

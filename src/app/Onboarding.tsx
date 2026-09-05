@@ -52,13 +52,14 @@ export default function Onboarding() {
         <>
           <label className="fld">
             <span className="fld__l">{copy.onboarding.providerName}</span>
-            <input className="inp" value={name} onChange={(e) => setName(e.target.value)} />
+            <input className="inp" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            <span className="hint">{copy.onboarding.nameHint}</span>
           </label>
           <label className="fld">
             <span className="fld__l">{copy.onboarding.promptpay}</span>
             <input className="inp" value={pp} onChange={(e) => setPp(e.target.value)} />
           </label>
-          <button className="btn btn--primary btn--block" onClick={() => setStep(2)}>{copy.onboarding.next}</button>
+          <button className="btn btn--primary btn--block" disabled={!name.trim()} onClick={() => setStep(2)}>{copy.onboarding.next}</button>
         </>
       )}
 
@@ -103,9 +104,16 @@ export default function Onboarding() {
           <button className="btn btn--primary btn--block" disabled={good.length === 0} onClick={finish}>
             {copy.onboarding.finish} ({good.length})
           </button>
-          <button className="linkbtn" onClick={() => { resetDemo('default'); nav('/app/today') }}>
-            {copy.onboarding.useSample}
-          </button>
+          {/* ครูที่ไม่มีลิสต์อยู่ในมือ ต้องออกไปเพิ่มทีละคนได้ ไม่ใช่ถูกขังหรือถูกพากลับเดโม */}
+          <button className="linkbtn" onClick={() => {
+            dispatch({ type: 'setProvider', name: name.trim() || state.provider.name, promptpayId: pp.trim() })
+            dispatch({ type: 'onboarded' }); track('onboarding_skip'); nav('/app/subjects')
+          }}>{copy.onboarding.skip}</button>
+          {state.mode !== 'real' && (
+            <button className="linkbtn" onClick={() => { resetDemo('default'); nav('/app/today') }}>
+              {copy.onboarding.useSample}
+            </button>
+          )}
         </>
       )}
     </div>

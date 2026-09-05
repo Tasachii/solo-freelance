@@ -15,11 +15,12 @@ export default function ClientPreview() {
   const { state } = useStore()
   const client = clientById(state, clientId)
   const period = periodOf(state.today)
+  const real = state.mode === 'real'
 
   if (!client) {
     return (
       <div className="page page--client">
-        <DemoBadge />
+        {!real && <DemoBadge />}
         <EmptyState icon="🔍" title={copy.errors.notFound}
           action={<Link className="btn btn--ghost" to="/app/today">{copy.clientView.backToApp}</Link>} />
       </div>
@@ -46,16 +47,19 @@ export default function ClientPreview() {
 
   return (
     <div className="page page--client">
-      <div className="cbanner">
-        <span>{copy.clientView.banner}</span>
-        <Link className="btn btn--sm btn--ghost" to="/app/today">{copy.clientView.backToApp}</Link>
-      </div>
+      {/* แบนเนอร์เดโมและลิงก์เข้าหลังบ้านครู ห้ามโผล่ให้ผู้ปกครองจริงเห็น */}
+      {!real && (
+        <div className="cbanner">
+          <span>{copy.clientView.banner}</span>
+          <Link className="btn btn--sm btn--ghost" to="/app/today">{copy.clientView.backToApp}</Link>
+        </div>
+      )}
 
       <h1 className="cv__h1">{copy.clientView.invoiceTitle}</h1>
       <p className="cv__who">{client.name} · {periodThai(shownPeriod)}</p>
 
       {billed.length === 0 ? (
-        <EmptyState icon="🧾" title={copy.clientView.noInvoice} desc={copy.billing.firstMonthHint} />
+        <EmptyState icon="🧾" title={copy.clientView.noInvoice} desc={copy.clientView.noInvoiceHint} />
       ) : (
         <>
           <ul className="cv__lines">
@@ -80,8 +84,9 @@ export default function ClientPreview() {
             </div>
           ) : (
             <div className="cv__pay">
-              <QRPlaceholder label={copy.clientView.scanToPay} sub={PROMPTPAY_DISPLAY} />
-              <p className="hint">{copy.clientView.sample}</p>
+              {/* เลขบัญชีของครูจริง — ของเดโมใช้ตัวอย่าง */}
+              <QRPlaceholder label={copy.clientView.scanToPay} sub={state.provider.promptpayId || PROMPTPAY_DISPLAY} />
+              <p className="hint">{real ? copy.clientView.slipHow : copy.clientView.sample}</p>
             </div>
           )}
         </>
@@ -102,7 +107,7 @@ export default function ClientPreview() {
         )
       })}
 
-      <p className="hint cv__fine">{copy.demoBadge}</p>
+      {!real && <p className="hint cv__fine">{copy.demoBadge}</p>}
     </div>
   )
 }

@@ -170,14 +170,16 @@ export const isScenario = (v: string | null): v is ScenarioId =>
  */
 export function buildReal(keep?: { name: string; promptpayId: string }): AppState {
   const base = emptyBase()
-  const fromDemo = keep?.name === base.provider.name
+  // เช็คแยกทีละฟิลด์ — ครูที่แก้ชื่อแล้วแต่ยังไม่แตะพร้อมเพย์ ต้องไม่ได้เลขบัญชีปลอมติดไป
+  const name = keep?.name && keep.name !== base.provider.name ? keep.name : ''
+  const promptpayId = keep?.promptpayId && keep.promptpayId !== base.provider.promptpayId ? keep.promptpayId : ''
   return {
     ...base,
     mode: 'real',
     scenarioId: 'real',
     onboarded: false,
     today: todayISO(),
-    provider: keep && !fromDemo ? keep : { name: '', promptpayId: '' },
+    provider: { name, promptpayId },
   }
 }
 

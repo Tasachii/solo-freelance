@@ -55,7 +55,7 @@ export default function SlipSheet(
   }
 
   return (
-    <BottomSheet title={copy.billing.attachSlip} sub={`${money(invoice.total)} ${copy.common.baht}`} onClose={onClose}
+    <BottomSheet title={real ? copy.billing.attachSlipReal : copy.billing.attachSlip} sub={`${money(invoice.total)} ${copy.common.baht}`} onClose={onClose}
       footer={
         real
           // โหมดจริง: ไม่มีการอ่านสลิปอัตโนมัติ ครูเทียบยอดเองแล้วกดยืนยัน

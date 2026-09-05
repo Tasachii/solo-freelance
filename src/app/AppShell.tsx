@@ -63,8 +63,14 @@ export default function AppShell() {
         <BottomSheet title={copy.menu.title} onClose={() => setMenu(false)}>
           <div className="rows">
             {real ? (
-              <button className="row" onClick={() => {
-                if (!window.confirm(copy.menu.startRealConfirm)) return
+              <button className="row" onClick={async () => {
+                // ปุ่มนี้ลบข้อมูลจริง — ข้อความต้องบอกอย่างนั้น ไม่ใช่ยืมของ 'เริ่มใช้จริง'
+                // และต้องได้ไฟล์สำรองก่อน ไม่งั้นข้อมูลเดือนหนึ่งหายโดยไม่มีทางกู้
+                if (!window.confirm(copy.menu.backToDemoConfirm)) return
+                if (!(await saveBackup(state))) {
+                  toast.push({ text: copy.menu.backupFailed, tone: 'danger' })
+                  return
+                }
                 resetDemo('default'); setMenu(false); nav('/app/today')
               }}>{copy.menu.backToDemo}</button>
             ) : (
@@ -77,9 +83,12 @@ export default function AppShell() {
                 }}>{copy.menu.startReal}</button>
               </>
             )}
-            <button className="row" onClick={() => {
-              saveBackup(state, SCHEMA); dispatch({ type: 'backedUp' }); track('backup_save')
-              setMenu(false); toast.push({ text: copy.menu.backupDone, tone: 'ok' })
+            <button className="row" onClick={async () => {
+              setMenu(false)
+              const ok = await saveBackup(state)
+              // จด lastBackupAt เฉพาะเมื่อได้ไฟล์จริง ไม่งั้นคำเตือน 7 วันจะเงียบทั้งที่ไม่มีไฟล์
+              if (ok) { dispatch({ type: 'backedUp' }); track('backup_save'); toast.push({ text: copy.menu.backupDone, tone: 'ok' }) }
+              else toast.push({ text: copy.menu.backupFailed, tone: 'danger' })
             }}>{copy.menu.backup}</button>
             <button className="row" onClick={async () => {
               const res = await pickBackup(SCHEMA)

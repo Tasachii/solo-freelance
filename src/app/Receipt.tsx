@@ -29,6 +29,7 @@ export default function Receipt() {
     )
   }
 
+  const real = state.mode === 'real'
   const subject = subjectById(state, inv.subjectId)
   const client = clientById(state, inv.clientId)
 
@@ -36,7 +37,7 @@ export default function Receipt() {
     <div className="page page--paper">
       <div className="paperbar no-print">
         <button className="btn btn--ghost btn--sm" onClick={() => nav('/app/billing')}>‹ {copy.common.back}</button>
-        <DemoBadge />
+        {!real && <DemoBadge />}
       </div>
 
       <article className="paper">
@@ -73,7 +74,7 @@ export default function Receipt() {
         <p className="paper__fine">
           ออกโดย {copy.brand.name} ในนาม{state.provider.name} · {copy.receipt.footer}
         </p>
-        <p className="paper__fine">{copy.demoBadge} · {prof.name}</p>
+        {!real && <p className="paper__fine">{copy.demoBadge} · {prof.name}</p>}
       </article>
 
       <div className="btnrow no-print" style={{ justifyContent: 'center' }}>

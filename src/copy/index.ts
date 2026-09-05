@@ -12,11 +12,13 @@ export const copy = {
   menu: {
     title: 'เมนู', reset: 'รีเซ็ตเดโม', scenario: 'สลับชุดข้อมูล',
     startReal: 'เริ่มใช้จริง', backToDemo: 'กลับไปโหมดเดโม',
+    backToDemoConfirm: 'ข้อมูลจริงทั้งหมดของคุณจะถูกลบ — สำรองข้อมูลก่อนไหม',
     startRealConfirm: 'ล้างข้อมูลตัวอย่างทั้งหมด แล้วเริ่มจากรายชื่อจริงของคุณ',
     realOn: 'โหมดใช้จริง',
     clientView: 'ดูมุมมองผู้ปกครอง',
     backup: 'สำรองข้อมูล', restore: 'กู้คืนจากไฟล์',
     backupDone: 'บันทึกไฟล์สำรองแล้ว', restoreDone: 'กู้คืนข้อมูลแล้ว',
+    backupFailed: 'ยังไม่ได้เซฟไฟล์ — ลองอีกครั้ง หรือเปิดจาก Safari แทนแอป',
     restoreConfirm: 'ข้อมูลตอนนี้จะถูกแทนที่ด้วยไฟล์สำรอง',
     restoreBad: { unreadable: 'ไฟล์นี้อ่านไม่ออก', wrongFile: 'ไม่ใช่ไฟล์สำรองของ Solo', wrongVersion: 'ไฟล์สำรองมาจากเวอร์ชันอื่น' },
     theme: 'ธีม', themes: { system: 'ตามเครื่อง', light: 'สว่าง', dark: 'มืด' },
@@ -116,7 +118,7 @@ export const copy = {
   billing: {
     closeMonth: 'ปิดยอดเดือนนี้', closeConfirm: 'จะสร้างบิล',
     groupMonthly: 'รายเดือน', groupPackage: 'แพ็ก — ต้องชวนต่อ',
-    viewMessage: 'ดูข้อความ', attachSlip: 'แนบสลิป (จำลอง)', viewReceipt: 'ดูใบเสร็จ',
+    viewMessage: 'ดูข้อความ', attachSlip: 'แนบสลิป (จำลอง)', attachSlipReal: 'รับยอดจากสลิป', viewReceipt: 'ดูใบเสร็จ',
     allReceipts: 'ใบเสร็จทั้งหมด', exportCsv: 'ดาวน์โหลด CSV',
     backupWarn: 'ยังไม่ได้สำรองข้อมูลมา {days} วัน — ล้างแคชแล้วข้อมูลหาย',
     backupNever: 'ยังไม่เคยสำรองข้อมูลเลย — ล้างแคชหรือเปลี่ยนเครื่องแล้วข้อมูลหายหมด',
@@ -166,6 +168,8 @@ export const copy = {
     invoiceTitle: 'ใบแจ้งค่าบริการ', noInvoice: 'เดือนนี้ยังไม่มีใบแจ้ง',
     scanToPay: 'สแกนจ่าย PromptPay', attach: 'แนบสลิป',
     paid: '✓ ได้รับยอดแล้ว ใบเสร็จส่งให้แล้ว', viewReceipt: 'ดูใบเสร็จ',
+    noInvoiceHint: 'พอถึงสิ้นเดือนจะมีใบแจ้งยอดขึ้นที่นี่',
+    slipHow: 'โอนแล้วส่งสลิปกลับมาในแชทได้เลย',
     packRemain: 'เหลือ', renew: 'ต่อแพ็กใหม่', summary: 'สรุปเดือนนี้', sample: 'ตัวอย่าง',
   },
   onboarding: {
@@ -177,6 +181,7 @@ export const copy = {
     noName: 'ไม่มีชื่อ', noPayerName: 'ไม่มีชื่อผู้จ่าย',
     defaultMode: 'วิธีเก็บเงินเริ่มต้น (เปลี่ยนรายคนทีหลังได้)',
     next: 'ถัดไป', finish: 'เริ่มใช้งาน', parseError: 'อ่านบรรทัดนี้ไม่ออก',
+    skip: 'ข้ามไปก่อน เพิ่มทีหลัง', nameHint: 'ชื่อนี้จะขึ้นบนใบเสร็จและในข้อความถึงลูกค้า',
   },
   pitch: {
     steps: [
@@ -208,6 +213,9 @@ export const copy = {
   },
   errors: {
     stateCorrupt: 'โหลดข้อมูลเดโมชุดใหม่',
+    crashTitle: 'หน้านี้มีปัญหา', crashReal: 'ข้อมูลของคุณยังอยู่ — สำรองไว้ก่อนแล้วค่อยลองใหม่',
+    crashDemo: 'ลองโหลดหน้าใหม่ หรือรีเซ็ตข้อมูลเดโม',
+    backupFirst: 'สำรองข้อมูลก่อน', reloadOnly: 'โหลดหน้าใหม่', wipe: 'ล้างข้อมูลแล้วเริ่มใหม่',
     notFound: 'ไม่พบหน้านี้',
   },
 } as const

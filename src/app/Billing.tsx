@@ -95,7 +95,7 @@ export default function Billing() {
                 <span className="srow__meta">{inv ? `${money(inv.total)} · ${copy.billing.status[inv.status]}` : copy.billing.noInvoices}</span>
               </span>
               {inv?.status === 'draft' && <button className="btn btn--secondary btn--sm" onClick={() => nav('/app/admin?tab=drafts')}>{copy.billing.viewMessage}</button>}
-              {(inv?.status === 'sent' || inv?.status === 'overdue') && <button className="btn btn--primary btn--sm" onClick={() => setSlipFor(inv)}>{copy.billing.attachSlip}</button>}
+              {(inv?.status === 'sent' || inv?.status === 'overdue') && <button className="btn btn--primary btn--sm" onClick={() => setSlipFor(inv)}>{state.mode === 'real' ? copy.billing.attachSlipReal : copy.billing.attachSlip}</button>}
               {inv?.status === 'paid' && rc && <button className="btn btn--ghost btn--sm" onClick={() => nav(`/receipt/${rc.id}`)}>{copy.billing.viewReceipt}</button>}
             </li>
           )

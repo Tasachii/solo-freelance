@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { copy } from '../copy'
 import { STORAGE_KEY } from '../core/store'
+import { download } from '../core/export'
 
 interface State { failed: boolean }
 
@@ -19,6 +20,20 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, St
     console.error('[solo] render failed', err, info.componentStack)
   }
 
+  /** อ่าน state ดิบจาก storage — ตอนพัง React tree ใช้ไม่ได้ ต้องไปเอาเอง */
+  private raw(): string | null {
+    try { return localStorage.getItem(STORAGE_KEY) } catch { return null }
+  }
+  private isReal(): boolean {
+    try { return JSON.parse(this.raw() ?? '{}').mode === 'real' } catch { return false }
+  }
+  private backup = (): void => {
+    const raw = this.raw()
+    if (raw) download(JSON.stringify({ format: 'solo-backup-1', exportedAt: new Date().toISOString(), app: JSON.parse(raw) }, null, 2),
+      `solo-backup-crash.json`, 'application/json')
+  }
+  private reload = (): void => { location.reload() }
+
   private reset = (): void => {
     try {
       localStorage.removeItem(STORAGE_KEY)
@@ -31,10 +46,16 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, St
 
   render(): ReactNode {
     if (!this.state.failed) return this.props.children
+    const real = this.isReal()
     return (
       <div className="page crash">
-        <h1 className="crash__t">{copy.errors.stateCorrupt}</h1>
-        <button className="btn btn--primary" onClick={this.reset}>{copy.common.reset}</button>
+        <h1 className="crash__t">{copy.errors.crashTitle}</h1>
+        <p className="crash__p">{real ? copy.errors.crashReal : copy.errors.crashDemo}</p>
+        <div className="btnrow">
+          {real && <button className="btn btn--primary" onClick={this.backup}>{copy.errors.backupFirst}</button>}
+          <button className={`btn ${real ? 'btn--secondary' : 'btn--primary'}`} onClick={this.reload}>{copy.errors.reloadOnly}</button>
+          <button className="btn btn--ghost btn--danger-text" onClick={this.reset}>{copy.errors.wipe}</button>
+        </div>
       </div>
     )
   }

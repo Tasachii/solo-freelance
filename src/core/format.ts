@@ -12,6 +12,10 @@ export function parseISO(d: string): { y: number; m: number; day: number } {
 }
 export const pad = (n: number): string => String(n).padStart(2, '0')
 export const iso = (y: number, m: number, d: number): string => `${y}-${pad(m)}-${pad(d)}`
+
+/** วันนี้ตามนาฬิกาเครื่อง — ห้ามใช้ toISOString เพราะมันคืนวัน UTC */
+export const todayISO = (d: Date = new Date()): string =>
+  iso(d.getFullYear(), d.getMonth() + 1, d.getDate())
 export const periodOf = (d: string): string => d.slice(0, 7)
 
 export function weekday(d: string): number {

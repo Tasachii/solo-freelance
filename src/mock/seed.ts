@@ -7,7 +7,7 @@ const START = '2025-08-01'
 const END = '2025-09-30'
 
 export const emptyBase = (): AppState => ({
-  schemaVersion: 3, professionId: 'tutor', scenarioId: 'empty',
+  schemaVersion: 4, mode: 'demo', professionId: 'tutor', scenarioId: 'empty',
   provider: { name: PROVIDER_NAME, promptpayId: PROMPTPAY_DISPLAY },
   today: TODAY,
   clients: [], subjects: [], units: [], completions: [],

@@ -45,8 +45,12 @@ export interface WaitlistEntry {
 }
 export interface EventLog { at: string; name: string; props?: Record<string, unknown> }
 
+/** demo = ข้อมูลสมมติ วันล็อก · real = ข้อมูลจริงของผู้ใช้ วันตามเครื่อง */
+export type AppMode = 'demo' | 'real'
+
 export interface AppState {
-  schemaVersion: 3
+  schemaVersion: 4
+  mode: AppMode
   professionId: string
   scenarioId: string
   provider: { name: string; promptpayId: string }

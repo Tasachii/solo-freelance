@@ -6,6 +6,7 @@ import { BottomSheet, Skeleton } from './components'
 import { useToast } from './components/Toast'
 import { mkMessage, slipRequestText } from '../core/messages'
 import type { Invoice } from '../core/types'
+import { seedOf } from '../core/share'
 
 type Phase = 'idle' | 'checking' | 'match' | 'mismatch' | 'unreadable'
 
@@ -24,15 +25,19 @@ export default function SlipSheet(
   const [phase, setPhase] = useState<Phase>('idle')
   const [slipAmount, setSlipAmount] = useState<number | undefined>(undefined)
 
+  const real = state.mode === 'real'
+
   useEffect(() => {
-    if (phase !== 'checking') return
+    if (phase !== 'checking' || real) return
     const t = window.setTimeout(() => {
-      const res = rollSlip(invoice.total)
+      // ผลผูกกับเลขที่ใบแจ้ง ไม่ใช่ Math.random — เดโมเดิมสุ่มใหม่ทุกครั้ง
+      // ตอนโชว์กรรมการอาจขึ้น "ยอดไม่ตรง" โดยไม่ตั้งใจ และเทสก็แกว่งตาม
+      const res = rollSlip(invoice.total, seedOf(invoice.id))
       setPhase(res.phase); setSlipAmount(res.slipAmount)
       track('slip_verify', { result: res.phase })
     }, 1500)
     return () => window.clearTimeout(t)
-  }, [phase, invoice.total, track])
+  }, [phase, invoice.total, track, real])
 
   const pay = (amount: number, verified: boolean) => {
     dispatch({ type: 'recordPayment', invoiceId: invoice.id, amount, slipVerified: verified, slipAmount })
@@ -52,7 +57,17 @@ export default function SlipSheet(
   return (
     <BottomSheet title={copy.billing.attachSlip} sub={`${money(invoice.total)} ${copy.common.baht}`} onClose={onClose}
       footer={
-        phase === 'idle'
+        real
+          // โหมดจริง: ไม่มีการอ่านสลิปอัตโนมัติ ครูเทียบยอดเองแล้วกดยืนยัน
+          // การสุ่มผลบนสลิปจริงคือหายนะ — บอกว่ายอดไม่ตรงทั้งที่ตรง
+          ? <div className="btnrow">
+              <button className="btn btn--primary" onClick={() => pay(invoice.total, false)}>{copy.billing.slipRealOk}</button>
+              <button className="btn btn--secondary" onClick={() => {
+                const v = Number(window.prompt(copy.billing.slipRealOther, String(invoice.total)) ?? '')
+                if (Number.isFinite(v) && v > 0) pay(v, false)
+              }}>{copy.billing.slipRealOther}</button>
+            </div>
+        : phase === 'idle'
           ? <button className="btn btn--primary btn--block" onClick={() => setPhase('checking')}>{copy.billing.slipPick}</button>
           : phase === 'match'
             ? <button className="btn btn--primary btn--block" onClick={() => pay(invoice.total, true)}>{copy.billing.slipConfirm}</button>
@@ -78,7 +93,9 @@ export default function SlipSheet(
         </>
       )}
       {phase === 'unreadable' && <p className="p">{copy.billing.slipUnreadable}</p>}
-      {phase === 'idle' && <p className="p dim">{copy.billing.slipSim}</p>}
+      {real
+        ? <p className="p dim">{copy.billing.slipReal}</p>
+        : phase === 'idle' && <p className="p dim">{copy.billing.slipSim}</p>}
     </BottomSheet>
   )
 }

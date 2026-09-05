@@ -10,3 +10,13 @@ export function lineShareUrl(text: string): string {
   const t = text.length > LINE_TEXT_LIMIT ? text.slice(0, LINE_TEXT_LIMIT) : text
   return `https://line.me/R/share?text=${encodeURIComponent(t)}`
 }
+
+/** ตัวเลข [0,1) ที่คงที่สำหรับ id เดิมเสมอ — ใช้ให้ผลจำลองในเดโมเดาได้ */
+export function seedOf(id: string): number {
+  let h = 2166136261
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return ((h >>> 0) % 10000) / 10000
+}

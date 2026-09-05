@@ -3,6 +3,7 @@ import { buildFromPlans, emptyBase, TODAY, type SubjectPlan } from '../mock/seed
 import { receiptNumber } from './receipts'
 import { receiptText } from './messages'
 import { markOverdue } from './billing'
+import { todayISO } from './format'
 
 export const SCENARIOS = ['default', 'package-heavy', 'monthly-heavy', 'empty'] as const
 export type ScenarioId = (typeof SCENARIOS)[number]
@@ -161,6 +162,24 @@ const BUILDERS: Record<ScenarioId, () => AppState> = {
 
 export const isScenario = (v: string | null): v is ScenarioId =>
   !!v && (SCENARIOS as readonly string[]).includes(v)
+
+/**
+ * เริ่มใช้จริง — ไม่มีข้อมูลสมมติแม้แต่แถวเดียว และวันเดินตามเครื่อง
+ * ชื่อผู้ให้บริการต้องว่าง ไม่ใช่ชื่อสมมติของเดโม
+ * ไม่งั้นครูอาจส่งบิลออกไปในนาม "ครูเบนซ์" โดยไม่ทันสังเกต
+ */
+export function buildReal(keep?: { name: string; promptpayId: string }): AppState {
+  const base = emptyBase()
+  const fromDemo = keep?.name === base.provider.name
+  return {
+    ...base,
+    mode: 'real',
+    scenarioId: 'real',
+    onboarded: false,
+    today: todayISO(),
+    provider: keep && !fromDemo ? keep : { name: '', promptpayId: '' },
+  }
+}
 
 export function buildScenario(id: string): AppState {
   const key: ScenarioId = isScenario(id) ? id : 'default'

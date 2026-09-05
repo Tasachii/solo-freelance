@@ -12,7 +12,7 @@ import { SCENARIOS, SCENARIO_LABEL, type ScenarioId } from '../core/scenarios'
 import { applyTheme, readTheme, type Theme } from '../core/theme'
 
 export default function AppShell() {
-  const { state, resetDemo, track } = useStore()
+  const { state, dispatch, resetDemo, track } = useStore()
   const prof = professionById(state.professionId)
   const nav = useNavigate()
   const loc = useLocation()
@@ -20,6 +20,7 @@ export default function AppShell() {
   const [lead, setLead] = useState(false)
   const [dev, setDev] = useState(() => urlParam('dev') === '1')
   const [theme, setTheme] = useState<Theme>(readTheme)
+  const real = state.mode === 'real'
   const drafts = draftCount(state)
 
   // ยังไม่มีข้อมูลเลย = พาไป onboarding ก่อน
@@ -41,14 +42,16 @@ export default function AppShell() {
       <header className="shell__hd">
         <b className="shell__brand">{prof.name}</b>
         <div className="shell__hdr">
-          <DemoBadge />
+          {!real && <DemoBadge />}
           <button className="shell__menu" onClick={() => setMenu(true)} aria-label={copy.menu.title}>⋯</button>
         </div>
       </header>
 
       <main className="shell__main"><Outlet /></main>
 
-      <button className="fab" onClick={() => { setLead(true); track('contact_fab') }}>{copy.waitlist.title}</button>
+      {!real && (
+        <button className="fab" onClick={() => { setLead(true); track('contact_fab') }}>{copy.waitlist.title}</button>
+      )}
 
       <nav className="tabbar">
         {tabs.map((t) => (
@@ -64,7 +67,21 @@ export default function AppShell() {
       {menu && (
         <BottomSheet title={copy.menu.title} onClose={() => setMenu(false)}>
           <div className="rows">
-            <button className="row" onClick={() => { resetDemo(); setMenu(false) }}>{copy.menu.reset}</button>
+            {real ? (
+              <button className="row" onClick={() => {
+                if (!window.confirm(copy.menu.startRealConfirm)) return
+                resetDemo('default'); setMenu(false); nav('/app/today')
+              }}>{copy.menu.backToDemo}</button>
+            ) : (
+              <>
+                <button className="row" onClick={() => { resetDemo(); setMenu(false) }}>{copy.menu.reset}</button>
+                <button className="row row--go" onClick={() => {
+                  if (!window.confirm(copy.menu.startRealConfirm)) return
+                  dispatch({ type: 'startReal' }); track('start_real')
+                  setMenu(false); nav('/app/onboarding')
+                }}>{copy.menu.startReal}</button>
+              </>
+            )}
             <button className="row" onClick={() => { setDev(true); setMenu(false) }}>{copy.menu.dev}</button>
             {state.clients[0] && (
               <button className="row" onClick={() => { setMenu(false); nav(`/client/${state.clients[0].id}`) }}>
@@ -84,7 +101,7 @@ export default function AppShell() {
               ))}
             </div>
           </div>
-          <div className="fld">
+          {!real && <div className="fld">
             <div className="fld__l">{copy.menu.scenario}</div>
             <div className="chips">
               {SCENARIOS.map((sc) => (
@@ -95,7 +112,7 @@ export default function AppShell() {
                 </button>
               ))}
             </div>
-          </div>
+          </div>}
         </BottomSheet>
       )}
 

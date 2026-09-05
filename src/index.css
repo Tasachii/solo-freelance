@@ -404,3 +404,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   background:var(--brand-soft)}
 .confirm__q{display:block;font-size:var(--fs-small);font-weight:600;color:var(--brand-ink)}
 .confirm .btnrow{margin:var(--space-2) 0 0}
+
+/* ทางเข้าโหมดใช้จริงในเมนู — เน้นกว่าแถวอื่นเพราะเป็นก้าวสำคัญ */
+.row--go{color:var(--brand);font-weight:600}

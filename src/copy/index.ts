@@ -11,6 +11,9 @@ export const copy = {
   nav: { today: 'วันนี้', billing: 'บิล', admin: 'แอดมิน' },
   menu: {
     title: 'เมนู', reset: 'รีเซ็ตเดโม', scenario: 'สลับชุดข้อมูล',
+    startReal: 'เริ่มใช้จริง', backToDemo: 'กลับไปโหมดเดโม',
+    startRealConfirm: 'ล้างข้อมูลตัวอย่างทั้งหมด แล้วเริ่มจากรายชื่อจริงของคุณ',
+    realOn: 'โหมดใช้จริง',
     dev: 'เปิด DevBar', clientView: 'ดูมุมมองผู้ปกครอง',
     theme: 'ธีม', themes: { system: 'ตามเครื่อง', light: 'สว่าง', dark: 'มืด' },
   },
@@ -105,6 +108,8 @@ export const copy = {
     allReceipts: 'ใบเสร็จทั้งหมด', exportCsv: 'ดาวน์โหลด CSV',
     exportNote: 'ข้อมูลเป็นของคุณ ดาวน์โหลดได้ทุกเมื่อ ไม่มีค่าใช้จ่าย',
     slipChecking: 'กำลังตรวจสลิป…', slipPick: 'เลือกรูปสลิป',
+    slipReal: 'เปิดสลิปที่ผู้ปกครองส่งมาแล้วเทียบยอด',
+    slipRealOk: 'ยอดตรง รับเงินแล้ว', slipRealOther: 'ยอดไม่ตรง ใส่ยอดเอง',
     slipMatch: 'ยอดตรงกับใบแจ้ง', slipConfirm: 'ยืนยันรับยอด',
     slipMismatch: 'ยอดไม่ตรง', slipAcceptAs: 'รับยอดตามสลิป (บันทึกส่วนต่าง)', slipAskAgain: 'ขอสลิปใหม่',
     slipUnreadable: 'อ่านสลิปไม่ออก', slipRetry: 'ลองใหม่', slipManual: 'ยืนยันเอง',

@@ -2,8 +2,9 @@ import {
   createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode,
 } from 'react'
 import type { AppState, Message, Subject } from './types'
-import { buildScenario, isScenario } from './scenarios'
+import { buildReal, buildScenario, isScenario } from './scenarios'
 import { appendEvent } from './events'
+import { todayISO } from './format'
 import { urlParam } from './urlParams'
 import { closableSubjects, markOverdue } from './billing'
 import { deriveDrafts, refreshDrafts, applySend } from './messages'
@@ -11,7 +12,7 @@ import { complete as ledgerComplete, packageUnitPrice, renewPackage, uncomplete 
 import { issueReceipt } from './receipts'
 
 const KEY = 'solo-demo-v3'
-const SCHEMA = 3
+const SCHEMA = 4
 
 export type Action =
   | { type: 'complete'; unitId: string }
@@ -32,6 +33,7 @@ export type Action =
   | { type: 'setProvider'; name: string; promptpayId: string }
   | { type: 'bulkAddSubjects'; rows: { name: string; clientName: string; lineId?: string }[]; billing: Subject['billing'] }
   | { type: 'onboarded' }
+  | { type: 'startReal' }
   | { type: 'clearMessages' }
   | { type: 'replace'; state: AppState }
   | { type: 'track'; name: string; props?: Record<string, unknown> }
@@ -156,6 +158,10 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'onboarded':
       s = { ...s, onboarded: true }
       break
+    case 'startReal':
+      // เก็บชื่อ/พร้อมเพย์ที่กรอกไว้ ทิ้งข้อมูลสมมติทั้งหมด
+      s = buildReal(s.provider)
+      break
     case 'clearMessages':
       // เก็บ skipped/sent ไว้ ไม่งั้น dedupe หาย ร่างที่ผู้ใช้ข้ามจะกลับมา
       // และ 'Solo ช่วยไว้' ที่นับจากข้อความทวงที่ส่งแล้วจะกลายเป็นศูนย์
@@ -176,6 +182,19 @@ export function reducer(state: AppState, action: Action): AppState {
   return s
 }
 
+/**
+ * v3 → v4: เพิ่ม mode · ข้อมูลเดิมทั้งหมดเป็นเดโม ห้ามทิ้ง
+ * คืน null เมื่อกู้ไม่ได้จริง ๆ เท่านั้น
+ */
+export function migrate(raw: unknown): AppState | null {
+  const s = raw as (Omit<Partial<AppState>, 'schemaVersion'> & { schemaVersion?: number })
+  if (!s || !Array.isArray(s.subjects)) return null
+  if (s.schemaVersion === 3) {
+    return { ...(s as AppState), schemaVersion: 4, mode: 'demo' }
+  }
+  return s.schemaVersion === SCHEMA ? (s as AppState) : null
+}
+
 function hydrate(scenarioFromUrl: string | null): { state: AppState; didReset: boolean } {
   if (scenarioFromUrl && isScenario(scenarioFromUrl)) {
     return { state: normalize(buildScenario(scenarioFromUrl)), didReset: false }
@@ -183,11 +202,11 @@ function hydrate(scenarioFromUrl: string | null): { state: AppState; didReset: b
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return { state: normalize(buildScenario('default')), didReset: false }
-    const saved = JSON.parse(raw) as AppState
-    if (saved?.schemaVersion !== SCHEMA || !Array.isArray(saved.subjects)) {
-      return { state: normalize(buildScenario('default')), didReset: true }
-    }
-    return { state: normalize(saved), didReset: false }
+    const saved = migrate(JSON.parse(raw))
+    if (!saved) return { state: normalize(buildScenario('default')), didReset: true }
+    // โหมดจริงต้องเดินวันตามเครื่อง ไม่งั้นเปิดพรุ่งนี้ยังเห็นคาบของเมื่อวาน
+    const dated = saved.mode === 'real' ? { ...saved, today: todayISO() } : saved
+    return { state: normalize(dated), didReset: false }
   } catch {
     return { state: normalize(buildScenario('default')), didReset: true }
   }

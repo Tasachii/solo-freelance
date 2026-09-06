@@ -39,7 +39,7 @@ export type Action =
   | { type: 'waitlist'; entry: AppState['waitlist'][number] }
   | { type: 'setToday'; date: string }
   | { type: 'setProvider'; name: string; promptpayId: string; particle?: Particle }
-  | { type: 'bulkAddSubjects'; rows: { name: string; clientName: string; lineId?: string }[]; billing: Subject['billing'] }
+  | { type: 'bulkAddSubjects'; rows: { name: string; clientName: string; lineId?: string; billing?: Subject['billing'] }[]; billing: Subject['billing'] }
   | { type: 'onboarded' }
   | { type: 'startReal' }
   | { type: 'setStyle'; style: WorkStyle }
@@ -187,14 +187,16 @@ export function reducer(state: AppState, action: Action): AppState {
       s = { ...s, provider: { name: action.name, promptpayId: action.promptpayId, particle: action.particle ?? s.provider.particle } }
       break
     case 'bulkAddSubjects': {
+      // ทั้งชุดต้องใช้ได้หมด — นำเข้าครึ่งเดียวแย่กว่าไม่นำเข้าเลย เพราะครูไม่รู้ว่าขาดใคร
       if (!isBillingMode(action.billing) || action.rows.length === 0
-        || action.rows.some((row) => !row.name.trim() || !row.clientName.trim())) return state
+        || action.rows.some((row) => !row.name.trim() || !row.clientName.trim()
+          || (row.billing !== undefined && !isBillingMode(row.billing)))) return state
       const clients = [...s.clients]
       const subjects = [...s.subjects]
       action.rows.forEach((r, i) => {
         const cid = nid(`c${i}`)
         clients.push({ id: cid, name: r.clientName, lineId: r.lineId })
-        subjects.push({ id: nid(`s${i}`), name: r.name, clientId: cid, billing: action.billing, active: true, createdAt: s.today })
+        subjects.push({ id: nid(`s${i}`), name: r.name, clientId: cid, billing: r.billing ?? action.billing, active: true, createdAt: s.today })
       })
       s = { ...s, clients, subjects }
       break

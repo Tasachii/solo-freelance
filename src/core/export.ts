@@ -63,6 +63,25 @@ export function billingCsv(state: AppState, period: string): string {
   return BOM + lines.join('\n')
 }
 
+/**
+ * รายชื่อลูกค้าเป็น CSV — หัวตารางใช้คำเดียวกับที่ตัวนำเข้ารู้จัก
+ * ไฟล์ที่ส่งออกจึงนำกลับเข้ามาได้เลย ไม่ต้องแก้หัวตารางเอง
+ */
+export function rosterCsv(state: AppState): string {
+  const lines = [['ชื่อลูกค้า', 'ผู้จ่าย', 'LINE', 'วิธีเก็บเงิน', 'ราคา', 'สถานะ'].map(esc).join(',')]
+  for (const s of state.subjects) {
+    const c = clientById(state, s.clientId)
+    const price = s.billing.mode === 'per_unit' ? s.billing.rate
+      : s.billing.mode === 'flat_monthly' ? s.billing.amount : s.billing.price
+    lines.push(row([
+      s.name, c?.name ?? '', c?.lineId ?? '',
+      modeLabelFor(state.professionId, s.billing.mode), price,
+      s.active ? 'ใช้งาน' : 'หยุดแล้ว',
+    ]))
+  }
+  return BOM + lines.join('\n')
+}
+
 export function download(text: string, filename: string, type: string): void {
   const blob = new Blob([text], { type })
   const url = URL.createObjectURL(blob)

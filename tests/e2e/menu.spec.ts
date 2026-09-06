@@ -74,3 +74,27 @@ test('every sub-page has a way back to where it came from', async ({ page }) => 
   await page.getByRole('link', { name: /Solo Freelance/ }).first().click()
   await expect(page).toHaveURL(/#\/$/)
 })
+
+test('a tutor can paste an existing client list from a spreadsheet and it lands in the app', async ({ page }) => {
+  await page.goto('?scenario=empty#/app/today')
+  await expect(page.locator('.skel')).toHaveCount(0)
+  await page.getByRole('button', { name: 'เมนู' }).click()
+  await page.getByRole('dialog', { name: 'เมนู' }).getByRole('button', { name: 'นำเข้ารายชื่อ' }).click()
+  const sheet = page.getByRole('dialog', { name: 'นำเข้ารายชื่อ' })
+  await expect(sheet).toBeVisible()
+
+  // สิ่งที่ได้จากการคัดลอกช่วงใน Google Sheets คือข้อความคั่นด้วย tab
+  await sheet.locator('textarea').fill('ชื่อลูกค้า\tผู้จ่าย\tราคา\nน้องปลา\tคุณแม่ปลา\t400\nน้องต้น\tคุณพ่อต้น\t550')
+  await sheet.getByRole('button', { name: 'อ่านข้อมูลที่วาง' }).click()
+
+  // หัวตารางถูกจับได้เอง และแถวหัวไม่ถูกนับเป็นลูกค้า
+  await expect(sheet.getByText('น้องปลา')).toBeVisible()
+  await expect(sheet.getByRole('button', { name: /นำเข้า \(2\)/ })).toBeEnabled()
+  await sheet.getByRole('button', { name: /นำเข้า \(2\)/ }).click()
+
+  await expect(page).toHaveURL(/#\/app\/subjects$/)
+  await expect(page.getByText('น้องปลา')).toBeVisible()
+  await expect(page.getByText('น้องต้น')).toBeVisible()
+  // ราคาในไฟล์ต้องตามเข้ามารายคน ไม่ใช่ใช้ค่าเริ่มต้นทุกคน
+  await expect(page.locator('.srow').filter({ hasText: 'น้องต้น' })).toContainText('550')
+})

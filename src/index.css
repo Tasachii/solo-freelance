@@ -615,3 +615,7 @@ body:has(.land){background:radial-gradient(45% 45% at 8% 0%,var(--glow-a),transp
 .backbtn{display:inline-flex;align-items:center;gap:4px;min-height:var(--tap-sm);margin:-6px 0 var(--space-1) -4px;padding:0 6px;
   border-radius:var(--radius-sm);color:var(--brand);font-weight:600;font-size:var(--fs-small);text-decoration:none}
 .backbtn:hover{background:var(--brand-soft)}
+/* จับคอลัมน์ตอนนำเข้ารายชื่อ */
+.maprow{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2)}
+.mapcell{display:grid;gap:4px;font-size:var(--fs-small)}
+.mapcell .inp{min-height:var(--tap-sm)}

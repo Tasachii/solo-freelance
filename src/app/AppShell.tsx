@@ -11,6 +11,8 @@ import { draftCount } from '../core/selectors'
 import { BottomSheet, ConfirmSheet, DemoBadge, Icon, type IconName } from './components'
 import { ProfileSheet } from './ProfileSheet'
 import { SheetsSheet } from './SheetsSheet'
+import { ImportSheet } from './ImportSheet'
+import { download, rosterCsv } from '../core/export'
 import { readSheetsConfig, writeSheetsConfig, pushToSheets } from './sheetsSync'
 import { shouldSync } from '../core/sheets'
 import { SCENARIOS, SCENARIO_LABEL, type ScenarioId } from '../core/scenarios'
@@ -35,6 +37,7 @@ export default function AppShell() {
   const [keys, setKeys] = useState(false)
   const [profile, setProfile] = useState(false)
   const [sheetsOpen, setSheetsOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [sheets, setSheets] = useState(readSheetsConfig)
   const [full, setFull] = useState(isFullscreen)
   // ป้าย "เต็มจอ" ต้องกลับเป็น "ยกเลิกเต็มจอ" เมื่ออยู่ในโหมดนั้น — ไม่ว่าเข้าด้วยปุ่มหรือคีย์ F
@@ -180,6 +183,8 @@ export default function AppShell() {
                   // ไฟล์คนละโหมดกับที่ใช้อยู่ = กำลังจะทับข้อมูลจริงด้วยเดโม หรือกลับกัน
                   setAsk({ restore: res.state, cross: res.state.mode !== state.mode })
                 }}>{copy.menu.restore}</button>
+                <button className="row" onClick={() => { setMenu(false); setImportOpen(true) }}>{copy.importer.menu}</button>
+                <button className="row" onClick={() => { setMenu(false); download(rosterCsv(state), `รายชื่อ-${state.today}.csv`, 'text/csv;charset=utf-8') }}>{copy.importer.exportMenu}</button>
                 <button className="row" onClick={() => { setMenu(false); setSheetsOpen(true) }}>{copy.sheets.menu}</button>
                 {!real && <button className="row" onClick={() => { resetDemo(); setMenu(false) }}>{copy.menu.reset}</button>}
               </div>
@@ -265,6 +270,8 @@ export default function AppShell() {
       {profile && <ProfileSheet onClose={() => setProfile(false)} />}
 
       {sheetsOpen && <SheetsSheet current={sheets} onSaved={setSheets} onClose={() => setSheetsOpen(false)} />}
+
+      {importOpen && <ImportSheet onClose={() => setImportOpen(false)} />}
 
       {keys && (
         <BottomSheet title={copy.menu.shortcuts} onClose={() => setKeys(false)}>

@@ -255,12 +255,12 @@ share link ต้องใช้ได้ตลอดไป **ห้ามลบ
 | # | commit | เนื้อหา |
 |---|---|---|
 | 1 | `feat(line): schema` | 4 ตาราง + RLS + view ที่ซ่อน token — **เขียนแล้ว** `supabase/migrations/0001_line.sql` (ยังไม่ deploy รอข้อ 0) · ตรรกะกลางที่ใช้ร่วมกันทั้งแอปและ Edge Function อยู่ที่ `src/core/lineDelivery.ts` มีเทส 12 ข้อ |
-| 2 | `feat(line): connect` | Edge Function `line-connect` + หน้า `/app/settings/line` |
-| 3 | `feat(line): webhook` | `line-webhook` + signature + follow/unfollow/message |
-| 4 | `feat(line): linking` | รหัส 6 หลัก + จับคู่ด้วยมือ |
-| 5 | `feat(line): outbox` | ตาราง outbox + `line-send` + idempotency + retry |
+| 2 | `feat(line): connect` | Edge Function `line-connect` — **เขียนแล้ว** ยังไม่ deploy · หน้า `/app/settings/line` ยังไม่ทำ (รอล็อกอิน) |
+| 3 | `feat(line): webhook` | `line-webhook` + signature + follow/unfollow/message — **เขียนแล้ว** ยังไม่ deploy · ตรรกะอยู่ใน `src/core/lineProtocol.ts` มีเทส |
+| 4 | `feat(line): linking` | รหัส 6 หลัก **เขียนแล้ว** (ใน webhook) · จับคู่ด้วยมือยังไม่ทำ |
+| 5 | `feat(line): outbox` | ตาราง outbox + `line-send` + idempotency + retry — **เขียนแล้ว** ยังไม่ deploy |
 | 6 | `feat(line): manual send` | ต่อปุ่มส่งเดิมเข้า OA + fallback |
-| 7 | `feat(line): scheduled` | pg_cron + กฎทวง + กรอบเวลา + 1 ใบ/วัน |
+| 7 | `feat(line): scheduled` | pg_cron + กฎทวง · **กรอบเวลา 08:00–20:00 และ 1 ใบ/วัน เขียนและเทสแล้ว** ใน `lineProtocol.ts` เหลือ cron |
 | 8 | `feat(line): quota` | นับ เตือน หยุด |
 | 9 | `feat(line): inbox` | ดึงข้อความผู้ปกครองเข้าแท็บแชท |
 | 10 | `docs` | แก้หลักการข้อ 3 ใน README + คู่มือครูพร้อมภาพ |

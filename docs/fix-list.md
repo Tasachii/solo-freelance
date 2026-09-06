@@ -99,6 +99,7 @@
 | 69 | สำรองลง Google Sheets ของครูเอง — `src/core/sheets.ts` + `src/app/SheetsSheet.tsx` + `docs/google-sheets/` (Code.gs + คู่มือ) · เขียนอย่างเดียว ไม่อ่านกลับมาคำนวณ · เดโมไม่ส่ง ✅ |
 | 70 | นำเข้า/ส่งออกรายชื่อในเมนู — อ่าน .xlsx เองด้วย DecompressionStream ไม่เพิ่ม dependency · CSV/TSV/วางจากชีต · เดาคอลัมน์แล้วให้แก้ · ราคารายคนตามไฟล์ · ส่งออก CSV ที่นำกลับเข้ามาได้ ✅ |
 | 71 | มาสคอตเพนกวิน — ภาพหน้าแรก/หน้าว่าง · โลโก้ข้างชื่อแบรนด์ทุกหน้า · ไอคอน PWA และ favicon (เดิมยังเป็นสีเขียวชุดก่อนรีดีไซน์) · เพิ่ม icon-maskable สำหรับ Android · token `--beak` ✅ |
+| 72 | LINE OA ข้อ 2–5: `src/core/lineProtocol.ts` (แปล webhook · แผนต่อเหตุการณ์ · ประกอบ request · แปลผล · retry · กรอบเวลาไทย · 1 ใบ/วัน) 18 เทส mutation 7 ตัว + Edge Functions 3 ตัวเป็นเปลือกบาง — **ยังไม่ deploy** รอ Supabase ✅ |
 
 ## เทสที่ยังขาด (จาก core review)
 

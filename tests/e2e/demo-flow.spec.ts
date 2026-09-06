@@ -240,7 +240,7 @@ test('ทุกทางเข้าพาไปใช้งานได้เ�
   // กดแล้วเลือกแบบหนึ่งแตะเดียว ถึงหน้าใช้งานโดยไม่ต้องกรอกอะไร
   await ctas.nth(1).click()
   await expect(page.locator('input, textarea, select')).toHaveCount(0)
-  await page.getByRole('button', { name: /^ผสม/ }).click()
+  await page.getByRole('button', { name: /ผสม/ }).click()
   await expect(page.locator('.skel')).toHaveCount(0)
   await expect(page.locator('.urow').first()).toBeVisible()
   await expect(page.locator('.sheet')).toHaveCount(0)

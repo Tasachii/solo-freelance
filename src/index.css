@@ -481,7 +481,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .hint--fold summary::before{content:'ⓘ ';}
 .hint--fold[open] summary{margin-bottom:4px}
 /* หน้าเลือกรูปแบบการเก็บเงิน — การ์ดคือปุ่ม แตะเดียวเข้าแอป */
-.start .land__brand--link{text-decoration:none;color:var(--brand)}
 .picks{display:grid;gap:var(--space-3);margin-top:var(--space-4)}
 @media(min-width:768px){.picks{grid-template-columns:1fr 1fr}}
 .pick{display:grid;gap:6px;text-align:left;padding:var(--space-4);background:var(--card);color:var(--fg);
@@ -491,6 +490,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .pick__t{font-size:var(--fs-h2);font-weight:700;display:flex;align-items:center;gap:8px}
 .pick__now{font-style:normal;font-size:var(--fs-micro);font-weight:600;color:var(--on-brand);background:var(--brand);border-radius:999px;padding:2px 8px}
 .pick__s{color:var(--muted)}
-.pick__b{margin:4px 0 0;padding-left:1.1em;color:var(--muted);font-size:var(--fs-small);display:grid;gap:2px}
+.pick__b{margin-top:4px;color:var(--muted);font-size:var(--fs-small);display:grid;gap:2px}
+.pick__b>span::before{content:'· ';color:var(--brand)}
 .pick__go{margin-top:4px;color:var(--brand);font-weight:600}
 .start__note{margin-top:var(--space-4);text-align:center}

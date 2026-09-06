@@ -29,7 +29,7 @@ test('picking a style shapes the demo, the filters and the add-sheet default; th
   await page.getByRole('dialog', { name: 'เมนู' }).getByRole('button', { name: 'รูปแบบการเก็บเงิน' }).click()
   await expect(page).toHaveURL(/#\/start$/)
   await expect(page.getByText('ใช้อยู่')).toBeVisible()
-  await page.getByRole('button', { name: /^ผสม/ }).click()
+  await page.getByRole('button', { name: /ผสม/ }).click()
   await expect(page.locator('.skel')).toHaveCount(0)
   await expect(page.getByText('น้องแพรว')).toBeVisible()
 })

@@ -27,22 +27,26 @@ export default function StylePicker() {
 
   return (
     <div className="land start">
-      <header className="land__top">
-        <Link className="land__brand land__brand--link" to="/">‹ {copy.brand.name}</Link>
-        {!real && <DemoBadge />}
+      <header className="land__hero land__hero--sm">
+        <div className="land__bar">
+          <Link className="land__brand" to="/">‹ {copy.brand.name}</Link>
+          {!real && <DemoBadge />}
+        </div>
+        <h1 className="land__h1">{copy.start.title}</h1>
+        <p className="land__sub">{real ? copy.start.realNote : copy.start.sub}</p>
       </header>
-      <h1 className="land__h1">{copy.start.title}</h1>
-      <p className="land__sub">{real ? copy.start.realNote : copy.start.sub}</p>
 
       <div className="picks">
         {STYLES.map((st) => {
           const c = copy.start.cards[st]
           const on = state.style === st
           return (
-            <button key={st} type="button" className={`pick${on ? ' pick--on' : ''}`} aria-pressed={on} onClick={() => pick(st)}>
+            // ปุ่มรับได้แค่ phrasing content — ไม่มี ul/li ข้างใน ไม่งั้นชื่อปุ่มอ่านไม่ออกและ HTML ไม่ valid
+            <button key={st} type="button" className={`pick${on ? ' pick--on' : ''}`} aria-pressed={on}
+              aria-label={`${copy.start.pick} ${c.t}${on ? ` (${copy.start.current})` : ''}`} onClick={() => pick(st)}>
               <span className="pick__t">{c.t}{on && <i className="pick__now">{copy.start.current}</i>}</span>
               <span className="pick__s">{fill(c.s)}</span>
-              <ul className="pick__b">{c.b.map((b) => <li key={b}>{fill(b)}</li>)}</ul>
+              <span className="pick__b">{c.b.map((b) => <span key={b}>{fill(b)}</span>)}</span>
               <span className="pick__go">{copy.start.pick} ›</span>
             </button>
           )

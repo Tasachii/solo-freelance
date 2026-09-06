@@ -1,7 +1,0 @@
-{
-  "tool_name": "mcp__Claude_Browser__javascript_tool",
-  "tool_input_preview": "{\"action\":\"javascript_exec\",\"text\":\"location.reload();\\nawait new Promise(r => setTimeout(r, 2000));\\nlocation.hash = '#/app/admin';\\nawait new Promise(r => setTimeout(r, 1000));\\n({ warn: document.qu...",
-  "error": "javascript_tool failed: Inspected target navigated or closed The page navigated or was closed mid-evaluation (if the script itself navigated, it likely succeeded; otherwise re-run against the current page).",
-  "timestamp": "2026-09-05T08:33:38.165Z",
-  "retry_count": 1
-}

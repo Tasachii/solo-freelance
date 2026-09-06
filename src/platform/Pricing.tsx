@@ -4,6 +4,7 @@ import { copy } from '../copy'
 import { money } from '../core/format'
 import { DemoBadge, Icon } from '../app/components'
 import WaitlistSheet from './WaitlistSheet'
+import { AppearanceButton, ThemeToggle } from './ThemeToggle'
 
 /** ตัวเลขราคาอยู่ที่นี่ ข้อความอยู่ใน copy — ดัชนีตรงกับ copy.pricing.plans */
 const PRICES: (number | null)[] = [0, 299, 1500]
@@ -30,7 +31,7 @@ export default function Pricing() {
       <header className="land__hero land__hero--sm">
         <div className="land__bar">
           <Link className="backlink" to="/">‹ <span className="mark"><Icon name="spark" size={16} /></span>{copy.brand.name}</Link>
-          <DemoBadge />
+          <span className="land__tools"><DemoBadge /><ThemeToggle /><AppearanceButton /></span>
         </div>
         <h1 className="land__h1">{copy.pricing.title}</h1>
         <p className="land__sub">{copy.pricing.sub}</p>

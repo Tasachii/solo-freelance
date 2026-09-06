@@ -4,6 +4,7 @@ import { professions } from '../professions'
 import { copy } from '../copy'
 import { DemoBadge, Icon, Silhouette } from '../app/components'
 import WaitlistSheet from './WaitlistSheet'
+import { AppearanceButton, ThemeToggle } from './ThemeToggle'
 
 /**
  * หน้าแรกเป็นของคนที่จะใช้แอปจริง ไม่ใช่ของคนที่มาตัดสิน
@@ -19,7 +20,7 @@ export default function Landing() {
       <header className="land__hero">
         <div className="land__bar">
           <b className="land__brand"><span className="mark mark--lg"><Icon name="spark" size={20} /></span>{copy.brand.name}</b>
-          <DemoBadge />
+          <span className="land__tools"><DemoBadge /><ThemeToggle /><AppearanceButton /></span>
         </div>
         <div>
           <p className="land__money"><Icon name="shield" size={16} />{copy.landing.moneyLine}</p>

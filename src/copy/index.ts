@@ -24,7 +24,7 @@ export const copy = {
     restoreConfirm: 'ข้อมูลตอนนี้จะถูกแทนที่ด้วยไฟล์สำรอง',
     restoreCrossMode: 'ไฟล์นี้มาจากอีกโหมดหนึ่ง — ข้อมูลที่ใช้อยู่ตอนนี้จะถูกแทนที่ทั้งหมด แน่ใจไหม',
     restoreBad: { unreadable: 'ไฟล์นี้อ่านไม่ออก', wrongFile: 'ไม่ใช่ไฟล์สำรองของ Solo', wrongVersion: 'ไฟล์สำรองมาจากเวอร์ชันอื่น' },
-    theme: 'ธีม', themes: { system: 'ตามเครื่อง', light: 'สว่าง', dark: 'มืด' },
+    theme: 'ธีม', themes: { system: 'ตามเครื่อง', light: 'สว่าง', dark: 'มืด' }, toLight: 'เปลี่ยนเป็นธีมสว่าง', toDark: 'เปลี่ยนเป็นธีมมืด', appearance: 'ปรับสีและธีม',
     size: 'ขนาดจอ', sizes: { sm: 'ปกติ', lg: 'ใหญ่', xl: 'จอฉาย' },
     accent: 'สีหลัก', accents: { sky: 'ฟ้าเพอริวิงเคิล', teal: 'เขียวน้ำทะเล', forest: 'เขียวเข้ม', indigo: 'น้ำเงิน', plum: 'ม่วง', clay: 'ส้มอิฐ' },
     frame: 'มุมมอง', frames: { phone: 'แอป', web: 'เว็บ' },

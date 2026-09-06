@@ -5,6 +5,7 @@ import { copy } from '../copy'
 import { STYLES, scenarioForStyle } from '../core/style'
 import type { WorkStyle } from '../core/types'
 import { DemoBadge, Icon } from '../app/components'
+import { AppearanceButton, ThemeToggle } from './ThemeToggle'
 
 /**
  * หน้าแรกก่อนเข้าใช้ — เลือกว่าเก็บเงินแบบไหน แตะเดียวเข้าแอป
@@ -30,7 +31,7 @@ export default function StylePicker() {
       <header className="land__hero land__hero--sm">
         <div className="land__bar">
           <Link className="land__brand" to="/">‹ <span className="mark"><Icon name="spark" size={16} /></span>{copy.brand.name}</Link>
-          {!real && <DemoBadge />}
+          <span className="land__tools">{!real && <DemoBadge />}<ThemeToggle /><AppearanceButton /></span>
         </div>
         <h1 className="land__h1">{copy.start.title}</h1>
         <p className="land__sub">{real ? copy.start.realNote : copy.start.sub}</p>

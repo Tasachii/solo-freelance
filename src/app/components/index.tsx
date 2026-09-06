@@ -224,6 +224,9 @@ const ICONS = {
   shield: 'M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6zM9 12l2 2 4-4',
   send: 'M4 12l16-8-6 16-2.5-6z',
   arrow: 'M5 12h14M13 6l6 6-6 6',
+  sun: 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
+  moon: 'M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z',
+  palette: 'M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 0-5H12a2 2 0 0 1 0-4h5a4 4 0 0 0 4-4 5 5 0 0 0-9-5zM7.5 12.5h.01M9.5 8.5h.01M14.5 7.5h.01',
 } as const
 export type IconName = keyof typeof ICONS
 export function Icon({ name, size = 22 }: { name: IconName; size?: number }) {

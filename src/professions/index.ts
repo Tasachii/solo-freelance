@@ -16,12 +16,12 @@ export function professionById(id: string): ProfessionTemplate {
 const genericTemplates = (profession: ProfessionTemplate): ProfessionMessages => {
   const v = profession.vocab
   return {
-    invoice: `เรียน{clientHonorific}{clientName} 🙏 ค่า${v.unit}ของ{subjectName} เดือน {periodThai} {qty} ${v.units} รวม {total} บาท{p}\nดูรายละเอียดชำระเงินที่ {invoiceUrl} แล้วส่งสลิปกลับในแชท{p}`,
-    invoiceFlat: `เรียน{clientHonorific}{clientName} 🙏 ค่าบริการ{subjectName} เดือน {periodThai} {total} บาท{p} ({qty} ${v.units})\nดูรายละเอียดชำระเงินที่ {invoiceUrl} แล้วส่งสลิปกลับในแชท{p}`,
+    invoice: `เรียน{clientHonorific}{clientName} 🙏 ขอแจ้งค่าบริการ{subjectName} เดือน {periodThai} รวม {qty} ${v.units} เป็นเงิน {total} บาท{p}\nดูรายละเอียดและช่องทางชำระได้ที่ {invoiceUrl} เมื่อโอนแล้วรบกวนส่งสลิปในแชทนี้ได้เลย{p} ขอบคุณ{p}`,
+    invoiceFlat: `เรียน{clientHonorific}{clientName} 🙏 ขอแจ้งค่าบริการ{subjectName} เดือน {periodThai} {total} บาท{p} ({qty} ${v.units})\nดูรายละเอียดและช่องทางชำระได้ที่ {invoiceUrl} เมื่อโอนแล้วรบกวนส่งสลิปในแชทนี้ได้เลย{p} ขอบคุณ{p}`,
     reminder: {
-      soft: 'เรียน{clientHonorific}{clientName} ขออนุญาตแจ้งเตือนยอดของ{subjectName} เดือน {periodThai} {total} บาท ยังไม่ได้รับยอด{p} ดูรายละเอียดที่ {invoiceUrl} 🙏',
-      clear: 'เรียน{clientHonorific}{clientName} ยอดของ{subjectName} เดือน {periodThai} {total} บาท ค้างมา {daysOverdue} วันแล้ว{p} รบกวนชำระภายในวันนี้หรือพรุ่งนี้ได้ไหม{pq} {invoiceUrl}',
-      final: 'เรียน{clientHonorific}{clientName} แจ้งครั้งสุดท้ายเรื่องยอดของ{subjectName} เดือน {periodThai} {total} บาท{p} หากมีเรื่องการชำระที่อยากคุย ทักมาได้เลย{p} {invoiceUrl}',
+      soft: 'เรียน{clientHonorific}{clientName} ขออนุญาตเรียนแจ้งยอดค่าบริการ{subjectName} เดือน {periodThai} {total} บาท ที่ยังไม่ได้รับยอด{p} หากโอนแล้วรบกวนส่งสลิปให้ด้วยนะ{pq} รายละเอียดที่ {invoiceUrl} ขอบคุณ{p} 🙏',
+      clear: 'เรียน{clientHonorific}{clientName} ขออนุญาตติดตามยอดค่าบริการ{subjectName} เดือน {periodThai} {total} บาท ซึ่งเลยกำหนดมา {daysOverdue} วัน{p} หากสะดวก รบกวนชำระภายในวันนี้หรือพรุ่งนี้ได้ไหม{pq} รายละเอียดที่ {invoiceUrl} ขอบคุณ{p} 🙏',
+      final: 'เรียน{clientHonorific}{clientName} ขออนุญาตเรียนแจ้งเรื่องยอดค่าบริการ{subjectName} เดือน {periodThai} {total} บาท อีกครั้ง{p} หากมีเรื่องการชำระที่อยากปรึกษา ทักมาคุยได้เลยนะ{pq} ยินดีเสมอ{p} รายละเอียดที่ {invoiceUrl} 🙏',
     },
     renewal: `เรียน{clientHonorific}{clientName} แพ็ก {packageTotal} ${v.units}ของ{subjectName} เหลือ {remaining} ${v.units}{p} ต่อแพ็กใหม่ {packageTotal} ${v.units} {packagePrice} บาท ดูรายละเอียดที่ {invoiceUrl}`,
     renewalExhausted: `เรียน{clientHonorific}{clientName} แพ็ก {packageTotal} ${v.units}ของ{subjectName} ครบแล้ว{p} รอบล่าสุดเป็นครั้งที่ {overBy} นอกแพ็ก ต่อแพ็กใหม่ {packageTotal} ${v.units} {packagePrice} บาท ดูรายละเอียดที่ {invoiceUrl}`,
@@ -31,7 +31,7 @@ const genericTemplates = (profession: ProfessionTemplate): ProfessionMessages =>
     summary: `เรียน{clientHonorific}{clientName} สรุป{subjectName} เดือน {periodThai} {p} ทำไปแล้ว {qty} ${v.units} {amountLine}`,
     summaryAmount: 'ยอดตอนนี้ {total} บาท',
     summaryPackage: `เหลืออีก {remaining} จาก {packageTotal} ${v.units}`,
-    slipRequest: 'เรียน{clientHonorific}{clientName} สลิปที่ส่งมายอด {slipAmount} บาท แต่ยอดรอบนี้ {total} บาท{p} รบกวนตรวจสอบหรือส่งสลิปอีกครั้ง{p} 🙏',
+    slipRequest: 'เรียน{clientHonorific}{clientName} ขอบคุณสำหรับสลิป{p} ยอดที่ได้รับ {slipAmount} บาท ส่วนยอดค่าบริการเดือนนี้ {total} บาท รบกวนช่วยตรวจสอบหรือส่งสลิปอีกครั้งได้ไหม{pq} ขอบคุณ{p} 🙏',
     faq: {
       currentInvoice: `เดือน {periodThai} {subjectName}มี {qty} ${v.units} รวม {total} บาท{p} ดูรายละเอียดชำระเงินที่ {invoiceUrl}`,
       currentInvoiceNone: `{subjectName}เดือนนี้ยังไม่ปิดยอด{p} ตอนนี้ทำไป {completedSoFar} ${v.units} ประมาณ {estimate} บาท จะแจ้งยอดเมื่อสรุปรอบ{p}`,

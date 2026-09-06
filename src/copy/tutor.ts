@@ -1,20 +1,20 @@
 // ข้อความถึงลูกค้าทุกประโยค — เสียงของครู ไม่มีคำว่า "ระบบ/อัตโนมัติ/Solo" (หลักการข้อ 8)
 export const tutorTemplates = {
   invoice:
-    'เรียน{clientHonorific}{clientName} 🙏 ค่าเรียน{subjectName} เดือน {periodThai} {qty} ครั้ง รวม {total} บาท{p}\nดูรายละเอียดชำระเงินที่ {invoiceUrl} แล้วส่งสลิปกลับในแชท{p}',
+    'เรียน{clientHonorific}{clientName} 🙏 ขอแจ้งค่าเรียน{subjectName} เดือน {periodThai} รวม {qty} ครั้ง เป็นเงิน {total} บาท{p}\nดูรายละเอียดและช่องทางชำระได้ที่ {invoiceUrl} เมื่อโอนแล้วรบกวนส่งสลิปในแชทนี้ได้เลย{p} ขอบคุณ{p}',
   invoiceFlat:
-    'เรียน{clientHonorific}{clientName} 🙏 ค่าเรียน{subjectName} เดือน {periodThai} {total} บาท{p} (เรียนครบ {qty} ครั้ง)\nดูรายละเอียดชำระเงินที่ {invoiceUrl} แล้วส่งสลิปกลับในแชท{p}',
+    'เรียน{clientHonorific}{clientName} 🙏 ขอแจ้งค่าเรียน{subjectName} เดือน {periodThai} {total} บาท{p} (เรียนครบ {qty} ครั้ง)\nดูรายละเอียดและช่องทางชำระได้ที่ {invoiceUrl} เมื่อโอนแล้วรบกวนส่งสลิปในแชทนี้ได้เลย{p} ขอบคุณ{p}',
   reminder: {
-    soft: 'เรียน{clientHonorific}{clientName} ขออนุญาตแจ้งเตือนค่าเรียน{subjectName} เดือน {periodThai} {total} บาท ยังไม่ได้รับยอด{p} ดูรายละเอียดชำระเงินที่ {invoiceUrl} {p} 🙏',
-    clear: 'เรียน{clientHonorific}{clientName} ค่าเรียน{subjectName} เดือน {periodThai} {total} บาท ค้างมา {daysOverdue} วันแล้ว{p} รบกวนชำระภายในวันนี้หรือพรุ่งนี้ได้ไหม{pq} {invoiceUrl}',
-    final: 'เรียน{clientHonorific}{clientName} แจ้งครั้งสุดท้ายเรื่องค่าเรียน{subjectName} เดือน {periodThai} {total} บาท{p} หากมีเรื่องการชำระที่อยากคุย ทักครูได้เลยนะ{pq} ยินดี{p} {invoiceUrl}',
+    soft: 'เรียน{clientHonorific}{clientName} ขออนุญาตเรียนแจ้งค่าเรียน{subjectName} เดือน {periodThai} {total} บาท ที่ยังไม่ได้รับยอด{p} หากโอนแล้วรบกวนส่งสลิปให้ด้วยนะ{pq} รายละเอียดที่ {invoiceUrl} ขอบคุณ{p} 🙏',
+    clear: 'เรียน{clientHonorific}{clientName} ขออนุญาตติดตามค่าเรียน{subjectName} เดือน {periodThai} {total} บาท ซึ่งเลยกำหนดมา {daysOverdue} วัน{p} หากสะดวก รบกวนชำระภายในวันนี้หรือพรุ่งนี้ได้ไหม{pq} รายละเอียดที่ {invoiceUrl} ขอบคุณ{p} 🙏',
+    final: 'เรียน{clientHonorific}{clientName} ขออนุญาตเรียนแจ้งเรื่องค่าเรียน{subjectName} เดือน {periodThai} {total} บาท อีกครั้ง{p} หากมีเรื่องการชำระที่อยากปรึกษา ทักครูมาคุยได้เลยนะ{pq} ยินดีเสมอ{p} รายละเอียดที่ {invoiceUrl} 🙏',
   },
   renewal:
-    'เรียน{clientHonorific}{clientName} แพ็ก {packageTotal} ครั้งของ{subjectName} เหลืออีก {remaining} ครั้ง{p} ต่อแพ็กใหม่ {packageTotal} ครั้ง {packagePrice} บาท ดูรายละเอียดชำระเงินที่ {invoiceUrl} {p}',
+    'เรียน{clientHonorific}{clientName} ขอเรียนแจ้งว่าแพ็ก {packageTotal} ครั้งของ{subjectName} เหลืออีก {remaining} ครั้ง{p} หากสนใจต่อแพ็กใหม่ {packageTotal} ครั้ง {packagePrice} บาท ดูรายละเอียดได้ที่ {invoiceUrl} {p} 🙏',
   renewalExhausted:
-    'เรียน{clientHonorific}{clientName} แพ็ก {packageTotal} ครั้งของ{subjectName} ครบแล้ว{p} วันนี้เรียนเป็นครั้งที่ {overBy} นอกแพ็ก ต่อแพ็กใหม่ {packageTotal} ครั้ง {packagePrice} บาท ได้ที่ {invoiceUrl} {p}',
+    'เรียน{clientHonorific}{clientName} ขอเรียนแจ้งว่าแพ็ก {packageTotal} ครั้งของ{subjectName} ใช้ครบแล้ว{p} วันนี้เป็นครั้งที่ {overBy} นอกแพ็ก หากสนใจต่อแพ็กใหม่ {packageTotal} ครั้ง {packagePrice} บาท ดูรายละเอียดได้ที่ {invoiceUrl} {p} 🙏',
   receipt:
-    'ได้รับยอด {total} บาท ค่าเรียน{subjectName} เดือน {periodThai} แล้ว{p} ขอบคุณ{p} 🙏 ใบเสร็จ: {receiptUrl}',
+    'ได้รับยอด {total} บาท ค่าเรียน{subjectName} เดือน {periodThai} เรียบร้อยแล้ว{p} ขอบคุณมาก{p} 🙏 ใบเสร็จ: {receiptUrl}',
   moved:
     'เรียน{clientHonorific}{clientName} ขอเลื่อนคาบ{subjectName}จากวัน{fromDayThai}ที่ {fromDateThai} ไปเป็นวัน{dayThai}ที่ {dateThai} เวลา {time} {p} ขออภัยในความไม่สะดวก{p} 🙏',
   cancelled:
@@ -24,7 +24,7 @@ export const tutorTemplates = {
   summaryAmount: 'ยอดตอนนี้ {total} บาท',
   summaryPackage: 'เหลืออีก {remaining} จาก {packageTotal} ครั้ง',
   slipRequest:
-    'เรียน{clientHonorific}{clientName} สลิปที่ส่งมายอด {slipAmount} บาท แต่ค่าเรียนเดือนนี้ {total} บาท{p} รบกวนตรวจสอบหรือส่งสลิปอีกครั้งได้ไหม{pq} 🙏',
+    'เรียน{clientHonorific}{clientName} ขอบคุณสำหรับสลิป{p} ยอดที่ได้รับ {slipAmount} บาท ส่วนค่าเรียนเดือนนี้ {total} บาท รบกวนช่วยตรวจสอบหรือส่งสลิปอีกครั้งได้ไหม{pq} ขอบคุณ{p} 🙏',
   faq: {
     currentInvoice: 'เดือน {periodThai} {subjectName}เรียน {qty} ครั้ง รวม {total} บาท{p} ดูรายละเอียดชำระเงินที่ {invoiceUrl}',
     currentInvoiceNone: '{subjectName}เดือนนี้ยังไม่ปิดยอด{p} ตอนนี้เรียนไป {completedSoFar} ครั้ง ประมาณ {estimate} บาท จะส่งใบแจ้งสิ้นเดือนนะ{pq}',

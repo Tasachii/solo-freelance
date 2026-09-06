@@ -1,12 +1,14 @@
-export type Theme = 'light' | 'dark' | 'system'
+export type Theme = 'system' | 'light' | 'dark' | 'black' | 'warm'
+/** ลำดับที่โชว์ในเมนู — ตามเครื่อง แล้วค่อย 4 ธีมจริง */
+export const THEMES: Theme[] = ['system', 'light', 'dark', 'black', 'warm']
 
 const KEY = 'solo-theme'
 
 export function readTheme(): Theme {
   try {
     const v = localStorage.getItem(KEY)
-    // โฉม Navy เป็นธีมมืดโดยตั้งใจ — ผู้ใช้เลือก สว่าง/ตามเครื่อง ได้จากเมนู
-    return v === 'light' || v === 'dark' || v === 'system' ? v : 'dark'
+    // โฉม Navy เป็นธีมมืดโดยตั้งใจ — ผู้ใช้เลือกแบบอื่นได้จากเมนู
+    return THEMES.includes(v as Theme) ? (v as Theme) : 'dark'
   } catch {
     return 'dark'
   }
@@ -28,6 +30,6 @@ export function systemPrefersDark(): boolean {
   return typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches
 }
 
-/** ธีมที่เห็นจริงบนจอตอนนี้ */
+/** ดำสนิทเป็นตระกูลมืด · ครีมอุ่นเป็นตระกูลสว่าง — ใช้ตัดสินไอคอน/สลับเร็ว */
 export const effectiveTheme = (t: Theme): 'light' | 'dark' =>
-  t === 'system' ? (systemPrefersDark() ? 'dark' : 'light') : t
+  t === 'system' ? (systemPrefersDark() ? 'dark' : 'light') : t === 'black' ? 'dark' : t === 'warm' ? 'light' : t

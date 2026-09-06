@@ -11,10 +11,10 @@ import { draftCount } from '../core/selectors'
 import { BottomSheet, ConfirmSheet, DemoBadge, Icon, type IconName } from './components'
 import { ProfileSheet } from './ProfileSheet'
 import { SCENARIOS, SCENARIO_LABEL, type ScenarioId } from '../core/scenarios'
-import { applyTheme, readTheme, type Theme } from '../core/theme'
+import { THEMES, applyTheme, readTheme, type Theme } from '../core/theme'
 import { applySize, readSize, type DisplaySize } from '../core/display'
 import { ACCENTS, applyAccent, readAccent, type Accent } from '../core/accent'
-import { applyFrame, readFrame, toggleFullscreen, type Frame } from '../core/present'
+import { applyFrame, isFullscreen, readFrame, toggleFullscreen, type Frame } from '../core/present'
 
 type MenuTab = 'general' | 'display' | 'demo'
 
@@ -31,6 +31,13 @@ export default function AppShell() {
   const [frame, setFrame] = useState<Frame>(readFrame)
   const [keys, setKeys] = useState(false)
   const [profile, setProfile] = useState(false)
+  const [full, setFull] = useState(isFullscreen)
+  // ป้าย "เต็มจอ" ต้องกลับเป็น "ยกเลิกเต็มจอ" เมื่ออยู่ในโหมดนั้น — ไม่ว่าเข้าด้วยปุ่มหรือคีย์ F
+  useEffect(() => {
+    const sync = () => setFull(isFullscreen())
+    document.addEventListener('fullscreenchange', sync)
+    return () => document.removeEventListener('fullscreenchange', sync)
+  }, [])
   // ask = สิ่งที่กำลังถามยืนยันอยู่ (แทน window.confirm ที่ใช้ไม่ได้บน PWA)
   const [ask, setAsk] = useState<null | 'toDemo' | 'toReal' | { restore: AppState; cross: boolean }>(null)
   const real = state.mode === 'real'
@@ -163,7 +170,7 @@ export default function AppShell() {
               <div className="fld">
                 <div className="fld__l">{copy.menu.theme}</div>
                 <div className="chips">
-                  {(['system', 'light', 'dark'] as Theme[]).map((tm) => (
+                  {THEMES.map((tm) => (
                     <button key={tm} className={`chip${theme === tm ? ' chip--on' : ''}`}
                       aria-pressed={theme === tm}
                       onClick={() => { setTheme(tm); applyTheme(tm); track('theme_switch', { theme: tm }) }}>
@@ -210,7 +217,7 @@ export default function AppShell() {
                 </div>
               </div>
               <div className="rows rows--menu">
-                <button className="row" onClick={() => { void toggleFullscreen(); setMenu(false) }}>{copy.menu.fullscreen}</button>
+                <button className="row" onClick={() => { void toggleFullscreen(); setMenu(false) }}>{full ? copy.menu.exitFullscreen : copy.menu.fullscreen}</button>
                 <button className="row" onClick={() => { setKeys(true); setMenu(false) }}>{copy.menu.shortcuts}</button>
               </div>
             </>

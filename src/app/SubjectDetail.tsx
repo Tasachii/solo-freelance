@@ -10,7 +10,7 @@ import { invoiceFor } from '../core/billing'
 import { currentEstimate } from '../core/messages'
 import { dateThai, money, periodOf, periodThai } from '../core/format'
 import { modeThai } from '../copy/tutor'
-import { BottomSheet, EmptyState, ProgressBar } from './components'
+import { BottomSheet, EmptyState, ProgressBar, BackLink } from './components'
 import { useToast } from './components/Toast'
 import SubjectSheet from './SubjectSheet'
 import type { AppState } from '../core/types'
@@ -54,6 +54,7 @@ export default function SubjectDetail() {
 
   return (
     <div className="pane">
+      <BackLink to="/app/subjects" label={v.subjects} />
       <div className="rowhead">
         <h1 className="h1">{s.name}</h1>
         <button className="btn btn--ghost btn--sm" onClick={() => setEditing(true)}>{copy.detail.edit}</button>

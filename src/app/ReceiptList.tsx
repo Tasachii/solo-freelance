@@ -5,7 +5,7 @@ import { copy } from '../copy'
 import { subjectById } from '../core/ledger'
 import { download, monthCsv } from '../core/export'
 import { dateThai, money, periodOf, periodThaiFull } from '../core/format'
-import { EmptyState } from './components'
+import { EmptyState, BackLink } from './components'
 import { useToast } from './components/Toast'
 
 export default function ReceiptList() {
@@ -24,6 +24,7 @@ export default function ReceiptList() {
 
   return (
     <div className="pane">
+      <BackLink to="/app/billing" label={copy.nav.billing} />
       <h1 className="h1">{copy.billing.allReceipts}</h1>
       <label className="fld">
         <span className="fld__l">{copy.receipt.month}</span>

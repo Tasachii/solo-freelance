@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
 import { copy } from '../../copy'
 
 export function DemoBadge() {
@@ -110,6 +111,33 @@ export function BottomSheet(
     const onKey = (e: KeyboardEvent) => {
       if (modalStack[modalStack.length - 1] !== layerRef.current) return
       if (e.key === 'Escape') { closeRef.current(); return }
+      const el = e.target as HTMLElement | null
+      const typing = !!el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)
+      // ลูกศรซ้าย/ขวาบนแท็บหรือชิป = เลื่อนในกลุ่มเดียวกันและเลือกทันที
+      if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && el && !typing) {
+        const group = el.closest('[role="tablist"], .chips, .seg')
+        if (group && ref.current?.contains(group)) {
+          const items = [...group.querySelectorAll<HTMLElement>('button:not([disabled])')]
+          const i = items.indexOf(el)
+          if (i >= 0) {
+            e.preventDefault()
+            const next = items[(i + (e.key === 'ArrowRight' ? 1 : items.length - 1)) % items.length]
+            next.focus(); if (next.getAttribute('role') === 'tab') next.click()
+            return
+          }
+        }
+      }
+      // ลูกศรขึ้น/ลง = เลื่อนโฟกัสไล่ตามปุ่มในชีท (วนรอบ) — เมนูยาวใช้คีย์บอร์ดได้จริง
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !typing) {
+        const items = [...(ref.current?.querySelectorAll<HTMLElement>(
+          'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled])') ?? [])]
+        if (!items.length) return
+        e.preventDefault()
+        const i = items.indexOf(document.activeElement as HTMLElement)
+        const next = i < 0 ? items[0] : items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]
+        next.focus()
+        return
+      }
       if (e.key !== 'Tab') return
       // aria-modal บอกว่าเป็น modal แล้วต้องทำให้จริง ไม่งั้น Tab หลุดไปหน้าหลัง
       const f = ref.current?.querySelectorAll<HTMLElement>(
@@ -251,4 +279,9 @@ export function Silhouette({ className = 'silhouette' }: { className?: string })
       <path d="M0 208c60-4 120 2 180-2s120-4 180 0 120 2 160-2v14H0z" />
     </svg>
   )
+}
+
+/** ทางกลับของหน้าย่อย — บอกชัดว่ากลับไปไหน ไม่ใช่ "back" ลอยๆ */
+export function BackLink({ to, label }: { to: string; label: string }) {
+  return <Link className="backbtn" to={to} aria-label={`${copy.common.back}ไป${label}`}>‹ {label}</Link>
 }

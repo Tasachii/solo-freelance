@@ -33,6 +33,25 @@
 --glow-a:rgba(143,164,255,.16);--glow-b:rgba(91,108,255,.14);
 --shadow:0 12px 30px rgba(0,0,0,.45)}
 
+/* ธีมที่ 3 — ดำสนิท (OLED) ตระกูลมืด · สีแบรนด์เดียวกับมืด */
+:root[data-theme="black"]{color-scheme:dark;
+--bg:#000000;--bg-outer:#000000;--surface:#0f1017;--ink:#f4f5ff;--muted:#9aa3bd;--line:#1e2130;
+--brand:#8fa4ff;--brand-2:#c9d6ff;--brand-soft:#1b1f38;--brand-ink:#c9d6ff;--glow:rgba(143,164,255,.3);
+--ok:#6ee7a8;--ok-soft:#0f2a22;--warn:#f6b73c;--warn-soft:#2b210c;--danger:#fb7185;--danger-soft:#33141d;
+--on-brand:#0f1119;--on-danger:#2a0c12;--on-ink:#000000;--on-ink-soft:rgba(0,0,0,.2);
+--skel-hi:#1a1d2c;--veil:rgba(0,0,0,.72);
+--glow-a:rgba(143,164,255,.08);--glow-b:rgba(91,108,255,.06);
+--shadow:0 12px 30px rgba(0,0,0,.6)}
+/* ธีมที่ 4 — ครีมอุ่น (กระดาษ) ตระกูลสว่าง · แบรนด์อุ่นขึ้นเล็กน้อย */
+:root[data-theme="warm"]{color-scheme:light;
+--bg:#f7f3ea;--bg-outer:#ede7da;--surface:#fffdf7;--ink:#2b2926;--muted:#6f6a62;--line:#e6dfd1;
+--brand:#5b6cff;--brand-2:#9aa7ff;--brand-soft:#e9e9f8;--brand-ink:#3b49d6;--glow:rgba(91,108,255,.22);
+--ok:#1f7a4c;--ok-soft:#e4f1e6;--warn:#7d4f08;--warn-soft:#faefd8;--danger:#b8402f;--danger-soft:#f9e6e0;
+--on-brand:#fff;--on-danger:#fff;--on-ink:#fff;--on-ink-soft:rgba(255,255,255,.2);
+--skel-hi:#f1ece2;--veil:rgba(43,41,38,.45);
+--glow-a:rgba(246,183,60,.12);--glow-b:rgba(91,108,255,.08);
+--shadow:0 6px 20px rgba(43,41,38,.07)}
+
 /* ขนาดจอสำหรับฉายตอนพรีเซนต์ — ขยายทั้งตัวอักษรและความกว้าง ไม่ใช่ซูมภาพ */
 :root[data-size="lg"]{--shell-w:520px;
   --fs-body:17px;--fs-small:14px;--fs-micro:13px;--fs-h1:28px;--fs-h2:20px;--tap:52px;--tap-sm:48px}
@@ -53,16 +72,16 @@
   :root:not([data-theme="light"])[data-accent="plum"]{--brand:#d489d8;--brand-2:#ecbdee;--brand-soft:#331434;--brand-ink:#ecbdee;--glow:rgba(212,137,216,.35)}
   :root:not([data-theme="light"])[data-accent="clay"]{--brand:#e0925f;--brand-2:#f3c4a1;--brand-soft:#331e10;--brand-ink:#f3c4a1;--glow:rgba(224,146,95,.35)}
 }
-:root[data-theme="dark"][data-accent="teal"]{--brand:#3fc4b4;--brand-2:#8fe3d8;--brand-soft:#123330;--brand-ink:#8fe3d8;--glow:rgba(63,196,180,.35)}
-:root[data-theme="dark"][data-accent="forest"]{--brand:#4fc57e;--brand-2:#9ee5b7;--brand-soft:#122b1c;--brand-ink:#9ee5b7;--glow:rgba(79,197,126,.35)}
-:root[data-theme="dark"][data-accent="indigo"]{--brand:#8b93ff;--brand-2:#bcc1ff;--brand-soft:#1d2050;--brand-ink:#bcc1ff;--glow:rgba(139,147,255,.35)}
-:root[data-theme="dark"][data-accent="plum"]{--brand:#d489d8;--brand-2:#ecbdee;--brand-soft:#331434;--brand-ink:#ecbdee;--glow:rgba(212,137,216,.35)}
-:root[data-theme="dark"][data-accent="clay"]{--brand:#e0925f;--brand-2:#f3c4a1;--brand-soft:#331e10;--brand-ink:#f3c4a1;--glow:rgba(224,146,95,.35)}
+:root:is([data-theme="dark"],[data-theme="black"])[data-accent="teal"]{--brand:#3fc4b4;--brand-2:#8fe3d8;--brand-soft:#123330;--brand-ink:#8fe3d8;--glow:rgba(63,196,180,.35)}
+:root:is([data-theme="dark"],[data-theme="black"])[data-accent="forest"]{--brand:#4fc57e;--brand-2:#9ee5b7;--brand-soft:#122b1c;--brand-ink:#9ee5b7;--glow:rgba(79,197,126,.35)}
+:root:is([data-theme="dark"],[data-theme="black"])[data-accent="indigo"]{--brand:#8b93ff;--brand-2:#bcc1ff;--brand-soft:#1d2050;--brand-ink:#bcc1ff;--glow:rgba(139,147,255,.35)}
+:root:is([data-theme="dark"],[data-theme="black"])[data-accent="plum"]{--brand:#d489d8;--brand-2:#ecbdee;--brand-soft:#331434;--brand-ink:#ecbdee;--glow:rgba(212,137,216,.35)}
+:root:is([data-theme="dark"],[data-theme="black"])[data-accent="clay"]{--brand:#e0925f;--brand-2:#f3c4a1;--brand-soft:#331e10;--brand-ink:#f3c4a1;--glow:rgba(224,146,95,.35)}
 
 /* ธีมมืดใช้สีสว่างขึ้น ตัวหนังสือบนปุ่มจึงต้องเป็นสีเข้ม */
 :root[data-accent]{--on-brand:#fff}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"])[data-accent]{--on-brand:#0d1512}}
-:root[data-theme="dark"][data-accent]{--on-brand:#0d1512}
+:root:is([data-theme="dark"],[data-theme="black"])[data-accent]{--on-brand:#0d1512}
 
 *{box-sizing:border-box}
 html,body,#root{height:100%}
@@ -591,3 +610,8 @@ body:has(.land){background:radial-gradient(45% 45% at 8% 0%,var(--glow-a),transp
   background:var(--brand-soft);color:var(--brand-ink)}
 .promo__t{display:block;font-size:var(--fs-h2)}
 .promo__s{margin:4px 0 0;font-size:var(--fs-small);color:var(--muted)}
+
+/* ปุ่มกลับของหน้าย่อย */
+.backbtn{display:inline-flex;align-items:center;gap:4px;min-height:var(--tap-sm);margin:-6px 0 var(--space-1) -4px;padding:0 6px;
+  border-radius:var(--radius-sm);color:var(--brand);font-weight:600;font-size:var(--fs-small);text-decoration:none}
+.backbtn:hover{background:var(--brand-soft)}

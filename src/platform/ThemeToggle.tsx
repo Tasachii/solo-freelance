@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { applyTheme, effectiveTheme, readTheme, type Theme } from '../core/theme'
+import { THEMES, applyTheme, effectiveTheme, readTheme, type Theme } from '../core/theme'
 import { ACCENTS, applyAccent, readAccent, type Accent } from '../core/accent'
 import { copy } from '../copy'
 import { BottomSheet, Icon } from '../app/components'
@@ -43,7 +43,7 @@ export function AppearanceButton() {
           <div className="fld">
             <div className="fld__l">{copy.menu.theme}</div>
             <div className="chips">
-              {(['system', 'light', 'dark'] as Theme[]).map((t) => (
+              {THEMES.map((t) => (
                 <button key={t} type="button" className={`chip${theme === t ? ' chip--on' : ''}`} aria-pressed={theme === t}
                   onClick={() => { setTheme(t); applyTheme(t) }}>{copy.menu.themes[t]}</button>
               ))}

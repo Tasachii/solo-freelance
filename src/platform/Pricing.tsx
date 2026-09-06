@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { copy } from '../copy'
 import { money } from '../core/format'
-import { DemoBadge, Icon } from '../app/components'
+import { DemoBadge, PenguinMark } from '../app/components'
 import WaitlistSheet from './WaitlistSheet'
 import { AppearanceButton, ThemeToggle } from './ThemeToggle'
 
@@ -18,7 +18,7 @@ export default function Pricing() {
     <div className="land">
       <header className="land__hero land__hero--sm">
         <div className="land__bar">
-          <Link className="backlink" to="/">‹ <span className="mark"><Icon name="spark" size={16} /></span>{copy.brand.name}</Link>
+          <Link className="backlink" to="/">‹ <PenguinMark size={28} />{copy.brand.name}</Link>
           <span className="land__tools"><DemoBadge /><ThemeToggle /><AppearanceButton /></span>
         </div>
         <h1 className="land__h1">{copy.pricing.title}</h1>

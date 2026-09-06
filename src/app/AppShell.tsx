@@ -8,7 +8,7 @@ import { useToast } from './components/Toast'
 import { professionById } from '../professions'
 import { copy } from '../copy'
 import { draftCount } from '../core/selectors'
-import { BottomSheet, ConfirmSheet, DemoBadge, Icon, type IconName } from './components'
+import { BottomSheet, ConfirmSheet, DemoBadge, Icon, PenguinMark, type IconName } from './components'
 import { ProfileSheet } from './ProfileSheet'
 import { SheetsSheet } from './SheetsSheet'
 import { ImportSheet } from './ImportSheet'
@@ -117,7 +117,7 @@ export default function AppShell() {
   return (
     <div className="shell">
       <header className="shell__hd">
-        <b className="shell__brand"><span className="mark"><Icon name="spark" size={16} /></span>{copy.brand.name}</b>
+        <b className="shell__brand"><PenguinMark size={28} />{copy.brand.name}</b>
         {/* ครูต้องรู้ตลอดว่ากำลังแตะข้อมูลจริงหรือข้อมูลสมมติ */}
         {real && <span className="realtag">{copy.menu.realOn}</span>}
         <div className="shell__hdr">

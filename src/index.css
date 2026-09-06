@@ -104,9 +104,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .shell__hd{flex:none;display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);
   padding:calc(var(--space-3) + env(safe-area-inset-top)) var(--space-4) var(--space-2)}
 .shell__brand{display:inline-flex;align-items:center;gap:8px}
-.mark{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:10px;flex:none;
-  background:linear-gradient(135deg,var(--brand),var(--brand-2));color:var(--on-brand)}
-.mark--lg{width:38px;height:38px;border-radius:12px}
+.pmark{flex:none;color:var(--brand)}
 .shell__brand{font-size:var(--fs-h2);font-weight:700}
 .shell__hdr{display:flex;align-items:center;gap:var(--space-2)}
 .shell__menu{width:var(--tap);height:var(--tap);border-radius:var(--radius-sm);font-size:20px;color:var(--muted)}
@@ -522,7 +520,12 @@ body:has(.land){background:radial-gradient(45% 45% at 8% 0%,var(--glow-a),transp
 @media(max-width:480px){.urow--done{display:flex;row-gap:0}.urow--done .urow__main{grid-column:auto}}
 /* จอ 320px: ป้ายเดโมเหลือคำเดียว ชื่อแอปไม่พับ */
 .shell__brand{white-space:nowrap}
-@media(max-width:359px){.demo-badge__more{display:none}.shell__brand{font-size:var(--fs-body)}}
+/* โลโก้เพนกวินกินที่มากกว่าไอคอนเดิม — จอแคบให้ป้ายเดโมสั้นลงแทนที่จะให้ชื่อแบรนด์ตกบรรทัด */
+.land__brand{white-space:nowrap}
+@media(max-width:430px){.demo-badge__more{display:none}}
+/* 320px: ชื่อแบรนด์กับปุ่มปรับหน้าตาใส่บรรทัดเดียวไม่พอ — ให้ตกบรรทัดแทนที่จะล้นออกนอกจอ */
+@media(max-width:400px){.land__bar{flex-wrap:wrap;row-gap:var(--space-2)}.land__tools{margin-left:auto}}
+@media(max-width:359px){.shell__brand{font-size:var(--fs-body)}}
 /* คำอธิบาย "ช่วยไว้" พับไว้ แตะเมื่ออยากรู้ */
 .hint--fold summary{cursor:pointer;color:var(--brand);list-style:none}
 .hint--fold summary::before{content:'ⓘ ';}

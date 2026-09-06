@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { professions } from '../professions'
 import { copy } from '../copy'
-import { DemoBadge, Icon, Mascot } from '../app/components'
+import { DemoBadge, Icon, Mascot, PenguinMark } from '../app/components'
 import WaitlistSheet from './WaitlistSheet'
 import { AppearanceButton, ThemeToggle } from './ThemeToggle'
 
@@ -19,7 +19,7 @@ export default function Landing() {
     <div className="land">
       <header className="land__hero">
         <div className="land__bar">
-          <b className="land__brand"><span className="mark mark--lg"><Icon name="spark" size={20} /></span>{copy.brand.name}</b>
+          <b className="land__brand"><PenguinMark size={34} />{copy.brand.name}</b>
           <span className="land__tools"><DemoBadge /><ThemeToggle /><AppearanceButton /></span>
         </div>
         <div>

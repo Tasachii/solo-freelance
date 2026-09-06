@@ -98,6 +98,7 @@
 | 68 | LINE OA วง 3 ข้อ 1: `supabase/migrations/0001_line.sql` + `src/core/lineDelivery.ts` (เลือกช่องทาง · โควตา 3 ชั้น · รหัสจับคู่ · ตรวจลายเซ็น) + เทส 12 ข้อ mutation ครบ 6 ตัว — **ยังไม่ต่อกับ UI และยังไม่ deploy** รอ Supabase ✅ |
 | 69 | สำรองลง Google Sheets ของครูเอง — `src/core/sheets.ts` + `src/app/SheetsSheet.tsx` + `docs/google-sheets/` (Code.gs + คู่มือ) · เขียนอย่างเดียว ไม่อ่านกลับมาคำนวณ · เดโมไม่ส่ง ✅ |
 | 70 | นำเข้า/ส่งออกรายชื่อในเมนู — อ่าน .xlsx เองด้วย DecompressionStream ไม่เพิ่ม dependency · CSV/TSV/วางจากชีต · เดาคอลัมน์แล้วให้แก้ · ราคารายคนตามไฟล์ · ส่งออก CSV ที่นำกลับเข้ามาได้ ✅ |
+| 71 | มาสคอตเพนกวิน — ภาพหน้าแรก/หน้าว่าง · โลโก้ข้างชื่อแบรนด์ทุกหน้า · ไอคอน PWA และ favicon (เดิมยังเป็นสีเขียวชุดก่อนรีดีไซน์) · เพิ่ม icon-maskable สำหรับ Android · token `--beak` ✅ |
 
 ## เทสที่ยังขาด (จาก core review)
 

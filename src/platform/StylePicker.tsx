@@ -4,7 +4,7 @@ import { professionById, fillVocab } from '../professions'
 import { copy } from '../copy'
 import { STYLES, scenarioForStyle } from '../core/style'
 import type { WorkStyle } from '../core/types'
-import { DemoBadge, Icon } from '../app/components'
+import { DemoBadge, PenguinMark } from '../app/components'
 import { AppearanceButton, ThemeToggle } from './ThemeToggle'
 
 /**
@@ -30,7 +30,7 @@ export default function StylePicker() {
     <div className="land start">
       <header className="land__hero land__hero--sm">
         <div className="land__bar">
-          <Link className="land__brand" to="/">‹ <span className="mark"><Icon name="spark" size={16} /></span>{copy.brand.name}</Link>
+          <Link className="land__brand" to="/">‹ <PenguinMark size={28} />{copy.brand.name}</Link>
           <span className="land__tools">{!real && <DemoBadge />}<ThemeToggle /><AppearanceButton /></span>
         </div>
         <h1 className="land__h1">{copy.start.title}</h1>

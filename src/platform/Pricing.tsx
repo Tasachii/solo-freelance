@@ -59,7 +59,7 @@ export default function Pricing() {
                 <button className="btn btn--ghost plan__cta" onClick={() => setLead(true)}>{p.cta}</button>
               ) : (
                 <Link className={`btn plan__cta ${i === HIGHLIGHT ? 'btn--primary' : 'btn--ghost'}`}
-                  to="/app/today">{p.cta}</Link>
+                  to="/start">{p.cta}</Link>
               )}
             </li>
           ))}

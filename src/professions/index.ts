@@ -56,3 +56,7 @@ export const modeLabelFor = (professionId: string, mode: BillingMode['mode']): s
   return profession.modeLabels?.[mode]
     ?? (mode === 'per_unit' ? `ราย${profession.vocab.unit}` : mode === 'flat_monthly' ? 'เหมารายเดือน' : 'แพ็ก')
 }
+
+/** แทน {unit} {units} {completion} {client} {subject} … ด้วยคำของอาชีพ */
+export const fillVocab = (text: string, vocab: ProfessionTemplate['vocab']): string =>
+  text.replace(/\{(\w+)\}/g, (_m, k: string) => (vocab as Record<string, string>)[k] ?? `{${k}}`)

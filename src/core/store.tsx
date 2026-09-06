@@ -1,8 +1,9 @@
 import {
   createContext, useCallback, useContext, useEffect, useMemo, useState, useRef, type ReactNode,
 } from 'react'
-import type { AppState, Message, Subject, Particle } from './types'
+import type { AppState, Message, Subject, Particle, WorkStyle } from './types'
 import { isParticle } from './particle'
+import { isStyle } from './style'
 import { buildReal, buildScenario, isScenario } from './scenarios'
 import { appendEvent } from './events'
 import { todayISO } from './format'
@@ -41,6 +42,7 @@ export type Action =
   | { type: 'bulkAddSubjects'; rows: { name: string; clientName: string; lineId?: string }[]; billing: Subject['billing'] }
   | { type: 'onboarded' }
   | { type: 'startReal' }
+  | { type: 'setStyle'; style: WorkStyle }
   | { type: 'backedUp' }
   | { type: 'sendingStart'; awaiting: string; queue: string[] }
   | { type: 'sendingNext'; awaiting: string }
@@ -274,7 +276,12 @@ export function reducer(state: AppState, action: Action): AppState {
       break
     case 'startReal':
       // เก็บชื่อ/พร้อมเพย์ที่กรอกไว้ ทิ้งข้อมูลสมมติทั้งหมด
-      s = buildReal(s.provider)
+      s = buildReal(s.provider, s.style)
+      break
+    case 'setStyle':
+      // เปลี่ยนแค่หน้าจอและค่าเริ่มต้น — ข้อมูลลูกค้าและบิลอยู่ครบ
+      if (!isStyle(action.style)) return state
+      s = { ...s, style: action.style }
       break
     case 'clearMessages':
       // เก็บ skipped/sent ไว้ ไม่งั้น dedupe หาย ร่างที่ผู้ใช้ข้ามจะกลับมา

@@ -1,5 +1,6 @@
 import type { AppState, BillingMode } from './types'
 import { isParticle } from './particle'
+import { isStyle } from './style'
 
 export const isMoney = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value > 0
@@ -64,6 +65,7 @@ export function validateState(value: unknown): StateValidation {
   if (!isRecord(state.provider) || !isString(state.provider.name) || !isString(state.provider.promptpayId)
     || (state.provider.particle !== undefined && !isParticle(state.provider.particle))) errors.push('provider: ไม่ถูกต้อง')
   if (typeof state.onboarded !== 'boolean') errors.push('onboarded: ไม่ถูกต้อง')
+  if (state.style !== undefined && !isStyle(state.style)) errors.push('style: ไม่ถูกต้อง')
   if (state.lastBackupAt !== undefined && !isISODate(state.lastBackupAt)) errors.push('lastBackupAt: ไม่ถูกต้อง')
   if (!isRecord(state.counters)
     || !isNonNegativeMoney(state.counters.receipt) || !isNonNegativeMoney(state.counters.invoice)) errors.push('counters: ต้องเป็นจำนวนเต็มไม่ติดลบ')

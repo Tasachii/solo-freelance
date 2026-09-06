@@ -7,6 +7,8 @@ import { BottomSheet } from './components'
 import type { BillingMode, Subject } from '../core/types'
 import { isMoney } from '../core/validation'
 import { billingChangeIssue, type BillingChangeIssue } from '../core/billing'
+import { defaultBillingFor } from '../core/style'
+import { fillVocab } from '../professions'
 
 type Mode = BillingMode['mode']
 
@@ -61,7 +63,7 @@ export default function SubjectSheet({ subject, onClose }: { subject?: Subject; 
   const [name, setName] = useState(subject?.name ?? '')
   const [clientName, setClientName] = useState(client?.name ?? '')
   const [lineId, setLineId] = useState(client?.lineId ?? '')
-  const [mode, setMode] = useState<Mode>(b?.mode ?? 'per_unit')
+  const [mode, setMode] = useState<Mode>(b?.mode ?? defaultBillingFor(state.style))
   const [rate, setRate] = useState(String(b?.mode === 'per_unit' ? b.rate : 400))
   const [flat, setFlat] = useState(String(b?.mode === 'flat_monthly' ? b.amount : 3000))
   // แพ็กที่ลูกค้าใช้ไปแล้ว การแก้จำนวน/ราคาทำให้ยอดคงเหลือกระโดดทันที — ต้องเตือนก่อน
@@ -132,6 +134,7 @@ export default function SubjectSheet({ subject, onClose }: { subject?: Subject; 
             </button>
           ))}
         </div>
+        <span className="hint">{fillVocab(copy.waitlist.modeHow[mode], prof.vocab)}</span>
         {changeIssueText && <span className="hint hint--bad" role="alert">{changeIssueText}</span>}
       </div>
 

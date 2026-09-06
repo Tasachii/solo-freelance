@@ -23,7 +23,7 @@ export default function Landing() {
         <h1 className="land__h1">{copy.landing.h1}</h1>
         <p className="land__sub">{copy.landing.sub}</p>
         <div className="land__cta">
-          <Link className="btn btn--primary" to="/app/today">{copy.landing.ctaPrimary}</Link>
+          <Link className="btn btn--primary" to="/start">{copy.landing.ctaPrimary}</Link>
           <Link className="btn btn--ghost" to="/pricing">{copy.landing.ctaSecondary}</Link>
         </div>
         <p className="land__money">{copy.landing.moneyLine}</p>
@@ -42,8 +42,7 @@ export default function Landing() {
       </section>
 
       <section className="land__sec land__sec--cta">
-        <p className="land__last">{copy.landing.ctaBottom}</p>
-        <Link className="btn btn--primary" to="/app/today">{copy.landing.tryNow}</Link>
+        <Link className="btn btn--primary" to="/start">{copy.landing.tryNow}</Link>
       </section>
 
       {/* อาชีพอื่นยังเปิดไม่ได้ จึงไม่ใช่ "ตัวเลือก" — บอกให้รู้ว่ากำลังมา ก็พอ */}

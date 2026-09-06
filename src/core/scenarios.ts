@@ -1,14 +1,15 @@
-import type { AppState, Invoice, Message, Payment, Particle } from './types'
+import type { AppState, Invoice, Message, Payment, Particle, WorkStyle } from './types'
+import { styleOfScenario } from './style'
 import { buildFromPlans, emptyBase, TODAY, type SubjectPlan } from '../mock/seed'
 import { receiptNumber } from './receipts'
 import { receiptText } from './messages'
 import { markOverdue } from './billing'
 import { todayISO } from './format'
 
-export const SCENARIOS = ['default', 'package-heavy', 'monthly-heavy', 'empty'] as const
+export const SCENARIOS = ['default', 'per-unit', 'flat-heavy', 'package-heavy', 'monthly-heavy', 'empty'] as const
 export type ScenarioId = (typeof SCENARIOS)[number]
 export const SCENARIO_LABEL: Record<ScenarioId, string> = {
-  default: 'ผสม', 'package-heavy': 'แพ็กเป็นหลัก', 'monthly-heavy': 'รายเดือนเป็นหลัก', empty: 'เริ่มจากศูนย์',
+  default: 'ผสม', 'per-unit': 'รายครั้งล้วน', 'flat-heavy': 'เหมาเดือนเป็นหลัก', 'package-heavy': 'แพ็กเป็นหลัก', 'monthly-heavy': 'รายเดือนเป็นหลัก', empty: 'เริ่มจากศูนย์',
 }
 
 const PKG = (total: number, price: number, purchasedAt: string) =>
@@ -149,12 +150,52 @@ function scenarioMonthlyHeavy(): AppState {
   return markOverdue(s)
 }
 
+function scenarioPerUnit(): AppState {
+  const plans: SubjectPlan[] = [
+    { id: 'u1', name: 'น้องมิน', clientId: 'q1', clientName: 'คุณแม่มิน', billing: { mode: 'per_unit', rate: 400 }, label: 'คณิต', days: [1, 2], time: '16:00', augDone: 8, sepDoneBeforeToday: 1, todayUnit: { time: '16:00', done: true } },
+    { id: 'u2', name: 'น้องพีช', clientId: 'q2', clientName: 'คุณพ่อพีช', billing: { mode: 'per_unit', rate: 500 }, label: 'ฟิสิกส์', days: [2, 4], time: '17:00', augDone: 6, sepDoneBeforeToday: 0, todayUnit: { time: '17:00', done: false } },
+    { id: 'u3', name: 'น้องไอซ์', clientId: 'q3', clientName: 'คุณแม่ไอซ์', billing: { mode: 'per_unit', rate: 450 }, label: 'เคมี', days: [3, 5], time: '15:00', augDone: 7, sepDoneBeforeToday: 0 },
+    { id: 'u4', name: 'น้องเนม', clientId: 'q4', clientName: 'คุณแม่เนม', billing: { mode: 'per_unit', rate: 400 }, label: 'อังกฤษ', days: [1, 4], time: '14:00', augDone: 5, sepDoneBeforeToday: 1 },
+    { id: 'u5', name: 'น้องต้า', clientId: 'q5', clientName: 'คุณพ่อต้า', billing: { mode: 'per_unit', rate: 400 }, label: 'คณิต', days: [2, 6], time: '18:00', augDone: 6, sepDoneBeforeToday: 0, todayUnit: { time: '18:00', done: false } },
+    { id: 'u6', name: 'น้องหมิว', clientId: 'q6', clientName: 'คุณแม่หมิว', billing: { mode: 'per_unit', rate: 500 }, label: 'ชีวะ', days: [3, 6], time: '19:00', augDone: 4, sepDoneBeforeToday: 0 },
+  ]
+  let s = buildFromPlans(plans, 'per-unit')
+  s = applySeedInvoices(s, [
+    { subjectId: 'u1', period: '2025-08', total: 3200, qty: 8, unitPrice: 400, desc: 'คณิต ส.ค. 2568 — 8 × 400', status: 'paid', sentAt: '2025-08-31', paidAt: '2025-08-31' },
+    { subjectId: 'u2', period: '2025-08', total: 3000, qty: 6, unitPrice: 500, desc: 'ฟิสิกส์ ส.ค. 2568 — 6 × 500', status: 'sent', sentAt: '2025-08-29', dueAt: '2025-09-01' },
+    { subjectId: 'u3', period: '2025-08', total: 3150, qty: 7, unitPrice: 450, desc: 'เคมี ส.ค. 2568 — 7 × 450', status: 'sent', sentAt: '2025-08-25', dueAt: '2025-08-28' },
+    { subjectId: 'u4', period: '2025-08', total: 2000, qty: 5, unitPrice: 400, desc: 'อังกฤษ ส.ค. 2568 — 5 × 400', status: 'paid', sentAt: '2025-08-31', paidAt: '2025-08-31' },
+  ])
+  return markOverdue(s)
+}
+
+function scenarioFlatHeavy(): AppState {
+  const plans: SubjectPlan[] = [
+    { id: 'f1', name: 'น้องเฟิร์น', clientId: 'g1', clientName: 'คุณแม่เฟิร์น', billing: { mode: 'flat_monthly', amount: 3000 }, label: 'อังกฤษ', days: [1, 5], time: '16:00', augDone: 8, sepDoneBeforeToday: 1, todayUnit: { time: '16:00', done: true } },
+    { id: 'f2', name: 'น้องกิ๊ฟ', clientId: 'g2', clientName: 'คุณแม่กิ๊ฟ', billing: { mode: 'flat_monthly', amount: 2600 }, label: 'คณิต', days: [2, 4], time: '17:00', augDone: 7, sepDoneBeforeToday: 0, todayUnit: { time: '17:00', done: false } },
+    { id: 'f3', name: 'น้องบอส', clientId: 'g3', clientName: 'คุณพ่อบอส', billing: { mode: 'flat_monthly', amount: 3200 }, label: 'ฟิสิกส์', days: [3, 6], time: '15:00', augDone: 8, sepDoneBeforeToday: 0 },
+    { id: 'f4', name: 'น้องแนน', clientId: 'g4', clientName: 'คุณแม่แนน', billing: { mode: 'flat_monthly', amount: 2800 }, label: 'เคมี', days: [1, 4], time: '14:00', augDone: 6, sepDoneBeforeToday: 1 },
+    { id: 'f5', name: 'น้องวิน', clientId: 'g5', clientName: 'คุณพ่อวิน', billing: { mode: 'flat_monthly', amount: 3000 }, label: 'คณิต', days: [2, 5], time: '18:00', augDone: 8, sepDoneBeforeToday: 0, todayUnit: { time: '18:00', done: false } },
+    { id: 'f6', name: 'น้องอุ้ม', clientId: 'g6', clientName: 'คุณแม่อุ้ม', billing: { mode: 'per_unit', rate: 400 }, label: 'ชีวะ', days: [3, 6], time: '19:00', augDone: 5, sepDoneBeforeToday: 0 },
+  ]
+  let s = buildFromPlans(plans, 'flat-heavy')
+  s = applySeedInvoices(s, [
+    { subjectId: 'f1', period: '2025-08', total: 3000, qty: 8, unitPrice: 3000, desc: 'อังกฤษ ส.ค. 2568 (เหมา)', status: 'paid', sentAt: '2025-08-31', paidAt: '2025-08-31' },
+    { subjectId: 'f2', period: '2025-08', total: 2600, qty: 7, unitPrice: 2600, desc: 'คณิต ส.ค. 2568 (เหมา)', status: 'sent', sentAt: '2025-08-29', dueAt: '2025-09-01' },
+    { subjectId: 'f3', period: '2025-08', total: 3200, qty: 8, unitPrice: 3200, desc: 'ฟิสิกส์ ส.ค. 2568 (เหมา)', status: 'sent', sentAt: '2025-08-25', dueAt: '2025-08-28' },
+    { subjectId: 'f4', period: '2025-08', total: 2800, qty: 6, unitPrice: 2800, desc: 'เคมี ส.ค. 2568 (เหมา)', status: 'paid', sentAt: '2025-08-31', paidAt: '2025-08-31' },
+  ])
+  return markOverdue(s)
+}
+
 function scenarioEmpty(): AppState {
   return { ...emptyBase(), scenarioId: 'empty', onboarded: false, today: TODAY }
 }
 
 const BUILDERS: Record<ScenarioId, () => AppState> = {
   default: scenarioDefault,
+  'per-unit': scenarioPerUnit,
+  'flat-heavy': scenarioFlatHeavy,
   'package-heavy': scenarioPackageHeavy,
   'monthly-heavy': scenarioMonthlyHeavy,
   empty: scenarioEmpty,
@@ -168,7 +209,7 @@ export const isScenario = (v: string | null): v is ScenarioId =>
  * ชื่อผู้ให้บริการต้องว่าง ไม่ใช่ชื่อสมมติของเดโม
  * ไม่งั้นครูอาจส่งบิลออกไปในนาม "ครูเบนซ์" โดยไม่ทันสังเกต
  */
-export function buildReal(keep?: { name: string; promptpayId: string; particle?: Particle }): AppState {
+export function buildReal(keep?: { name: string; promptpayId: string; particle?: Particle }, style?: WorkStyle): AppState {
   const base = emptyBase()
   // เช็คแยกทีละฟิลด์ — ครูที่แก้ชื่อแล้วแต่ยังไม่แตะพร้อมเพย์ ต้องไม่ได้เลขบัญชีปลอมติดไป
   const name = keep?.name && keep.name !== base.provider.name ? keep.name : ''
@@ -180,10 +221,12 @@ export function buildReal(keep?: { name: string; promptpayId: string; particle?:
     onboarded: false,
     today: todayISO(),
     provider: { name, promptpayId, particle: keep?.particle },
+    style,
   }
 }
 
 export function buildScenario(id: string): AppState {
   const key: ScenarioId = isScenario(id) ? id : 'default'
-  return BUILDERS[key]()
+  // ชุดข้อมูลบอกรูปแบบการเก็บเงินของตัวเองเสมอ — หน้าเลือกและตัวกรองอ่านจากตรงนี้
+  return { ...BUILDERS[key](), style: styleOfScenario(key) }
 }

@@ -10,6 +10,8 @@ import { money, periodOf } from '../core/format'
 import { modeThai } from '../copy/tutor'
 import { Chip, EmptyState, ProgressBar, Skeleton } from './components'
 import SubjectSheet from './SubjectSheet'
+import { modesFor } from '../core/style'
+import type { BillingMode } from '../core/types'
 
 type Filter = 'all' | 'per_unit' | 'flat_monthly' | 'package' | 'lowpack' | 'overdue'
 
@@ -67,7 +69,9 @@ export default function Subjects() {
     )
   }
 
-  const FILTERS: { id: Filter; label: string }[] = [
+  // ตัวกรองวิธีเก็บเงินโชว์เฉพาะแบบที่มีอยู่จริง (แบบหลักที่เลือก + แบบที่ลูกค้าบางคนใช้อยู่)
+  const modes = new Set<BillingMode['mode']>([...modesFor(state.style), ...active.map((s) => s.billing.mode)])
+  const ALL_FILTERS: { id: Filter; label: string }[] = [
     { id: 'all', label: copy.subjects.filters.all },
     { id: 'per_unit', label: copy.subjects.filters.per_unit },
     { id: 'flat_monthly', label: copy.subjects.filters.flat_monthly },
@@ -75,6 +79,8 @@ export default function Subjects() {
     { id: 'lowpack', label: copy.subjects.filters.lowpack },
     { id: 'overdue', label: copy.subjects.filters.overdue },
   ]
+  const FILTERS = ALL_FILTERS.filter((f) => f.id === 'all' || f.id === 'overdue'
+    || (f.id === 'lowpack' ? modes.has('package') : modes.has(f.id)))
 
   return (
     <div className="pane">

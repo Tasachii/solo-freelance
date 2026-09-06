@@ -69,6 +69,8 @@ export interface AppState {
   waitlist: WaitlistEntry[]; events: EventLog[]
   counters: { receipt: number; invoice: number }
   onboarded: boolean
+  /** วิธีเก็บเงินหลักที่เลือกตอนเข้าใช้ — เรื่องหน้าจอ ไม่แตะ ledger · ไม่ตั้ง = ผสม */
+  style?: WorkStyle
   /** วันที่สำรองข้อมูลล่าสุด — เตือนครูเมื่อทิ้งช่วงนาน */
   lastBackupAt?: ISODate
   /**
@@ -81,3 +83,6 @@ export interface AppState {
 
 /** คำลงท้ายที่ครูเลือก — ไม่ตั้งค่า = ครับ (ข้อมูลเก่าและเดโม) */
 export type Particle = 'ครับ' | 'ค่ะ'
+
+/** รูปแบบการเก็บเงินหลัก — ตรงกับ BillingMode บวก 'mixed' */
+export type WorkStyle = BillingMode['mode'] | 'mixed'

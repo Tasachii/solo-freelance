@@ -14,12 +14,12 @@ test('หน้าแรกมีทางเข้าเดียว ไม่�
   await expect(page.getByText('เดโม · ข้อมูลสมมติ').first()).toBeVisible()
 
   // hero มีทางเข้าเดียว (CTA ล่างเป็นอีกจุดตั้งใจ ไม่ใช่ปุ่มซ้ำใน hero เดียวกัน)
-  await expect(page.locator('.land__cta a[href$="/app/today"]')).toHaveCount(1)
-  // ทุกทางเข้าพาไปที่เดียวกัน ไม่มีฟอร์มมาขวางก่อนได้ลอง
-  const entries = page.locator('a[href$="/app/today"]')
+  await expect(page.locator('.land__cta a[href$="/start"]')).toHaveCount(1)
+  // ทุกทางเข้าพาไปหน้าเลือกรูปแบบเดียวกัน — เป็นทางเลือกแตะเดียว ไม่ใช่ฟอร์ม
+  const entries = page.locator('a[href$="/start"]')
   await expect(entries).not.toHaveCount(0)
   for (const href of await entries.evaluateAll((els) => els.map((e) => (e as HTMLAnchorElement).getAttribute('href')))) {
-    expect(href).toContain('/app/today')
+    expect(href).toContain('/start')
   }
 
   // อาชีพที่ยังไม่เปิดบอกให้รู้ได้ แต่ต้องไม่ทำเป็นตัวเลือกให้กด
@@ -226,19 +226,21 @@ test('ทุกทางเข้าพาไปใช้งานได้เ�
   await page.goto('./')
   for (const label of ['เดโม', 'ทดลองใช้']) {
     const link = page.locator('.land').getByRole('link', { name: label }).first()
-    await expect(link).toHaveAttribute('href', /\/app\/today$/)
+    await expect(link).toHaveAttribute('href', /\/start$/)
   }
 
-  // หน้าราคา — ทุกแพ็กยกเว้น Concierge ต้องเป็นลิงก์เข้าแอป ไม่ใช่ปุ่มเปิดฟอร์ม
+  // หน้าราคา — ทุกแพ็กยกเว้น Concierge ต้องเป็นลิงก์เข้าหน้าเลือกรูปแบบ ไม่ใช่ปุ่มเปิดฟอร์ม
   await page.goto('#/pricing')
   const ctas = page.locator('.plan__cta')
   await expect(ctas).toHaveCount(3)
-  await expect(ctas.nth(0)).toHaveAttribute('href', /\/app\/today$/)
-  await expect(ctas.nth(1)).toHaveAttribute('href', /\/app\/today$/)
+  await expect(ctas.nth(0)).toHaveAttribute('href', /\/start$/)
+  await expect(ctas.nth(1)).toHaveAttribute('href', /\/start$/)
   await expect(ctas.nth(2)).toHaveJSProperty('tagName', 'BUTTON')
 
-  // กดแล้วเข้าถึงหน้าใช้งานจริงโดยไม่ต้องกรอกอะไร
+  // กดแล้วเลือกแบบหนึ่งแตะเดียว ถึงหน้าใช้งานโดยไม่ต้องกรอกอะไร
   await ctas.nth(1).click()
+  await expect(page.locator('input, textarea, select')).toHaveCount(0)
+  await page.getByRole('button', { name: /^ผสม/ }).click()
   await expect(page.locator('.skel')).toHaveCount(0)
   await expect(page.locator('.urow').first()).toBeVisible()
   await expect(page.locator('.sheet')).toHaveCount(0)

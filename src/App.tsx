@@ -5,6 +5,7 @@ import StorageStatus from './app/StorageStatus'
 
 import Landing from './platform/Landing'
 import Pricing from './platform/Pricing'
+import StylePicker from './platform/StylePicker'
 import AppShell from './app/AppShell'
 import Today from './app/Today'
 import Subjects from './app/Subjects'
@@ -26,6 +27,7 @@ export default function App() {
     <><StorageStatus /><Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/pricing" element={<Pricing />} />
+      <Route path="/start" element={<StylePicker />} />
       <Route path="/receipt/:id" element={<Receipt />} />
       <Route path="/client/:clientId" element={<ClientPreview />} />
       <Route path="/app" element={<AppShell />}>

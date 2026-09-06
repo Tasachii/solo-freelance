@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../core/store'
-import { professionById } from '../professions'
+import { professionById, fillVocab } from '../professions'
 import { copy } from '../copy'
 import type { BillingMode, Particle } from '../core/types'
 import { PARTICLES } from '../core/particle'
+import { defaultBillingFor } from '../core/style'
 import { normalizePaymentDestination, isPaymentDestination } from '../core/paymentDestination'
 import { parseMoneyInput } from './SubjectSheet'
 
@@ -31,7 +32,7 @@ export default function Onboarding() {
   const [pp, setPp] = useState(state.provider.promptpayId)
   const [particle, setParticle] = useState<Particle | undefined>(state.provider.particle)
   const [text, setText] = useState('')
-  const [mode, setMode] = useState<BillingMode['mode']>(prof.defaultBilling ?? 'per_unit')
+  const [mode, setMode] = useState<BillingMode['mode']>(state.style ? defaultBillingFor(state.style) : prof.defaultBilling ?? 'per_unit')
   // ราคาเริ่มต้นที่แก้ได้ก่อนกดเริ่ม — เดิมล็อกไว้ ครูที่คิดคนละราคาต้องไปแก้ทีละคน
   const [rate, setRate] = useState('400')
   const [flat, setFlat] = useState('3000')
@@ -132,6 +133,7 @@ export default function Onboarding() {
                 </button>
               ))}
             </div>
+            <span className="hint">{fillVocab(copy.waitlist.modeHow[mode], prof.vocab)}</span>
           </div>
 
           {mode === 'per_unit' && (

@@ -119,6 +119,7 @@ export default function AppShell() {
                 <button className="row row--go" onClick={() => { setMenu(false); setAsk('toReal') }}>{copy.menu.startReal}</button>
               </>
             )}
+            <button className="row" onClick={() => { setMenu(false); nav('/start') }}>{copy.menu.style}</button>
             <button className="row" onClick={() => { void toggleFullscreen(); setMenu(false) }}>{copy.menu.fullscreen}</button>
             <button className="row" onClick={async () => {
               setMenu(false)

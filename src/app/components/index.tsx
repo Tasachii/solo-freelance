@@ -3,7 +3,9 @@ import { createPortal } from 'react-dom'
 import { copy } from '../../copy'
 
 export function DemoBadge() {
-  return <span className="demo-badge">{copy.demoBadge}</span>
+  // จอแคบมาก (iPhone SE 320px) โชว์แค่ "เดโม" — ส่วนขยายซ่อนด้วย CSS
+  const [short, rest] = [copy.demoBadgeShort, copy.demoBadge.slice(copy.demoBadgeShort.length)]
+  return <span className="demo-badge">{short}<span className="demo-badge__more">{rest}</span></span>
 }
 
 export function Skeleton({ rows = 3 }: { rows?: number }) {

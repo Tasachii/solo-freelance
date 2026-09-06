@@ -1,7 +1,7 @@
 // ข้อความ UI ทั่วไป — คอมโพเนนต์ห้ามพิมพ์ string เอง (spec ข้อ 8)
 export const copy = {
   brand: { name: 'Solo Freelance', tagline: 'แอดมินให้คนที่ทำงานคนเดียว' },
-  demoBadge: 'เดโม · ข้อมูลสมมติ',
+  demoBadge: 'เดโม · ข้อมูลสมมติ', demoBadgeShort: 'เดโม',
   common: {
     save: 'บันทึก', cancel: 'ยกเลิก', close: 'ปิด', edit: 'แก้', send: 'ส่ง', skip: 'ข้าม',
     confirm: 'ยืนยัน', back: 'กลับ', more: 'ดูเพิ่ม', undo: 'ยกเลิก', reset: 'รีเซ็ตเดโม',
@@ -143,12 +143,12 @@ export const copy = {
     firstMonthHint: 'เริ่มใช้เดือนแรก ตัวเลขจะชัดสิ้นเดือน',
     share: 'แชร์การ์ด',
     status: { draft: 'ยังไม่ส่ง', sent: 'ส่งแล้ว', overdue: 'ค้างจ่าย', paid: 'จ่ายแล้ว' },
-    recoveredHow: 'นับจากบิลที่เก็บได้หลังทวง · ครั้งที่ระบบนับให้ · และครั้งที่เกินแพ็กซึ่งจับได้',
-    dash: { expected: 'รายได้ที่ควรได้', received: 'เข้าแล้ว', outstanding: 'ค้าง', recovered: 'Solo ช่วยไว้' },
+    recoveredHow: 'นับจากบิลที่เก็บได้หลังทวง · ครั้งที่ระบบนับให้ · และครั้งที่เกินแพ็กซึ่งจับได้', recoveredWhy: 'ตัวเลขนี้มาจากไหน',
+    dash: { expected: 'รายได้ที่ควรได้', received: 'เข้าแล้ว', outstanding: 'ค้างสะสม', recovered: 'Solo ช่วยไว้' },
   },
   admin: {
     tabDrafts: 'รอส่ง', tabChat: 'แชท',
-    draftedStat: 'เดือนนี้แอดมินร่างให้', timeSaved: 'เวลาที่ใช้', minutes: 'นาที',
+    draftedStat: 'ร่างให้เดือนนี้', timeSaved: 'เวลาที่ใช้', minutes: 'นาที',
     sendAll: 'ส่งทีละคน', queueLeft: 'เหลืออีก', stopQueue: 'หยุดคิว',
     sendLine: 'ส่งใน LINE', sentAsk: 'ส่งใน LINE แล้วหรือยัง', sentYes: 'ส่งแล้ว',
     copyText: 'คัดลอกข้อความ', notYet: 'ยังไม่ได้ส่ง',

@@ -72,7 +72,9 @@ export default function Billing() {
           <b className="num">{money(dash.recovered)} {copy.common.baht}</b>
         </div>
         {/* อธิบายว่าตัวเลขนี้มาจากไหน — ราคาขายไม่ควรอยู่ในเครื่องมือของผู้ใช้ */}
-        <p className="hint">{dash.recovered > 0 ? copy.billing.recoveredHow : copy.billing.firstMonthHint}</p>
+        {dash.recovered > 0
+          ? <details className="hint hint--fold"><summary>{copy.billing.recoveredWhy}</summary>{copy.billing.recoveredHow}</details>
+          : <p className="hint">{copy.billing.firstMonthHint}</p>}
         <button className="btn btn--secondary btn--block" onClick={() => setShare(true)}>{copy.billing.share}</button>
       </section>
 

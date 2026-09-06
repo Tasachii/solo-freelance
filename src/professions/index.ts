@@ -16,16 +16,16 @@ export function professionById(id: string): ProfessionTemplate {
 const genericTemplates = (profession: ProfessionTemplate): ProfessionMessages => {
   const v = profession.vocab
   return {
-    invoice: `เรียน{clientHonorific}{clientName} 🙏 ค่า${v.unit}ของ{subjectName} เดือน{periodThai} {qty} ${v.units} รวม {total} บาท{p}\nดูรายละเอียดชำระเงินที่ {invoiceUrl} แล้วส่งสลิปกลับในแชท{p}`,
-    invoiceFlat: `เรียน{clientHonorific}{clientName} 🙏 ค่าบริการ{subjectName} เดือน{periodThai} {total} บาท{p} ({qty} ${v.units})\nดูรายละเอียดชำระเงินที่ {invoiceUrl} แล้วส่งสลิปกลับในแชท{p}`,
+    invoice: `เรียน{clientHonorific}{clientName} 🙏 ค่า${v.unit}ของ{subjectName} เดือน {periodThai} {qty} ${v.units} รวม {total} บาท{p}\nดูรายละเอียดชำระเงินที่ {invoiceUrl} แล้วส่งสลิปกลับในแชท{p}`,
+    invoiceFlat: `เรียน{clientHonorific}{clientName} 🙏 ค่าบริการ{subjectName} เดือน {periodThai} {total} บาท{p} ({qty} ${v.units})\nดูรายละเอียดชำระเงินที่ {invoiceUrl} แล้วส่งสลิปกลับในแชท{p}`,
     reminder: {
-      soft: 'เรียน{clientHonorific}{clientName} ขออนุญาตแจ้งเตือนยอดของ{subjectName} เดือน{periodThai} {total} บาท ยังไม่ได้รับยอด{p} ดูรายละเอียดที่ {invoiceUrl} 🙏',
-      clear: 'เรียน{clientHonorific}{clientName} ยอดของ{subjectName} เดือน{periodThai} {total} บาท ค้างมา {daysOverdue} วันแล้ว{p} รบกวนชำระภายในวันนี้หรือพรุ่งนี้ได้ไหม{pq} {invoiceUrl}',
-      final: 'เรียน{clientHonorific}{clientName} แจ้งครั้งสุดท้ายเรื่องยอดของ{subjectName} เดือน{periodThai} {total} บาท{p} หากมีเรื่องการชำระที่อยากคุย ทักมาได้เลย{p} {invoiceUrl}',
+      soft: 'เรียน{clientHonorific}{clientName} ขออนุญาตแจ้งเตือนยอดของ{subjectName} เดือน {periodThai} {total} บาท ยังไม่ได้รับยอด{p} ดูรายละเอียดที่ {invoiceUrl} 🙏',
+      clear: 'เรียน{clientHonorific}{clientName} ยอดของ{subjectName} เดือน {periodThai} {total} บาท ค้างมา {daysOverdue} วันแล้ว{p} รบกวนชำระภายในวันนี้หรือพรุ่งนี้ได้ไหม{pq} {invoiceUrl}',
+      final: 'เรียน{clientHonorific}{clientName} แจ้งครั้งสุดท้ายเรื่องยอดของ{subjectName} เดือน {periodThai} {total} บาท{p} หากมีเรื่องการชำระที่อยากคุย ทักมาได้เลย{p} {invoiceUrl}',
     },
     renewal: `เรียน{clientHonorific}{clientName} แพ็ก {packageTotal} ${v.units}ของ{subjectName} เหลือ {remaining} ${v.units}{p} ต่อแพ็กใหม่ {packageTotal} ${v.units} {packagePrice} บาท ดูรายละเอียดที่ {invoiceUrl}`,
     renewalExhausted: `เรียน{clientHonorific}{clientName} แพ็ก {packageTotal} ${v.units}ของ{subjectName} ครบแล้ว{p} รอบล่าสุดเป็นครั้งที่ {overBy} นอกแพ็ก ต่อแพ็กใหม่ {packageTotal} ${v.units} {packagePrice} บาท ดูรายละเอียดที่ {invoiceUrl}`,
-    receipt: 'ได้รับยอด {total} บาทของ{subjectName} เดือน{periodThai} แล้ว{p} ขอบคุณ{p} 🙏 ใบเสร็จ: {receiptUrl}',
+    receipt: 'ได้รับยอด {total} บาทของ{subjectName} เดือน {periodThai} แล้ว{p} ขอบคุณ{p} 🙏 ใบเสร็จ: {receiptUrl}',
     moved: `เรียน{clientHonorific}{clientName} ขอเลื่อน${v.unit}ของ{subjectName}จากวัน{fromDayThai}ที่ {fromDateThai} ไปเป็นวัน{dayThai}ที่ {dateThai} เวลา {time} {p} ขออภัยในความไม่สะดวก{p} 🙏`,
     cancelled: `เรียน{clientHonorific}{clientName} ขอแจ้งงด${v.unit}ของ{subjectName}วัน{dayThai}ที่ {dateThai} {p} จะแจ้งนัดใหม่อีกครั้ง{p} 🙏`,
     summary: `เรียน{clientHonorific}{clientName} สรุป{subjectName} เดือน {periodThai} {p} ทำไปแล้ว {qty} ${v.units} {amountLine}`,
@@ -33,7 +33,7 @@ const genericTemplates = (profession: ProfessionTemplate): ProfessionMessages =>
     summaryPackage: `เหลืออีก {remaining} จาก {packageTotal} ${v.units}`,
     slipRequest: 'เรียน{clientHonorific}{clientName} สลิปที่ส่งมายอด {slipAmount} บาท แต่ยอดรอบนี้ {total} บาท{p} รบกวนตรวจสอบหรือส่งสลิปอีกครั้ง{p} 🙏',
     faq: {
-      currentInvoice: `เดือน{periodThai} {subjectName}มี {qty} ${v.units} รวม {total} บาท{p} ดูรายละเอียดชำระเงินที่ {invoiceUrl}`,
+      currentInvoice: `เดือน {periodThai} {subjectName}มี {qty} ${v.units} รวม {total} บาท{p} ดูรายละเอียดชำระเงินที่ {invoiceUrl}`,
       currentInvoiceNone: `{subjectName}เดือนนี้ยังไม่ปิดยอด{p} ตอนนี้ทำไป {completedSoFar} ${v.units} ประมาณ {estimate} บาท จะแจ้งยอดเมื่อสรุปรอบ{p}`,
       nextUnit: `{subjectName}มี${v.unit}ครั้งถัดไปวัน{dayThai}ที่ {dateThai} เวลา {time} {p}`,
       nextUnitNone: `ตอนนี้ยังไม่มี${v.unit}ถัดไปในตาราง{p} จะแจ้งเมื่อเพิ่มนัด{p}`,

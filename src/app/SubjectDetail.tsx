@@ -47,7 +47,7 @@ export default function SubjectDetail() {
     ...state.units.filter((u) => u.subjectId === s.id && isCompleted(state, u.id))
       .map((u) => ({ at: u.scheduledAt, text: `${v.completionDone} ${u.time}` })),
     ...state.invoices.filter((i) => i.subjectId === s.id)
-      .map((i) => ({ at: i.sentAt ?? i.createdAt, text: `บิล ${periodThai(i.period)} ${money(i.total)} · ${i.status}` })),
+      .map((i) => ({ at: i.sentAt ?? i.createdAt, text: `บิล ${periodThai(i.period)} ${money(i.total)} · ${copy.billing.status[i.status]}` })),
     ...state.messages.filter((m) => m.subjectId === s.id && m.status === 'sent')
       .map((m) => ({ at: m.sentAt ?? m.createdAt, text: `ส่งข้อความ ${copy.admin.kinds[m.kind]}` })),
   ].sort((a, b) => b.at.localeCompare(a.at))

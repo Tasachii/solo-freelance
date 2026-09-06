@@ -37,6 +37,8 @@ export default function ClientPreview() {
   const due = billed.reduce((n, i) => n + balanceDue(state, i.id), 0)
   const allPaid = billed.length > 0 && due === 0
   const receipts = billed.map(i => receiptOfInvoice(state, i.id)).filter(r => !!r)
+  // หัวใบต้องบอกเดือนของบิลที่แสดง ไม่ใช่เดือนปัจจุบัน — บิล ส.ค. ที่เปิดดูเดือน ก.ย. เคยขึ้นว่า ก.ย.
+  const shownPeriods = [...new Set(billed.map((i) => i.period))].sort().map(periodThai).join(' · ')
 
   return (
     <div className="page page--client">
@@ -49,7 +51,7 @@ export default function ClientPreview() {
       )}
 
       <h1 className="cv__h1">{copy.clientView.invoiceTitle}</h1>
-      <p className="cv__who">{client.name} · {periodThai(period)}</p>
+      <p className="cv__who">{client.name} · {shownPeriods || periodThai(period)}</p>
 
       {billed.length === 0 ? (
         <EmptyState icon="🧾" title={copy.clientView.noInvoice} desc={copy.clientView.noInvoiceHint} />

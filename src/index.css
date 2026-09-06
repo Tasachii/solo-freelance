@@ -143,6 +143,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .urow{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);
   background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
 .urow--done{background:var(--ok-soft);border-color:transparent}
+.urow--done .urow__name::before{content:'✓ ';color:var(--ok)}
 .urow__time{flex:none;width:46px;font-weight:700;color:var(--muted);white-space:nowrap}
 .urow__main{flex:1;min-width:0}
 .urow__name{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -469,3 +470,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .urow__move{grid-column:2;justify-self:end}
   .urow>.btn:last-child{grid-column:3}
 }
+
+/* แถวที่เช็คชื่อแล้วต้องเตี้ยกว่าแถวที่ยังรอ — สายตาไปหางานที่เหลือ ไม่ใช่ที่เสร็จแล้ว */
+@media(max-width:480px){.urow--done{display:flex;row-gap:0}.urow--done .urow__main{grid-column:auto}}
+/* จอ 320px: ป้ายเดโมเหลือคำเดียว ชื่อแอปไม่พับ */
+.shell__brand{white-space:nowrap}
+@media(max-width:359px){.demo-badge__more{display:none}.shell__brand{font-size:var(--fs-body)}}
+/* คำอธิบาย "ช่วยไว้" พับไว้ แตะเมื่ออยากรู้ */
+.hint--fold summary{cursor:pointer;color:var(--brand);list-style:none}
+.hint--fold summary::before{content:'ⓘ ';}
+.hint--fold[open] summary{margin-bottom:4px}

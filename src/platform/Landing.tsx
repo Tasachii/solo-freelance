@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { professions } from '../professions'
 import { copy } from '../copy'
-import { DemoBadge, Icon, Silhouette } from '../app/components'
+import { DemoBadge, Icon, Mascot } from '../app/components'
 import WaitlistSheet from './WaitlistSheet'
 import { AppearanceButton, ThemeToggle } from './ThemeToggle'
 
@@ -90,7 +90,7 @@ export default function Landing() {
       </section>
 
       <section className="land__sec land__sec--cta">
-        <Silhouette />
+        <Mascot />
         <Link className="btn btn--primary" to="/start">{copy.landing.tryNow}</Link>
       </section>
 

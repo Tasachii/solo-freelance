@@ -20,7 +20,7 @@ export function Skeleton({ rows = 3 }: { rows?: number }) {
 export function EmptyState({ icon, title, desc, action, art }: { icon: string; title: string; desc?: string; action?: ReactNode; art?: boolean }) {
   return (
     <div className="empty">
-      {art ? <Silhouette /> : <div className="empty__ico" aria-hidden="true">{icon}</div>}
+      {art ? <Mascot /> : <div className="empty__ico" aria-hidden="true">{icon}</div>}
       <h3 className="empty__t">{title}</h3>
       {desc && <p className="empty__d">{desc}</p>}
       {action}
@@ -264,30 +264,44 @@ export function Icon({ name, size = 22 }: { name: IconName; size?: number }) {
   )
 }
 
-/** ภาพเงาสีเดียว (ต้นฉบับของเรา) — ฟรีแลนซ์นั่งทำงานที่โต๊ะใต้ต้นไม้ มีการ์ดข้อความลอยข้างๆ (แอดมินที่คอยช่วย) · สีตาม currentColor */
-export function Silhouette({ className = 'silhouette' }: { className?: string }) {
+/**
+ * เพนกวินประจำแอป — ฟรีแลนซ์ที่ทำงานคนเดียวโดยมีแอดมินคอยร่างงานให้
+ * SVG แบนสองโทน: ตัวใช้ currentColor (สีหลักที่ผู้ใช้เลือก) พุงและหน้าใช้สีพื้นหลัง
+ * จึงอ่านออกทั้งธีมสว่างและมืด และเปลี่ยนสีตามที่ผู้ใช้เลือกโดยไม่ต้องมีไฟล์ภาพหลายชุด
+ */
+export function Mascot({ className = 'mascot' }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 520 220" fill="currentColor" aria-hidden="true">
       {/* นก — โค้งเดียวเรียบ */}
-      <path d="M52 74c9-10 19-10 28 0-9-4-19-4-28 0zM96 54c7-8 15-8 22 0-7-3-15-3-22 0zM134 68c6-7 13-7 19 0-6-3-13-3-19 0zM118 92c5-5 10-5 15 0-5-2-10-2-15 0z" />
-      {/* ต้นไม้ — ลำต้นโค้ง พุ่มเป็นวงกลมซ้อน */}
-      <path d="M420 200c1-30-1-60 2-90 1-8 6-12 12-12s11 4 12 12c3 30 1 60 2 90z" />
-      <circle cx="430" cy="76" r="44" /><circle cx="392" cy="98" r="28" /><circle cx="470" cy="94" r="31" /><circle cx="434" cy="42" r="27" /><circle cx="404" cy="62" r="22" />
-      <g transform="translate(-40 0)">
-      {/* โต๊ะ */}
-      <rect x="214" y="148" width="104" height="9" rx="4.5" />
-      <rect x="222" y="157" width="7" height="43" rx="3.5" /><rect x="303" y="157" width="7" height="43" rx="3.5" />
-      {/* แล็ปท็อป */}
-      <path d="M270 121a4 4 0 0 1 4-4h30a4 4 0 0 1 4 4v27h-38z" /><rect x="264" y="146" width="50" height="4" rx="2" />
-      {/* คน — หัว ลำตัว แขนวางบนโต๊ะ ขานั่ง */}
-      <circle cx="240" cy="101" r="14" />
-      <path d="M226 118h28a12 12 0 0 1 12 12v18h-52v-18a12 12 0 0 1 12-12z" />
-      <path d="M252 128c9 3 16 8 22 16l-5 4c-6-7-12-11-20-13z" />
-      <path d="M214 148h34v12h-34z" /><rect x="238" y="158" width="8" height="42" rx="4" /><rect x="216" y="158" width="8" height="42" rx="4" />
-      {/* การ์ดข้อความลอย — ข้อความที่ร่างให้แล้ว (เจาะช่องด้วย evenodd) */}
-      <path fillRule="evenodd" d="M318 92a10 10 0 0 1 10-10h44a10 10 0 0 1 10 10v26a10 10 0 0 1-10 10h-30l-10 9v-9h-4a10 10 0 0 1-10-10zM330 96a3 3 0 0 0 0 6h34a3 3 0 0 0 0-6zM330 108a3 3 0 0 0 0 6h22a3 3 0 0 0 0-6z" />
-      </g>
-      {/* พื้น — โค้งเดียว */}
+      <path d="M60 58c9-10 19-10 28 0-9-4-19-4-28 0zM104 40c7-8 15-8 22 0-7-3-15-3-22 0zM142 56c6-7 13-7 19 0-6-3-13-3-19 0z" />
+
+      {/* ต้นไม้ */}
+      <path d="M464 196c1-26-1-52 2-78 1-6 5-10 10-10s9 4 10 10c3 26 1 52 2 78z" />
+      <circle cx="476" cy="74" r="32" /><circle cx="448" cy="92" r="21" /><circle cx="504" cy="90" r="22" /><circle cx="478" cy="48" r="21" />
+
+      {/* โต๊ะกับแล็ปท็อป — เพนกวินยืนพิงอยู่ */}
+      <rect x="140" y="150" width="100" height="8" rx="4" />
+      <rect x="148" y="158" width="7" height="40" rx="3.5" /><rect x="225" y="158" width="7" height="40" rx="3.5" />
+      <path d="M166 124a4 4 0 0 1 4-4h30a4 4 0 0 1 4 4v26h-38z" />
+      <rect x="160" y="148" width="50" height="4" rx="2" />
+
+      {/* เพนกวิน */}
+      <ellipse cx="272" cy="191" rx="15" ry="6" fill="var(--beak)" />
+      <ellipse cx="302" cy="191" rx="15" ry="6" fill="var(--beak)" />
+      <ellipse cx="287" cy="140" rx="45" ry="52" />
+      <ellipse cx="287" cy="149" rx="29" ry="39" fill="var(--bg)" />
+      {/* ปีกซ้ายทาบไปทางโต๊ะ ปีกขวายกทักทาย */}
+      <ellipse cx="244" cy="145" rx="11" ry="27" transform="rotate(24 244 145)" />
+      <ellipse cx="332" cy="118" rx="10" ry="26" transform="rotate(-38 332 118)" />
+      <circle cx="287" cy="76" r="36" />
+      <ellipse cx="287" cy="83" rx="25" ry="24" fill="var(--bg)" />
+      <circle cx="277" cy="76" r="5" /><circle cx="297" cy="76" r="5" />
+      <path d="M287 89l9 7-9 7-9-7z" fill="var(--beak)" />
+
+      {/* การ์ดข้อความที่ร่างไว้ให้ */}
+      <path fillRule="evenodd" d="M340 56a10 10 0 0 1 10-10h50a10 10 0 0 1 10 10v28a10 10 0 0 1-10 10h-33l-11 10v-10h-6a10 10 0 0 1-10-10zM353 61a3.5 3.5 0 0 0 0 7h40a3.5 3.5 0 0 0 0-7zM353 74a3.5 3.5 0 0 0 0 7h25a3.5 3.5 0 0 0 0-7z" />
+
+      {/* พื้น */}
       <path d="M0 200c80-8 160 6 240-1s160-9 280 1v20H0z" />
     </svg>
   )

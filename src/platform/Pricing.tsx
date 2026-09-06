@@ -6,25 +6,13 @@ import { DemoBadge, Icon } from '../app/components'
 import WaitlistSheet from './WaitlistSheet'
 import { AppearanceButton, ThemeToggle } from './ThemeToggle'
 
-/** ตัวเลขราคาอยู่ที่นี่ ข้อความอยู่ใน copy — ดัชนีตรงกับ copy.pricing.plans */
-const PRICES: (number | null)[] = [0, 299, 1500]
+/** ตัวเลขราคาอยู่ที่นี่ ข้อความอยู่ใน copy — ดัชนีตรงกับ copy.pricing.plans (แผนธุรกิจ rev.2) */
+const PRICES: number[] = [0, 299, 799, 2490]
 const HIGHLIGHT = 1
-const CONCIERGE = 2
-const QUARTERLY_PRICE = 850
 
 export default function Pricing() {
-  const [quarterly, setQuarterly] = useState(false)
   const [lead, setLead] = useState(false)
-
-  const priceOf = (i: number): string => {
-    const v = PRICES[i]
-    if (v === null) return '—'
-    if (v === 0) return copy.pricing.free
-    if (i === HIGHLIGHT && quarterly) return `${money(QUARTERLY_PRICE)} ${copy.common.baht}`
-    return `${money(v)} ${copy.common.baht}`
-  }
-  const unitOf = (i: number): string =>
-    i === HIGHLIGHT && quarterly ? copy.pricing.perQuarter : copy.pricing.plans[i].unit
+  const priceOf = (i: number): string => PRICES[i] === 0 ? copy.pricing.free : `${money(PRICES[i])} ${copy.common.baht}`
 
   return (
     <div className="land">
@@ -38,33 +26,29 @@ export default function Pricing() {
       </header>
 
       <section className="land__sec">
-        <label className="toggle">
-          <input type="checkbox" checked={quarterly} onChange={(e) => setQuarterly(e.target.checked)} />
-          <span>{copy.pricing.quarterly}</span>
-        </label>
-
-        <ul className="plans">
+        <ul className="plans plans--4">
           {copy.pricing.plans.map((p, i) => (
             <li key={p.name} className={`plan${i === HIGHLIGHT ? ' plan--hi' : ''}`}>
               <b className="plan__name">{p.name}</b>
               <div className="plan__price">
                 <span className="plan__amt num">{priceOf(i)}</span>
-                <span className="plan__unit">{unitOf(i)}</span>
+                <span className="plan__unit">{p.unit}</span>
               </div>
               <p className="plan__desc">{p.desc}</p>
               <ul className="plan__feats">
                 {p.features.map((f) => <li key={f}>{f}</li>)}
               </ul>
-              {/* ทุกแพ็กเข้าไปลองได้เลย ไม่มีฟอร์มมาขวาง — มีแต่ Concierge ที่ต้องคุยกับทีมจริง */}
-              {i === CONCIERGE ? (
-                <button className="btn btn--ghost plan__cta" onClick={() => setLead(true)}>{p.cta}</button>
-              ) : (
-                <Link className={`btn plan__cta ${i === HIGHLIGHT ? 'btn--primary' : 'btn--ghost'}`}
-                  to="/start">{p.cta}</Link>
-              )}
+              {/* ทุกแพ็กเข้าไปลองได้เลย ไม่มีฟอร์มมาขวาง */}
+              <Link className={`btn plan__cta ${i === HIGHLIGHT ? 'btn--primary' : 'btn--ghost'}`} to="/start">{p.cta}</Link>
             </li>
           ))}
         </ul>
+
+        {/* บริการตั้งระบบให้ — ไม่ใช่แพลนขาย เป็นเครื่องมือเรียนรู้ onboarding กับ 10 คนแรก */}
+        <div className="promo">
+          <div><b className="promo__t">{copy.pricing.promo.t}</b><p className="promo__s">{copy.pricing.promo.s}</p></div>
+          <button className="btn btn--secondary" onClick={() => setLead(true)}>{copy.pricing.promo.cta}</button>
+        </div>
 
         <ul className="land__notes">
           {copy.pricing.notes.map((n) => <li key={n}>{n}</li>)}

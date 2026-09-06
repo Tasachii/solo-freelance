@@ -97,5 +97,6 @@ test('an accent picked on the landing page follows the visitor into the app', as
   await expect(page.locator('html')).toHaveAttribute('data-accent', 'plum')
   // เมนูในแอปต้องโชว์สีที่เลือกไว้ ไม่ใช่ค่าเริ่มต้น
   await page.getByRole('button', { name: 'เมนู' }).click()
+  await page.getByRole('dialog', { name: 'เมนู' }).getByRole('tab', { name: 'หน้าจอ' }).click()
   await expect(page.getByRole('dialog', { name: 'เมนู' }).getByRole('button', { name: 'ม่วง' })).toHaveAttribute('aria-pressed', 'true')
 })

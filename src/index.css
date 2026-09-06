@@ -574,3 +574,20 @@ body:has(.land){background:radial-gradient(45% 45% at 8% 0%,var(--glow-a),transp
 .themetoggle{display:inline-grid;place-items:center;width:var(--tap-sm);height:var(--tap-sm);border-radius:999px;
   border:1px solid var(--line);background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
 .themetoggle:hover{border-color:var(--brand);color:var(--brand)}
+
+/* เมนู 3 หมวด — แถบเลือกแบบแคปซูล */
+.seg{display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--bg);border:1px solid var(--line);margin-bottom:var(--space-4)}
+.seg__b{flex:1;min-height:40px;border-radius:999px;font-weight:600;font-size:var(--fs-small);color:var(--muted)}
+.seg__b--on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.rows--menu{margin-bottom:var(--space-3)}
+.menu__h{margin:var(--space-2) 0 var(--space-1)}
+@media(min-width:768px){:root[data-frame="web"] .rows--menu{grid-template-columns:1fr 1fr}}
+
+/* ราคา rev.2 — 4 แพลน + กล่องตั้งระบบให้ฟรี */
+@media(min-width:768px){.plans--4{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1024px){.plans--4{grid-template-columns:repeat(4,1fr)}}
+.promo{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap;
+  margin-top:var(--space-4);padding:var(--space-4) var(--space-6);border-radius:var(--radius-lg);
+  background:var(--brand-soft);color:var(--brand-ink)}
+.promo__t{display:block;font-size:var(--fs-h2)}
+.promo__s{margin:4px 0 0;font-size:var(--fs-small);color:var(--muted)}

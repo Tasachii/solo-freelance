@@ -16,12 +16,15 @@ import { applySize, readSize, type DisplaySize } from '../core/display'
 import { ACCENTS, applyAccent, readAccent, type Accent } from '../core/accent'
 import { applyFrame, readFrame, toggleFullscreen, type Frame } from '../core/present'
 
+type MenuTab = 'general' | 'display' | 'demo'
+
 export default function AppShell() {
   const { state, dispatch, resetDemo, track } = useStore()
   const prof = professionById(state.professionId)
   const nav = useNavigate()
   const loc = useLocation()
   const [menu, setMenu] = useState(false)
+  const [menuTab, setMenuTab] = useState<MenuTab>('general')
   const [theme, setTheme] = useState<Theme>(readTheme)
   const [size, setSize] = useState<DisplaySize>(readSize)
   const [accent, setAccent] = useState<Accent>(readAccent)
@@ -107,101 +110,127 @@ export default function AppShell() {
 
       {menu && (
         <BottomSheet title={copy.menu.title} onClose={() => setMenu(false)}>
-          <div className="rows">
-            {real ? (
-              <>
-                <button className="row" onClick={() => { setMenu(false); setProfile(true) }}>{copy.menu.profile}</button>
-                <button className="row" onClick={() => { setMenu(false); setAsk('toDemo') }}>{copy.menu.backToDemo}</button>
-              </>
-            ) : (
-              <>
+          {/* เมนูยาวเกินจอ — แยกเป็น 3 หมวด: งานประจำ · หน้าจอ · เดโม */}
+          <div className="seg" role="tablist" aria-label={copy.menu.title}>
+            {(['general', 'display', 'demo'] as MenuTab[]).filter((t) => t !== 'demo' || !real).map((t) => (
+              <button key={t} role="tab" aria-selected={menuTab === t} className={`seg__b${menuTab === t ? ' seg__b--on' : ''}`}
+                onClick={() => setMenuTab(t)}>{copy.menu.tabs[t]}</button>
+            ))}
+          </div>
+
+          {menuTab === 'general' && (
+            <>
+              <div className="rows rows--menu">
+                {real ? (
+                  <>
+                    <button className="row" onClick={() => { setMenu(false); setProfile(true) }}>{copy.menu.profile}</button>
+                    <button className="row" onClick={() => { setMenu(false); setAsk('toDemo') }}>{copy.menu.backToDemo}</button>
+                  </>
+                ) : (
+                  <button className="row row--go" onClick={() => { setMenu(false); setAsk('toReal') }}>{copy.menu.startReal}</button>
+                )}
+                <button className="row" onClick={() => { setMenu(false); nav('/start') }}>{copy.menu.style}</button>
+                {state.clients[0] && (
+                  <button className="row" onClick={() => { setMenu(false); nav(`/client/${state.clients[0].id}`) }}>
+                    {copy.menu.clientView}
+                  </button>
+                )}
+              </div>
+              <div className="fld__l menu__h">{copy.menu.secData}</div>
+              <div className="rows rows--menu">
+                <button className="row" onClick={async () => {
+                  setMenu(false)
+                  const ok = await saveBackup(state)
+                  // จด lastBackupAt เฉพาะเมื่อได้ไฟล์จริง ไม่งั้นคำเตือน 7 วันจะเงียบทั้งที่ไม่มีไฟล์
+                  if (ok) { dispatch({ type: 'backedUp' }); track('backup_save'); toast.push({ text: copy.menu.backupDone, tone: 'ok' }) }
+                  else toast.push({ text: copy.menu.backupFailed, tone: 'danger' })
+                }}>{copy.menu.backup}</button>
+                <button className="row" onClick={async () => {
+                  setMenu(false) // ปิดเมนูก่อนเปิดตัวเลือกไฟล์ของระบบ
+                  const res = await pickBackup(SCHEMA)
+                  if (!res) return
+                  if (!res.ok) { toast.push({ text: `${copy.menu.restoreBad[res.reason]}${res.details?.length ? ` · ${res.details[0]}` : ''}`, tone: 'danger' }); return }
+                  // ไฟล์คนละโหมดกับที่ใช้อยู่ = กำลังจะทับข้อมูลจริงด้วยเดโม หรือกลับกัน
+                  setAsk({ restore: res.state, cross: res.state.mode !== state.mode })
+                }}>{copy.menu.restore}</button>
+                {!real && <button className="row" onClick={() => { resetDemo(); setMenu(false) }}>{copy.menu.reset}</button>}
+              </div>
+            </>
+          )}
+
+          {menuTab === 'display' && (
+            <>
+              <div className="fld">
+                <div className="fld__l">{copy.menu.theme}</div>
+                <div className="chips">
+                  {(['system', 'light', 'dark'] as Theme[]).map((tm) => (
+                    <button key={tm} className={`chip${theme === tm ? ' chip--on' : ''}`}
+                      aria-pressed={theme === tm}
+                      onClick={() => { setTheme(tm); applyTheme(tm); track('theme_switch', { theme: tm }) }}>
+                      {copy.menu.themes[tm]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="fld">
+                <div className="fld__l">{copy.menu.accent}</div>
+                <div className="chips">
+                  {ACCENTS.map((a) => (
+                    <button key={a} className={`chip chip--dot${accent === a ? ' chip--on' : ''}`} aria-pressed={accent === a}
+                      data-accent-swatch={a}
+                      onClick={() => { setAccent(a); applyAccent(a); track('accent_switch', { accent: a }) }}>
+                      {copy.menu.accents[a]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="fld2">
+                <div className="fld">
+                  <div className="fld__l">{copy.menu.size}</div>
+                  <div className="chips">
+                    {(['sm', 'lg', 'xl'] as DisplaySize[]).map((z) => (
+                      <button key={z} className={`chip${size === z ? ' chip--on' : ''}`}
+                        aria-pressed={size === z}
+                        onClick={() => { setSize(z); applySize(z); track('size_switch', { size: z }) }}>
+                        {copy.menu.sizes[z]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="fld">
+                  <div className="fld__l">{copy.menu.frame}</div>
+                  <div className="chips">
+                    {(['phone', 'web'] as Frame[]).map((f) => (
+                      <button key={f} className={`chip${frame === f ? ' chip--on' : ''}`} aria-pressed={frame === f}
+                        onClick={() => { setFrame(f); applyFrame(f); track('frame_switch', { frame: f }) }}>
+                        {copy.menu.frames[f]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="rows rows--menu">
+                <button className="row" onClick={() => { void toggleFullscreen(); setMenu(false) }}>{copy.menu.fullscreen}</button>
                 <button className="row" onClick={() => { setKeys(true); setMenu(false) }}>{copy.menu.shortcuts}</button>
-            <button className="row" onClick={() => { resetDemo(); setMenu(false) }}>{copy.menu.reset}</button>
-                <button className="row row--go" onClick={() => { setMenu(false); setAsk('toReal') }}>{copy.menu.startReal}</button>
-              </>
-            )}
-            <button className="row" onClick={() => { setMenu(false); nav('/start') }}>{copy.menu.style}</button>
-            <button className="row" onClick={() => { void toggleFullscreen(); setMenu(false) }}>{copy.menu.fullscreen}</button>
-            <button className="row" onClick={async () => {
-              setMenu(false)
-              const ok = await saveBackup(state)
-              // จด lastBackupAt เฉพาะเมื่อได้ไฟล์จริง ไม่งั้นคำเตือน 7 วันจะเงียบทั้งที่ไม่มีไฟล์
-              if (ok) { dispatch({ type: 'backedUp' }); track('backup_save'); toast.push({ text: copy.menu.backupDone, tone: 'ok' }) }
-              else toast.push({ text: copy.menu.backupFailed, tone: 'danger' })
-            }}>{copy.menu.backup}</button>
-            <button className="row" onClick={async () => {
-              setMenu(false) // ปิดเมนูก่อนเปิดตัวเลือกไฟล์ของระบบ
-              const res = await pickBackup(SCHEMA)
-              if (!res) return
-              if (!res.ok) { toast.push({ text: `${copy.menu.restoreBad[res.reason]}${res.details?.length ? ` · ${res.details[0]}` : ''}`, tone: 'danger' }); return }
-              // ไฟล์คนละโหมดกับที่ใช้อยู่ = กำลังจะทับข้อมูลจริงด้วยเดโม หรือกลับกัน
-              setAsk({ restore: res.state, cross: res.state.mode !== state.mode })
-            }}>{copy.menu.restore}</button>
-            {state.clients[0] && (
-              <button className="row" onClick={() => { setMenu(false); nav(`/client/${state.clients[0].id}`) }}>
-                {copy.menu.clientView}
-              </button>
-            )}
-          </div>
-          <div className="fld">
-            <div className="fld__l">{copy.menu.frame}</div>
-            <div className="chips">
-              {(['phone', 'web'] as Frame[]).map((f) => (
-                <button key={f} className={`chip${frame === f ? ' chip--on' : ''}`} aria-pressed={frame === f}
-                  onClick={() => { setFrame(f); applyFrame(f); track('frame_switch', { frame: f }) }}>
-                  {copy.menu.frames[f]}
-                </button>
-              ))}
+              </div>
+            </>
+          )}
+
+          {menuTab === 'demo' && !real && (
+            <div className="fld">
+              <div className="fld__l">{copy.menu.scenario}</div>
+              <p className="hint">{copy.menu.scenarioHint}</p>
+              <div className="chips">
+                {SCENARIOS.map((sc) => (
+                  <button key={sc} className={`chip${state.scenarioId === sc ? ' chip--on' : ''}`}
+                    aria-pressed={state.scenarioId === sc}
+                    onClick={() => { resetDemo(sc as ScenarioId); track('scenario_switch', { scenario: sc }); setMenu(false); nav('/app/today') }}>
+                    {SCENARIO_LABEL[sc]}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-          <div className="fld">
-            <div className="fld__l">{copy.menu.accent}</div>
-            <div className="chips">
-              {ACCENTS.map((a) => (
-                <button key={a} className={`chip chip--dot${accent === a ? ' chip--on' : ''}`} aria-pressed={accent === a}
-                  data-accent-swatch={a}
-                  onClick={() => { setAccent(a); applyAccent(a); track('accent_switch', { accent: a }) }}>
-                  {copy.menu.accents[a]}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="fld">
-            <div className="fld__l">{copy.menu.size}</div>
-            <div className="chips">
-              {(['sm', 'lg', 'xl'] as DisplaySize[]).map((z) => (
-                <button key={z} className={`chip${size === z ? ' chip--on' : ''}`}
-                  aria-pressed={size === z}
-                  onClick={() => { setSize(z); applySize(z); track('size_switch', { size: z }) }}>
-                  {copy.menu.sizes[z]}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="fld">
-            <div className="fld__l">{copy.menu.theme}</div>
-            <div className="chips">
-              {(['system', 'light', 'dark'] as Theme[]).map((tm) => (
-                <button key={tm} className={`chip${theme === tm ? ' chip--on' : ''}`}
-                  aria-pressed={theme === tm}
-                  onClick={() => { setTheme(tm); applyTheme(tm); track('theme_switch', { theme: tm }) }}>
-                  {copy.menu.themes[tm]}
-                </button>
-              ))}
-            </div>
-          </div>
-          {!real && <div className="fld">
-            <div className="fld__l">{copy.menu.scenario}</div>
-            <div className="chips">
-              {SCENARIOS.map((sc) => (
-                <button key={sc} className={`chip${state.scenarioId === sc ? ' chip--on' : ''}`}
-                  aria-pressed={state.scenarioId === sc}
-                  onClick={() => { resetDemo(sc as ScenarioId); track('scenario_switch', { scenario: sc }); setMenu(false); nav('/app/today') }}>
-                  {SCENARIO_LABEL[sc]}
-                </button>
-              ))}
-            </div>
-          </div>}
+          )}
         </BottomSheet>
       )}
 

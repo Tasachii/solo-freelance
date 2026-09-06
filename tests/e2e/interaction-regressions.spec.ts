@@ -49,6 +49,7 @@ test('clicking controls inside a sheet never dismisses it or changes route', asy
   await page.getByRole('button', { name: 'เมนู' }).click()
   const menu = page.getByRole('dialog', { name: 'เมนู' })
   await expect(menu).toBeVisible()
+  await menu.getByRole('tab', { name: 'หน้าจอ' }).click() // ชิปหน้าจอย้ายไปหมวดของมัน
 
   for (const label of ['เว็บ', 'ส้มอิฐ', 'ใหญ่', 'มืด']) {
     await menu.getByRole('button', { name: label, exact: true }).click()
@@ -66,7 +67,9 @@ test('switching between demo and real mode uses one confirmation layer', async (
   await open(page, '/app/today')
   await page.getByRole('button', { name: 'เมนู' }).click()
   const menu = page.getByRole('dialog', { name: 'เมนู' })
+  await menu.getByRole('tab', { name: 'หน้าจอ' }).click()
   await expect(menu.getByRole('button', { name: 'เต็มจอ' })).toHaveClass(/row/)
+  await menu.getByRole('tab', { name: 'ทั่วไป' }).click()
   await menu.getByRole('button', { name: 'เริ่มใช้จริง' }).click()
 
   await expect(page.locator('.sheet')).toHaveCount(1)
@@ -77,7 +80,10 @@ test('switching between demo and real mode uses one confirmation layer', async (
 
   await page.getByRole('button', { name: 'เมนู' }).click()
   const realMenu = page.getByRole('dialog', { name: 'เมนู' })
+  await expect(realMenu.getByRole('tab', { name: 'เดโม' })).toHaveCount(0) // โหมดจริงไม่มีหมวดเดโม
+  await realMenu.getByRole('tab', { name: 'หน้าจอ' }).click()
   await expect(realMenu.getByRole('button', { name: 'เต็มจอ' })).toHaveClass(/row/)
+  await realMenu.getByRole('tab', { name: 'ทั่วไป' }).click()
   await realMenu.getByRole('button', { name: 'กลับไปโหมดเดโม' }).click()
   await expect(page.locator('.sheet')).toHaveCount(1)
   await expect(page.getByRole('dialog', { name: 'กลับไปโหมดเดโม' })).toBeVisible()

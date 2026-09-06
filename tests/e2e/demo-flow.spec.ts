@@ -229,13 +229,14 @@ test('ทุกทางเข้าพาไปใช้งานได้เ�
     await expect(link).toHaveAttribute('href', /\/start$/)
   }
 
-  // หน้าราคา — ทุกแพ็กยกเว้น Concierge ต้องเป็นลิงก์เข้าหน้าเลือกรูปแบบ ไม่ใช่ปุ่มเปิดฟอร์ม
+  // หน้าราคา — 4 แพลน (Free · Pro รายเดือน · 3 เดือน · 12 เดือน) ทุกแพลนเป็นลิงก์เข้าหน้าเลือกรูปแบบ ไม่ใช่ปุ่มเปิดฟอร์ม
   await page.goto('#/pricing')
   const ctas = page.locator('.plan__cta')
-  await expect(ctas).toHaveCount(3)
-  await expect(ctas.nth(0)).toHaveAttribute('href', /\/start$/)
-  await expect(ctas.nth(1)).toHaveAttribute('href', /\/start$/)
-  await expect(ctas.nth(2)).toHaveJSProperty('tagName', 'BUTTON')
+  await expect(ctas).toHaveCount(4)
+  for (let i = 0; i < 4; i++) await expect(ctas.nth(i)).toHaveAttribute('href', /\/start$/)
+  await expect(page.getByText('Concierge')).toHaveCount(0)
+  await expect(page.getByText('10 คนแรก เราตั้งระบบให้ฟรี')).toBeVisible()
+  await expect(page.locator('.plan__amt').nth(3)).toHaveText(/2,490/)
 
   // กดแล้วเลือกแบบหนึ่งแตะเดียว ถึงหน้าใช้งานโดยไม่ต้องกรอกอะไร
   await ctas.nth(1).click()

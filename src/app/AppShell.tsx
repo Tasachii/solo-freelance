@@ -10,6 +10,9 @@ import { copy } from '../copy'
 import { draftCount } from '../core/selectors'
 import { BottomSheet, ConfirmSheet, DemoBadge, Icon, type IconName } from './components'
 import { ProfileSheet } from './ProfileSheet'
+import { SheetsSheet } from './SheetsSheet'
+import { readSheetsConfig, writeSheetsConfig, pushToSheets } from './sheetsSync'
+import { shouldSync } from '../core/sheets'
 import { SCENARIOS, SCENARIO_LABEL, type ScenarioId } from '../core/scenarios'
 import { THEMES, applyTheme, readTheme, type Theme } from '../core/theme'
 import { applySize, readSize, type DisplaySize } from '../core/display'
@@ -31,6 +34,8 @@ export default function AppShell() {
   const [frame, setFrame] = useState<Frame>(readFrame)
   const [keys, setKeys] = useState(false)
   const [profile, setProfile] = useState(false)
+  const [sheetsOpen, setSheetsOpen] = useState(false)
+  const [sheets, setSheets] = useState(readSheetsConfig)
   const [full, setFull] = useState(isFullscreen)
   // ป้าย "เต็มจอ" ต้องกลับเป็น "ยกเลิกเต็มจอ" เมื่ออยู่ในโหมดนั้น — ไม่ว่าเข้าด้วยปุ่มหรือคีย์ F
   useEffect(() => {
@@ -50,6 +55,21 @@ export default function AppShell() {
       nav('/app/onboarding', { replace: true })
     }
   }, [state.onboarded, state.subjects.length, loc.pathname, nav])
+
+  // ส่งขึ้นชีตเมื่อข้อมูลเปลี่ยน — หน่วงไว้ ไม่ยิงทุกการกด และไม่ยิงในโหมดเดโม
+  useEffect(() => {
+    if (!shouldSync(sheets, state.mode, Date.now()).due) return
+    const t = setTimeout(() => {
+      const at = new Date().toISOString()
+      void pushToSheets(state, sheets!, at).then((res) => {
+        if (!res.ok) return
+        const next = { ...sheets!, lastSyncAt: at, lastSyncConfirmed: res.confirmed }
+        writeSheetsConfig(next)
+        setSheets(next)
+      })
+    }, 4000)
+    return () => clearTimeout(t)
+  }, [state, sheets])
 
   // คีย์ลัดสำหรับตอนพรีเซนต์ — ไม่จับเมื่อกำลังพิมพ์อยู่ในช่องกรอก
   useEffect(() => {
@@ -160,6 +180,7 @@ export default function AppShell() {
                   // ไฟล์คนละโหมดกับที่ใช้อยู่ = กำลังจะทับข้อมูลจริงด้วยเดโม หรือกลับกัน
                   setAsk({ restore: res.state, cross: res.state.mode !== state.mode })
                 }}>{copy.menu.restore}</button>
+                <button className="row" onClick={() => { setMenu(false); setSheetsOpen(true) }}>{copy.sheets.menu}</button>
                 {!real && <button className="row" onClick={() => { resetDemo(); setMenu(false) }}>{copy.menu.reset}</button>}
               </div>
             </>
@@ -242,6 +263,8 @@ export default function AppShell() {
       )}
 
       {profile && <ProfileSheet onClose={() => setProfile(false)} />}
+
+      {sheetsOpen && <SheetsSheet current={sheets} onSaved={setSheets} onClose={() => setSheetsOpen(false)} />}
 
       {keys && (
         <BottomSheet title={copy.menu.shortcuts} onClose={() => setKeys(false)}>

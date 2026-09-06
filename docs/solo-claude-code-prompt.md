@@ -1,6 +1,6 @@
 # Prompt สำหรับ Claude Code — แก้เว็บ Solo รอบหลัง validation
 
-> วิธีใช้: เปิด Claude Code ที่โฟลเดอร์ `~/Documents/solo-tutor` แล้ววางทั้งไฟล์นี้เป็น prompt เดียว
+> วิธีใช้: เปิด Claude Code ที่โฟลเดอร์ `~/Documents/solo-freelance` แล้ววางทั้งไฟล์นี้เป็น prompt เดียว
 > (โฟลเดอร์ยังชื่อเดิมก็ได้ — งานข้อ 0 จะจัดการเรื่องชื่อให้)
 
 ---
@@ -23,13 +23,13 @@ repo เป็น Vite + React + TypeScript deploy ขึ้น GitHub Pages ไ
 
 ## 0 · เก็บงานเปลี่ยนชื่อให้จบ
 
-ไฟล์ในเครื่องถูกแก้แล้ว (commit `chore: the project answers to one name — Solo`) — `package.json`, `vite.config.ts` (`base: '/solo/'`), `playwright.config.ts`, `README.md`, `index.html` ไม่มีคำว่า `solo-tutor` เหลือแล้ว
+ไฟล์ในเครื่องถูกแก้แล้ว (commit `chore: the project answers to one name — Solo`) — `package.json`, `vite.config.ts` (`base: '/solo/'`), `playwright.config.ts`, `README.md`, `index.html` ไม่มีคำว่า `solo-tutor` เหลือแล้ว (service worker บัมป์เป็น `solo-freelance-v2` 6 ก.ย.)
 
 สิ่งที่ยังต้องทำ:
 - ยืนยันว่า repo บน GitHub ถูก rename เป็น `solo` เรียบร้อย แล้วอัปเดต remote: `git remote set-url origin https://github.com/Tasachii/solo.git`
 - ลบโฟลเดอร์ `_to_delete/` ทิ้ง (เป็นไฟล์ `.git/*.lock` ที่ค้าง ลบได้เลย)
 - `npm ci && npm run build && npm run test` ให้ผ่าน แล้ว push
-- **ห้ามเปลี่ยน** ชื่ออาชีพใน `src/professions/` — `Solo Tutor`, `Solo Nail`, `Solo Barber`, `Solo Clean` เป็นชื่อ vertical ที่ตั้งใจให้เป็นแบบนี้
+- ชื่อสินค้ามีชื่อเดียวคือ **Solo Freelance** — ไม่มี Solo Tutor / Solo Nail / Solo Barber / Solo Clean อีกต่อไป (ตัดสิน 6 ก.ย. 2569) · อาชีพเป็นแค่ vocab ใน `src/professions/`
 
 ---
 

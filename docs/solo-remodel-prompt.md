@@ -1,6 +1,6 @@
 # Prompt: Remodel แอป Solo ทั้งระบบ
 
-> วิธีใช้: เปิด Claude Code ที่ `~/Documents/solo-tutor` แล้ววางทั้งไฟล์นี้เป็น prompt เดียว
+> วิธีใช้: เปิด Claude Code ที่ `~/Documents/solo-freelance` แล้ววางทั้งไฟล์นี้เป็น prompt เดียว
 > ขอบเขต: **แก้บนของเดิม ไม่รื้อ repo** — เก็บ `core/` (ledger, billing, messages) ที่ทำงานได้แล้วไว้ แล้ว remodel ชั้น data / UI / feature รอบมัน
 
 ---

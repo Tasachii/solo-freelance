@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../core/store'
 import { professionById } from '../professions'
 import { copy } from '../copy'
-import type { BillingMode } from '../core/types'
+import type { BillingMode, Particle } from '../core/types'
+import { PARTICLES } from '../core/particle'
 import { normalizePaymentDestination, isPaymentDestination } from '../core/paymentDestination'
 import { parseMoneyInput } from './SubjectSheet'
 
@@ -28,6 +29,7 @@ export default function Onboarding() {
   const [step, setStep] = useState(1)
   const [name, setName] = useState(state.provider.name)
   const [pp, setPp] = useState(state.provider.promptpayId)
+  const [particle, setParticle] = useState<Particle | undefined>(state.provider.particle)
   const [text, setText] = useState('')
   const [mode, setMode] = useState<BillingMode['mode']>(prof.defaultBilling ?? 'per_unit')
   // ราคาเริ่มต้นที่แก้ได้ก่อนกดเริ่ม — เดิมล็อกไว้ ครูที่คิดคนละราคาต้องไปแก้ทีละคน
@@ -47,7 +49,7 @@ export default function Onboarding() {
 
   const finish = () => {
     if (!priceOk || !promptpayOk) return
-    if (!dispatch({ type: 'setProvider', name: name.trim() || state.provider.name, promptpayId: normalizedPromptpay ?? '' })) return
+    if (!dispatch({ type: 'setProvider', name: name.trim() || state.provider.name, promptpayId: normalizedPromptpay ?? '', particle })) return
     const billing: BillingMode =
       mode === 'per_unit' ? { mode: 'per_unit', rate: parseMoneyInput(rate)! }
         : mode === 'flat_monthly' ? { mode: 'flat_monthly', amount: parseMoneyInput(flat)! }
@@ -69,13 +71,25 @@ export default function Onboarding() {
             <input className="inp" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
             <span className="hint">{copy.onboarding.nameHint}</span>
           </label>
+          <div className="fld" role="group" aria-label={copy.onboarding.particle}>
+            <span className="fld__l">{copy.onboarding.particle}</span>
+            <div className="chips">
+              {PARTICLES.map((pt) => (
+                <button key={pt} type="button" className={`chip${particle === pt ? ' chip--on' : ''}`} aria-pressed={particle === pt}
+                  onClick={() => setParticle(pt)}>{pt}</button>
+              ))}
+            </div>
+            <span className="hint">{copy.onboarding.particleHint.replace('{p}', particle ?? '…')}</span>
+          </div>
           <label className="fld">
             <span className="fld__l">{copy.onboarding.promptpay}</span>
             <input className="inp" inputMode="numeric" value={pp} aria-invalid={promptpayError || undefined}
               onChange={(e) => { setPp(e.target.value); setPromptpayError(false) }} />
-            {promptpayError && <span className="fld__err">ใส่เบอร์มือถือไทย 10 หลัก หรือเลขบัตรประชาชน 13 หลักที่ถูกต้อง</span>}
+            {promptpayError
+              ? <span className="fld__err">ใส่เบอร์มือถือไทย 10 หลัก หรือเลขบัตรประชาชน 13 หลักที่ถูกต้อง</span>
+              : <span className="hint">{copy.onboarding.promptpayHint}</span>}
           </label>
-          <button className="btn btn--primary btn--block" disabled={!name.trim()} onClick={() => {
+          <button className="btn btn--primary btn--block" disabled={!name.trim() || !particle} onClick={() => {
             if (!promptpayOk) { setPromptpayError(true); return }
             setStep(2)
           }}>{copy.onboarding.next}</button>
@@ -153,7 +167,7 @@ export default function Onboarding() {
           {/* ครูที่ไม่มีลิสต์อยู่ในมือ ต้องออกไปเพิ่มทีละคนได้ ไม่ใช่ถูกขังหรือถูกพากลับเดโม */}
           <button className="linkbtn" onClick={() => {
             if (!promptpayOk) { setStep(1); setPromptpayError(true); return }
-            if (!dispatch({ type: 'setProvider', name: name.trim() || state.provider.name, promptpayId: normalizedPromptpay ?? '' })) return
+            if (!dispatch({ type: 'setProvider', name: name.trim() || state.provider.name, promptpayId: normalizedPromptpay ?? '', particle })) return
             if (!dispatch({ type: 'onboarded' })) return
             track('onboarding_skip'); nav('/app/subjects')
           }}>{copy.onboarding.skip}</button>

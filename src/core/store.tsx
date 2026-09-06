@@ -1,7 +1,8 @@
 import {
   createContext, useCallback, useContext, useEffect, useMemo, useState, useRef, type ReactNode,
 } from 'react'
-import type { AppState, Message, Subject } from './types'
+import type { AppState, Message, Subject, Particle } from './types'
+import { isParticle } from './particle'
 import { buildReal, buildScenario, isScenario } from './scenarios'
 import { appendEvent } from './events'
 import { todayISO } from './format'
@@ -36,7 +37,7 @@ export type Action =
   | { type: 'chat'; clientId: string; from: 'client' | 'provider'; text: string; viaAdmin?: boolean }
   | { type: 'waitlist'; entry: AppState['waitlist'][number] }
   | { type: 'setToday'; date: string }
-  | { type: 'setProvider'; name: string; promptpayId: string }
+  | { type: 'setProvider'; name: string; promptpayId: string; particle?: Particle }
   | { type: 'bulkAddSubjects'; rows: { name: string; clientName: string; lineId?: string }[]; billing: Subject['billing'] }
   | { type: 'onboarded' }
   | { type: 'startReal' }
@@ -180,7 +181,8 @@ export function reducer(state: AppState, action: Action): AppState {
       break
     case 'setProvider':
       if (!action.name.trim() || typeof action.promptpayId !== 'string') return state
-      s = { ...s, provider: { name: action.name, promptpayId: action.promptpayId } }
+      if (action.particle !== undefined && !isParticle(action.particle)) return state
+      s = { ...s, provider: { name: action.name, promptpayId: action.promptpayId, particle: action.particle ?? s.provider.particle } }
       break
     case 'bulkAddSubjects': {
       if (!isBillingMode(action.billing) || action.rows.length === 0

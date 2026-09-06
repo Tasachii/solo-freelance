@@ -7,6 +7,7 @@ import { addDays, dateThai, dayThai, money, periodThai } from './format'
 import { documentUrl, invoiceDocument, receiptDocument } from './documents'
 import { financialRevision } from './messageDelivery'
 import { answer } from './faq'
+import { particleVars } from './particle'
 
 type Vars = Record<string, string | number>
 
@@ -60,6 +61,7 @@ function baseVars(state: AppState, subject: Subject): Vars {
   return {
     // ชื่อที่บันทึกไว้มักมีคำนำหน้าติดมาแล้ว ("คุณแม่แพรว") — ตัดออกก่อน
     // ไม่งั้น {clientHonorific}{clientName} จะกลายเป็น "คุณคุณแม่แพรว"
+    ...particleVars(state.provider.particle),
     clientHonorific: prof.vocab.clientHonorific,
     clientName: stripHonorific(client?.name, prof.vocab.clientHonorific),
     subjectName: subject.name,

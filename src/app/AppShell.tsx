@@ -9,6 +9,7 @@ import { professionById } from '../professions'
 import { copy } from '../copy'
 import { draftCount } from '../core/selectors'
 import { BottomSheet, ConfirmSheet, DemoBadge } from './components'
+import { ProfileSheet } from './ProfileSheet'
 import { SCENARIOS, SCENARIO_LABEL, type ScenarioId } from '../core/scenarios'
 import { applyTheme, readTheme, type Theme } from '../core/theme'
 import { applySize, readSize, type DisplaySize } from '../core/display'
@@ -26,6 +27,7 @@ export default function AppShell() {
   const [accent, setAccent] = useState<Accent>(readAccent)
   const [frame, setFrame] = useState<Frame>(readFrame)
   const [keys, setKeys] = useState(false)
+  const [profile, setProfile] = useState(false)
   // ask = สิ่งที่กำลังถามยืนยันอยู่ (แทน window.confirm ที่ใช้ไม่ได้บน PWA)
   const [ask, setAsk] = useState<null | 'toDemo' | 'toReal' | { restore: AppState; cross: boolean }>(null)
   const real = state.mode === 'real'
@@ -106,7 +108,10 @@ export default function AppShell() {
         <BottomSheet title={copy.menu.title} onClose={() => setMenu(false)}>
           <div className="rows">
             {real ? (
-              <button className="row" onClick={() => { setMenu(false); setAsk('toDemo') }}>{copy.menu.backToDemo}</button>
+              <>
+                <button className="row" onClick={() => { setMenu(false); setProfile(true) }}>{copy.menu.profile}</button>
+                <button className="row" onClick={() => { setMenu(false); setAsk('toDemo') }}>{copy.menu.backToDemo}</button>
+              </>
             ) : (
               <>
                 <button className="row" onClick={() => { setKeys(true); setMenu(false) }}>{copy.menu.shortcuts}</button>
@@ -197,6 +202,8 @@ export default function AppShell() {
           </div>}
         </BottomSheet>
       )}
+
+      {profile && <ProfileSheet onClose={() => setProfile(false)} />}
 
       {keys && (
         <BottomSheet title={copy.menu.shortcuts} onClose={() => setKeys(false)}>

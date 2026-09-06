@@ -3,8 +3,13 @@ import { modeLabelFor, professionById, templatesFor } from '../professions'
 import type { FaqSource } from '../professions/types'
 import { balanceDue, completionsIn, isCompleted, packageStatus, paidAmount } from './ledger'
 import { invoiceFor } from './billing'
-import { render, invoiceUrlOf, receiptUrlOf, currentEstimate } from './messages'
+import { render as renderRaw, invoiceUrlOf, receiptUrlOf, currentEstimate } from './messages'
+import { particleVars } from './particle'
 import { dateThai, dayThai, money, periodOf, periodThai } from './format'
+
+/** คำตอบทุกข้อพูดด้วยคำลงท้ายที่ครูเลือก */
+const render = (state: AppState, template: string, vars: Record<string, string | number>): string =>
+  renderRaw(template, { ...particleVars(state.provider.particle), ...vars })
 
 /** ตัดช่องว่างซ้ำและ lowercase ก่อนจับ keyword */
 export const normalize = (text: string): string => text.toLowerCase().replace(/\s+/g, '')
@@ -28,13 +33,13 @@ function answerForSubject(state: AppState, subject: Subject, source: FaqSource):
     if (b.mode === 'package') return answerForSubject(state, subject, 'packageRemaining')
     const inv = invoiceFor(state, subject.id, period)
     if (inv) {
-      return render(templates.faq.currentInvoice, {
+      return render(state, templates.faq.currentInvoice, {
         ...common, invoiceUrl: invoiceUrlOf(subject.clientId, state, inv.id), periodThai: periodThai(period),
         qty: inv.lines.reduce((n, l) => n + l.qty, 0), total: money(balanceDue(state, inv.id)),
       })
     }
     const done = completionsIn(state, subject.id, period).length
-    return render(templates.faq.currentInvoiceNone, {
+    return render(state, templates.faq.currentInvoiceNone, {
       ...common, completedSoFar: done || 0, estimate: money(currentEstimate(state, subject, period)),
     })
   }
@@ -47,16 +52,16 @@ function answerForSubject(state: AppState, subject: Subject, source: FaqSource):
       .filter((u) => !isCompleted(state, u.id))
       .filter((u) => u.scheduledAt >= state.today)
       .sort((a, b) => (a.scheduledAt + a.time).localeCompare(b.scheduledAt + b.time))[0]
-    if (!next) return render(templates.faq.nextUnitNone, {})
-    return render(templates.faq.nextUnit, {
+    if (!next) return render(state, templates.faq.nextUnitNone, {})
+    return render(state, templates.faq.nextUnit, {
       ...common, dayThai: dayThai(next.scheduledAt), dateThai: dateThai(next.scheduledAt), time: next.time,
     })
   }
 
   if (source === 'packageRemaining') {
     const pk = packageStatus(state, subject)
-    if (!pk) return render(templates.faq.packageNotPackage, { ...common, modeThai: modeLabelFor(state.professionId, b.mode) })
-    return render(templates.faq.packageRemaining, {
+    if (!pk) return render(state, templates.faq.packageNotPackage, { ...common, modeThai: modeLabelFor(state.professionId, b.mode) })
+    return render(state, templates.faq.packageRemaining, {
       ...common, packageTotal: pk.total, used: pk.used, remaining: pk.remaining,
     })
   }
@@ -68,10 +73,10 @@ export interface FaqAnswer { source: FaqSource | null; text: string }
 export function answer(state: AppState, clientId: string, question: string): FaqAnswer {
   const templates = templatesFor(state.professionId)
   const source = matchSource(state.professionId, question)
-  if (!source) return { source: null, text: render(templates.faq.fallback, {}) }
+  if (!source) return { source: null, text: render(state, templates.faq.fallback, {}) }
 
   const subjects = state.subjects.filter((s) => s.clientId === clientId && s.active)
-  if (subjects.length === 0) return { source: null, text: render(templates.faq.fallback, {}) }
+  if (subjects.length === 0) return { source: null, text: render(state, templates.faq.fallback, {}) }
 
   // สถานะการจ่ายเป็นเรื่องระดับผู้จ่าย ไม่ใช่รายคน จึงตอบครั้งเดียว
   if (source === 'paymentStatus') {
@@ -86,7 +91,7 @@ export function answer(state: AppState, clientId: string, question: string): Faq
         payment.id === receipt.paymentId && payment.invoiceId === latest.id))
       return {
         source,
-        text: render(templates.faq.paymentPaid, {
+        text: render(state, templates.faq.paymentPaid, {
           total: money(paidAmount(state, latest.id)),
           receiptUrl: rc ? receiptUrlOf(rc.id, state) : invoiceUrlOf(clientId, state),
         }),
@@ -97,9 +102,9 @@ export function answer(state: AppState, clientId: string, question: string): Faq
     if (state.mode === 'real') {
       const open = invs.filter(i => i.status === 'sent' || i.status === 'overdue')
       if (open.length) return { source, text: open.map(inv =>
-        render(templates.faq.paymentUnpaid, { total: money(balanceDue(state, inv.id)), invoiceUrl: invoiceUrlOf(clientId, state, inv.id) })).join('\n\n') }
+        render(state, templates.faq.paymentUnpaid, { total: money(balanceDue(state, inv.id)), invoiceUrl: invoiceUrlOf(clientId, state, inv.id) })).join('\n\n') }
     }
-    return { source, text: render(templates.faq.paymentUnpaid, { invoiceUrl: invoiceUrlOf(clientId, state), total: money(due) }) }
+    return { source, text: render(state, templates.faq.paymentUnpaid, { invoiceUrl: invoiceUrlOf(clientId, state), total: money(due) }) }
   }
 
   const parts = subjects.map((s) => answerForSubject(state, s, source)).filter(Boolean) as string[]

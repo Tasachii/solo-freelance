@@ -1,4 +1,5 @@
 import type { AppState, BillingMode } from './types'
+import { isParticle } from './particle'
 
 export const isMoney = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value > 0
@@ -60,7 +61,8 @@ export function validateState(value: unknown): StateValidation {
   if (!isString(state.professionId) || !state.professionId) errors.push('professionId: ไม่ถูกต้อง')
   if (!isString(state.scenarioId)) errors.push('scenarioId: ไม่ถูกต้อง')
   if (!isISODate(state.today)) errors.push('today: ต้องเป็นวันที่จริงรูปแบบ YYYY-MM-DD')
-  if (!isRecord(state.provider) || !isString(state.provider.name) || !isString(state.provider.promptpayId)) errors.push('provider: ไม่ถูกต้อง')
+  if (!isRecord(state.provider) || !isString(state.provider.name) || !isString(state.provider.promptpayId)
+    || (state.provider.particle !== undefined && !isParticle(state.provider.particle))) errors.push('provider: ไม่ถูกต้อง')
   if (typeof state.onboarded !== 'boolean') errors.push('onboarded: ไม่ถูกต้อง')
   if (state.lastBackupAt !== undefined && !isISODate(state.lastBackupAt)) errors.push('lastBackupAt: ไม่ถูกต้อง')
   if (!isRecord(state.counters)

@@ -62,7 +62,7 @@ export interface AppState {
   mode: AppMode
   professionId: string
   scenarioId: string
-  provider: { name: string; promptpayId: string }
+  provider: { name: string; promptpayId: string; particle?: Particle }
   today: ISODate // เดโมล็อกวันไว้ · โหมดจริงเดินตามเครื่อง
   clients: Client[]; subjects: Subject[]; units: ServiceUnit[]; completions: CompletionEvent[]
   invoices: Invoice[]; payments: Payment[]; receipts: Receipt[]; messages: Message[]; chats: ChatTurn[]
@@ -78,3 +78,6 @@ export interface AppState {
    */
   sending?: { awaiting: string; queue: string[] }
 }
+
+/** คำลงท้ายที่ครูเลือก — ไม่ตั้งค่า = ครับ (ข้อมูลเก่าและเดโม) */
+export type Particle = 'ครับ' | 'ค่ะ'

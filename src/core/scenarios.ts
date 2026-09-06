@@ -1,4 +1,4 @@
-import type { AppState, Invoice, Message, Payment } from './types'
+import type { AppState, Invoice, Message, Payment, Particle } from './types'
 import { buildFromPlans, emptyBase, TODAY, type SubjectPlan } from '../mock/seed'
 import { receiptNumber } from './receipts'
 import { receiptText } from './messages'
@@ -168,7 +168,7 @@ export const isScenario = (v: string | null): v is ScenarioId =>
  * ชื่อผู้ให้บริการต้องว่าง ไม่ใช่ชื่อสมมติของเดโม
  * ไม่งั้นครูอาจส่งบิลออกไปในนาม "ครูเบนซ์" โดยไม่ทันสังเกต
  */
-export function buildReal(keep?: { name: string; promptpayId: string }): AppState {
+export function buildReal(keep?: { name: string; promptpayId: string; particle?: Particle }): AppState {
   const base = emptyBase()
   // เช็คแยกทีละฟิลด์ — ครูที่แก้ชื่อแล้วแต่ยังไม่แตะพร้อมเพย์ ต้องไม่ได้เลขบัญชีปลอมติดไป
   const name = keep?.name && keep.name !== base.provider.name ? keep.name : ''
@@ -179,7 +179,7 @@ export function buildReal(keep?: { name: string; promptpayId: string }): AppStat
     scenarioId: 'real',
     onboarded: false,
     today: todayISO(),
-    provider: { name, promptpayId },
+    provider: { name, promptpayId, particle: keep?.particle },
   }
 }
 

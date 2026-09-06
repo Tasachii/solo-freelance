@@ -86,6 +86,11 @@ test('an accent picked on the landing page follows the visitor into the app', as
   await sheet.getByRole('button', { name: 'สว่าง' }).click()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   await sheet.getByRole('button', { name: 'ปิด' }).click()
+  // ปุ่มสลับเร็วต้องรู้ว่าชีทเพิ่งเปลี่ยนเป็นสว่าง — กดแล้วต้องได้มืด ไม่ใช่สว่างซ้ำ
+  await page.getByRole('button', { name: 'เปลี่ยนเป็นธีมมืด' }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await page.getByRole('button', { name: 'เปลี่ยนเป็นธีมสว่าง' }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   await page.getByRole('link', { name: 'เดโม' }).click()
   await page.getByRole('button', { name: /ผสม/ }).click()
   await expect(page.locator('.skel')).toHaveCount(0)

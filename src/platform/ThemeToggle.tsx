@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { applyTheme, effectiveTheme, readTheme, type Theme } from '../core/theme'
 import { ACCENTS, applyAccent, readAccent, type Accent } from '../core/accent'
 import { copy } from '../copy'
@@ -7,10 +7,18 @@ import { BottomSheet, Icon } from '../app/components'
 /** สลับสว่าง/มืดจากหน้าที่ไม่มีเมนู (หน้าแรก · เลือกรูปแบบ · ราคา) — เก็บค่าเดียวกับเมนูในแอป */
 export function ThemeToggle() {
   const [dark, setDark] = useState(() => effectiveTheme(readTheme()) === 'dark')
+  // ชีท "ปรับสีและธีม" เปลี่ยนธีมได้เหมือนกัน — ฟัง attribute บน <html> จะได้ไม่ค้างสถานะเก่า
+  useEffect(() => {
+    const sync = () => setDark(effectiveTheme(readTheme()) === 'dark')
+    const mo = new MutationObserver(sync)
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => mo.disconnect()
+  }, [])
   const flip = () => {
-    const next = dark ? 'light' : 'dark'
+    // อ่านค่าปัจจุบันตอนกด ไม่ใช่จาก state ที่อาจล้าหลัง
+    const next = effectiveTheme(readTheme()) === 'dark' ? 'light' : 'dark'
     applyTheme(next)
-    setDark(!dark)
+    setDark(next === 'dark')
   }
   return (
     <button type="button" className="themetoggle" onClick={flip} aria-pressed={dark}

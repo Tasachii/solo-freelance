@@ -8,7 +8,7 @@
 ## 0 · บริบทและกติกา
 
 Solo = แอดมิน AI สำหรับคนทำงานคนเดียว · vertical แรกคือติวเตอร์
-Stack: Vite + React 18 + TypeScript + react-router (HashRouter) · static deploy บน GitHub Pages · repo `solo`
+Stack: Vite + React 18 + TypeScript + react-router (HashRouter) · static deploy บน GitHub Pages · repo `solo-freelance` (base `/solo-freelance/` — ห้ามเปลี่ยน ลิงก์ถูกแชร์แล้ว)
 
 **หลักการที่ห้ามละเมิด (เดิม — ยังใช้ทั้งหมด)**
 1. Solo ไม่ถือเงินของใคร — QR เป็นของผู้ให้บริการ เงินเข้าบัญชีเขาตรง
@@ -103,6 +103,18 @@ loading skeleton · empty state ที่บอกว่าให้ทำอะ
 
 ## PART C · ฟีเจอร์ที่ต้องเพิ่ม
 
+### C0 · บิลต้องจ่ายได้จากในข้อความ ไม่ต้องกดลิงก์  **[ต้องมีก่อนวันแข่ง]**
+สถานะวันนี้ (เช็คโค้ด 6 ก.ย.): ปุ่มส่งเปิด LINE ผ่าน `line.me/R/share` ได้แล้ว (fallback คัดลอก) · โหมด real ฝังเอกสารบิลไว้ใน hash URL (`#/document/<token>`) เปิดข้ามเครื่องได้โดยไม่มีหลังบ้าน — ดีมาก แต่**การจ่ายเงินยังต้องกดลิงก์ก่อนถึงจะเห็น QR** ซึ่งขัดกับ insight ว่าผู้ปกครองไม่ชอบกดลิงก์ (`renewalText` ใส่เลขพร้อมเพย์ในข้อความแล้ว แต่ `invoiceText` / `reminderText` ยังไม่ใส่)
+- ทุกข้อความที่ขอเงิน (`invoice`, `reminder`, `renewal`) ในโหมด real ต้องมี **ยอด + เลขพร้อมเพย์ + ชื่อผู้รับ** เป็นตัวหนังสือในข้อความเสมอ — ลิงก์เอกสารเป็นแค่ "ดูรายละเอียด" ไม่ใช่ทางเดียวที่จะจ่าย
+- เพิ่มปุ่ม "ส่งรูป QR" ต่อจากส่งข้อความ: สร้าง PromptPay QR เป็น PNG แล้วแชร์ผ่าน `navigator.share({ files })` (แบบเดียวกับ `app/backup.ts`) — เป็นขั้นที่ 2 ที่ครูเลือกทำได้ ไม่บังคับ
+- ทดสอบบนมือถือจริง: ความยาวลิงก์ `#/document/<token>` (MAX_TOKEN 16000) กับขีดจำกัดของ `line.me/R/share?text=` — ถ้ายาวเกิน ต้องมี fallback เป็นคัดลอกอัตโนมัติพร้อม toast บอกครู ห้ามเงียบ
+- README ระบุแล้วว่าลิงก์เพิกถอนไม่ได้และใครมีลิงก์ก็อ่านได้ — ให้แสดงคำเตือนนี้ครั้งเดียวตอนเปิดโหมด real และเขียนไว้ใน FAQ "ข้อมูลอยู่ไหน"
+
+### C0.5 · ตรวจสลิปจริง — วางเป็น adapter
+- สร้าง `interface SlipVerifier { verify(image, expected): Promise<Result> }` ใน `core/`
+- `DemoVerifier` = `rollSlip` เดิม (ผลผูกกับเลขใบแจ้ง) · `ApiVerifier` = ยิง API ตรวจสลิป (EasySlip / SlipOK / Thunder ~0.14–0.42 บาท/ใบ) — ยังไม่ต้องต่อจริงรอบนี้ แค่ให้เสียบได้โดยไม่แก้หน้าจอ
+- แสดงชัดใน UI ว่าผลตรวจมาจาก "จำลอง" หรือ "ตรวจจริง"
+
 ### C1 · ตารางสอน + เลื่อน/ยกเลิกคลาส  **[ต้องมีก่อนวันแข่ง]**
 เป็นสิ่งที่ผู้ให้สัมภาษณ์ขอเองบ่อยที่สุด (3 ใน 8 คน) โดยเราไม่ได้ถามนำ
 - แตะคาบใน Today → เลื่อน (เลือกวัน/เวลาใหม่) หรือ ยกเลิก
@@ -158,13 +170,14 @@ npm run build && npm run test && npm run e2e
 1. `refactor(data)` — PART A ทั้งหมด (ยังไม่แตะ UI, เทสต์เดิมต้องผ่านหมด)
 2. `feat(ui)` — B1 design system + tokens
 3. `feat(ui)` — B2 navigation + B3 ทีละหน้า (commit ละหน้า)
-4. `feat(schedule)` — C1
-5. `feat(progress)` — C2
-6. `feat(client)` — C3
-7. `feat(app)` — C4–C7
-8. `docs` — อัปเดต README ให้ตรงกับของจริง
+4. `feat(pay)` — C0 + C0.5
+5. `feat(schedule)` — C1
+6. `feat(progress)` — C2
+7. `feat(client)` — C3
+8. `feat(app)` — C4–C7
+9. `docs` — อัปเดต README ให้ตรงกับของจริง
 
 **ถ้าเวลาไม่พอ** ตัดตามลำดับนี้: C7 → C6 → C5 → C4 → C3
-สิ่งที่ตัดไม่ได้: PART A, B1, B3 (Today/Billing/ClientPreview), C1, C2
+สิ่งที่ตัดไม่ได้: PART A, B1, B3 (Today/Billing/ClientPreview), C0, C1, C2
 
-**ก่อนเริ่ม** อ่าน `README.md`, `docs/solo-claude-code-prompt.md` และ `src/core/types.ts` ให้จบก่อน แล้วสรุปแผนกลับมาให้ดู 1 หน้า ก่อนลงมือแก้ไฟล์แรก
+**ก่อนเริ่ม** อ่าน `README.md`, `docs/remodel-plan.md`, `docs/solo-claude-code-prompt.md` และ `src/core/types.ts` ให้จบก่อน แล้วสรุปแผนกลับมาให้ดู 1 หน้า ก่อนลงมือแก้ไฟล์แรก

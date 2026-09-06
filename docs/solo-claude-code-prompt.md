@@ -8,7 +8,7 @@
 ## บริบท
 
 โปรเจกต์นี้คือ **Solo** — แอดมิน AI สำหรับคนที่ทำงานคนเดียว โปรดักต์แรกคือสายติวเตอร์
-repo เป็น Vite + React + TypeScript deploy ขึ้น GitHub Pages ไม่มีหลังบ้าน ไม่มีล็อกอิน ทุกอย่างเป็นเดโมข้อมูลสมมติ
+repo `solo-freelance` เป็น Vite + React + TypeScript deploy ขึ้น GitHub Pages ไม่มีหลังบ้าน ไม่มีล็อกอิน ทุกอย่างเป็นเดโมข้อมูลสมมติ
 
 **เพิ่งจบรอบ validation จริงมา** — สัมภาษณ์เชิงลึกติวเตอร์ 8 คน + แบบสอบถาม 50 คน ผลที่ได้เปลี่ยนสมมติฐานเรื่องกลุ่มเป้าหมายและลำดับความสำคัญของฟีเจอร์ งานรอบนี้คือทำให้เว็บพูดตรงกับสิ่งที่ข้อมูลบอก
 
@@ -21,16 +21,9 @@ repo เป็น Vite + React + TypeScript deploy ขึ้น GitHub Pages ไ
 
 ---
 
-## 0 · เก็บงานเปลี่ยนชื่อให้จบ
+## 0 · ชื่อ
 
-ไฟล์ในเครื่องถูกแก้แล้ว (commit `chore: the project answers to one name — Solo`) — `package.json`, `vite.config.ts` (`base: '/solo/'`), `playwright.config.ts`, `README.md`, `index.html` ไม่มีคำว่า `solo-tutor` เหลือแล้ว (service worker บัมป์เป็น `solo-freelance-v2` 6 ก.ย.)
-
-สิ่งที่ยังต้องทำ:
-- ยืนยันว่า repo บน GitHub ถูก rename เป็น `solo` เรียบร้อย แล้วอัปเดต remote: `git remote set-url origin https://github.com/Tasachii/solo.git`
-- ลบโฟลเดอร์ `_to_delete/` ทิ้ง (เป็นไฟล์ `.git/*.lock` ที่ค้าง ลบได้เลย)
-- `npm ci && npm run build && npm run test` ให้ผ่าน แล้ว push
-- ชื่อสินค้ามีชื่อเดียวคือ **Solo Freelance** — ไม่มี Solo Tutor / Solo Nail / Solo Barber / Solo Clean อีกต่อไป (ตัดสิน 6 ก.ย. 2569) · อาชีพเป็นแค่ vocab ใน `src/professions/`
-
+ชื่อโปรเจกต์คือ **Solo Freelance** · repo `solo-freelance` · base `/solo-freelance/` — ตัดสินใจแล้ว ห้ามเปลี่ยน · ไม่มีชื่อย่อยแบบ Solo Tutor / Solo Nail อีก (ตัดสิน 6 ก.ย.) — อาชีพเป็นแค่ vocab ใน `src/professions/`
 ---
 
 ## 1 · หน้า Landing — เปลี่ยนกลุ่มเป้าหมายและใส่หลักฐานจริง
@@ -117,6 +110,6 @@ repo เป็น Vite + React + TypeScript deploy ขึ้น GitHub Pages ไ
 
 ## ลำดับที่แนะนำ
 
-ข้อ 0 → ข้อ 1 (หน้าแรกคือสิ่งที่กรรมการเห็นก่อน) → ข้อ 4 → ข้อ 3 → ข้อ 6 → ข้อ 2 → ข้อ 5
+ข้อ 1 (หน้าแรกคือสิ่งที่กรรมการเห็นก่อน) → ข้อ 4 → ข้อ 3 → ข้อ 6 → ข้อ 2 → ข้อ 5
 
 ถ้าเวลาไม่พอก่อนวันแข่ง ให้ทิ้งข้อ 2 กับ 5 ก่อน — ข้อ 1, 4, 6 คือสิ่งที่ทำให้ pitch มีหลักฐาน

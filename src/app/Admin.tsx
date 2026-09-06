@@ -85,7 +85,6 @@ export default function Admin() {
   const period = periodOf(state.today)
   const monthCount = state.messages.filter(
     (m) => (m.status === 'sent' || m.status === 'draft') && periodOf(m.createdAt) === period).length
-  const minutes = Math.ceil((monthCount * 10) / 60)
 
   // คิวอยู่ใน state ไม่ใช่ในคอมโพเนนต์ — สลับไป LINE แล้วกลับมาต้องยังรู้ว่าค้างที่ใคร
   const awaiting = state.sending?.awaiting ?? null
@@ -166,7 +165,6 @@ export default function Admin() {
         <>
           <div className="stats">
             <StatCard label={copy.admin.draftedStat} value={`${monthCount}`} />
-            <StatCard label={copy.admin.timeSaved} value={`~${minutes} ${copy.admin.minutes}`} tone="ok" />
             <StatCard label={copy.admin.tabDrafts} value={`${drafts.length}`} tone={drafts.length ? 'warn' : undefined} />
           </div>
 

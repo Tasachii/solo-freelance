@@ -1,15 +1,15 @@
 {
   "name": "Solo Freelance — แอดมินให้คนที่ทำงานคนเดียว",
   "short_name": "Solo Freelance",
-  "description": "เช็คชื่อแตะเดียว สิ้นเดือนคิดเงินและส่งบิลเข้า LINE ผู้ปกครองอัตโนมัติ",
+  "description": "ยืนยันงานเสร็จแตะเดียว สิ้นเดือนคิดเงิน ร่างบิลและใบเสร็จให้ พร้อมส่งใน LINE",
   "lang": "th",
   "dir": "ltr",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f3eee3",
-  "theme_color": "#123b2e",
+  "background_color": "#0f1119",
+  "theme_color": "#5b6cff",
   "icons": [
     { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },

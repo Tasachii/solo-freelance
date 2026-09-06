@@ -164,7 +164,7 @@ export default function Admin() {
       {tab === 'drafts' && (
         <>
           <div className="stats">
-            <StatCard label={copy.admin.draftedStat} value={`${monthCount}`} />
+            <StatCard label={copy.admin.draftedStat} value={`${monthCount}`} tone="brand" />
             <StatCard label={copy.admin.tabDrafts} value={`${drafts.length}`} tone={drafts.length ? 'warn' : undefined} />
           </div>
 

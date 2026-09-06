@@ -8,7 +8,7 @@ import { useToast } from './components/Toast'
 import { professionById } from '../professions'
 import { copy } from '../copy'
 import { draftCount } from '../core/selectors'
-import { BottomSheet, ConfirmSheet, DemoBadge } from './components'
+import { BottomSheet, ConfirmSheet, DemoBadge, Icon, type IconName } from './components'
 import { ProfileSheet } from './ProfileSheet'
 import { SCENARIOS, SCENARIO_LABEL, type ScenarioId } from '../core/scenarios'
 import { applyTheme, readTheme, type Theme } from '../core/theme'
@@ -75,16 +75,16 @@ export default function AppShell() {
   }, [nav])
 
   const tabs = [
-    { to: '/app/today', label: copy.nav.today },
-    { to: '/app/subjects', label: prof.vocab.subjects },
-    { to: '/app/billing', label: copy.nav.billing },
-    { to: '/app/admin', label: copy.nav.admin, badge: drafts },
+    { to: '/app/today', label: copy.nav.today, icon: 'cal' as IconName },
+    { to: '/app/subjects', label: prof.vocab.subjects, icon: 'users' as IconName },
+    { to: '/app/billing', label: copy.nav.billing, icon: 'bill' as IconName },
+    { to: '/app/admin', label: copy.nav.admin, badge: drafts, icon: 'chat' as IconName },
   ]
 
   return (
     <div className="shell">
       <header className="shell__hd">
-        <b className="shell__brand">{copy.brand.name}</b>
+        <b className="shell__brand"><span className="mark"><Icon name="spark" size={16} /></span>{copy.brand.name}</b>
         {/* ครูต้องรู้ตลอดว่ากำลังแตะข้อมูลจริงหรือข้อมูลสมมติ */}
         {real && <span className="realtag">{copy.menu.realOn}</span>}
         <div className="shell__hdr">
@@ -98,6 +98,7 @@ export default function AppShell() {
       <nav className="tabbar">
         {tabs.map((t) => (
           <NavLink key={t.to} to={t.to} className={({ isActive }) => `tab${isActive ? ' tab--on' : ''}`}>
+            <Icon name={t.icon} />
             <span>{t.label}</span>
             {t.badge ? <i className="tab__badge">{t.badge}</i> : null}
           </NavLink>

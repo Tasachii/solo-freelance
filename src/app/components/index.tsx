@@ -16,10 +16,10 @@ export function Skeleton({ rows = 3 }: { rows?: number }) {
   )
 }
 
-export function EmptyState({ icon, title, desc, action }: { icon: string; title: string; desc?: string; action?: ReactNode }) {
+export function EmptyState({ icon, title, desc, action, art }: { icon: string; title: string; desc?: string; action?: ReactNode; art?: boolean }) {
   return (
     <div className="empty">
-      <div className="empty__ico" aria-hidden="true">{icon}</div>
+      {art ? <Silhouette /> : <div className="empty__ico" aria-hidden="true">{icon}</div>}
       <h3 className="empty__t">{title}</h3>
       {desc && <p className="empty__d">{desc}</p>}
       {action}
@@ -27,7 +27,7 @@ export function EmptyState({ icon, title, desc, action }: { icon: string; title:
   )
 }
 
-export function StatCard({ label, value, tone }: { label: string; value: string; tone?: 'ok' | 'warn' | 'danger' }) {
+export function StatCard({ label, value, tone }: { label: string; value: string; tone?: 'brand' | 'ok' | 'warn' | 'danger' }) {
   return (
     <div className={`stat${tone ? ` stat--${tone}` : ''}`}>
       <span className="stat__l">{label}</span>
@@ -210,5 +210,42 @@ export function ConfirmSheet(
       {body && <p className="p">{body}</p>}
       {hint && <span className="hint">{hint}</span>}
     </BottomSheet>
+  )
+}
+
+/** ไอคอนเส้นชุดเดียวกันทั้งแอป — ไม่ใช้อีโมจิในที่ที่ต้องดูเป็นมืออาชีพ */
+const ICONS = {
+  cal: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
+  users: 'M9 11.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M17 11.5a2.5 2.5 0 1 0 0-5M16 14.5c3 0 5.5 2 5.5 5',
+  bill: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',
+  chat: 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5',
+  spark: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z',
+  check: 'M5 12.5l4.5 4.5L19 7',
+  shield: 'M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6zM9 12l2 2 4-4',
+  send: 'M4 12l16-8-6 16-2.5-6z',
+  arrow: 'M5 12h14M13 6l6 6-6 6',
+} as const
+export type IconName = keyof typeof ICONS
+export function Icon({ name, size = 22 }: { name: IconName; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={ICONS[name]} /></svg>
+  )
+}
+
+/** ภาพเงาสีเดียว (ต้นฉบับของเรา) — ฟรีแลนซ์ทำงานที่โต๊ะใต้ต้นไม้ นกบินผ่าน · สีตาม currentColor */
+export function Silhouette({ className = 'silhouette' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 520 220" fill="currentColor" aria-hidden="true">
+      {/* นก */}
+      <path d="M40 60c8-6 14-6 20 0-6-1-12-1-20 0zM72 46c7-5 12-5 18 0-6-1-11-1-18 0zM110 58c7-5 12-5 18 0-6-1-11-1-18 0zM96 78c6-4 10-4 15 0-5-1-9-1-15 0zM140 40c6-4 10-4 15 0-5-1-9-1-15 0zM170 52c5-3 8-3 12 0-4-1-7-1-12 0z" />
+      {/* ต้นไม้ */}
+      <path d="M400 200c-3-40-4-80-2-120-20 10-40 4-52-14 14 4 26 0 34-10-24-4-36-20-34-42 10 16 24 24 42 22-4-14 2-26 14-34 4 12 14 20 26 22 14-10 30-8 44 2-14 8-20 20-16 34 20-6 36 0 46 14-18-2-34 4-46 16 14 6 24 18 26 34-16-8-30-8-42 2 2 26 0 50-4 74z" />
+      {/* โต๊ะ + คน */}
+      <path d="M250 200v-6h-8v-38h72v38h-8v6h-8v-6h-40v6zM246 148h80v8h-80z" />
+      <path d="M304 120a12 12 0 1 1 24 0 12 12 0 1 1-24 0zM300 140c2-10 10-14 18-14s16 4 18 14v26h-8v34h-8v-30h-4v30h-8v-34h-8z" />
+      {/* พื้น */}
+      <path d="M0 208c60-4 120 2 180-2s120-4 180 0 120 2 160-2v14H0z" />
+    </svg>
   )
 }

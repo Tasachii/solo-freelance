@@ -63,7 +63,7 @@ export default function Billing() {
       <section className="card card--brand">
         <h2 className="h2">{periodThaiFull(period)}</h2>
         <div className="stats">
-          <StatCard label={copy.billing.dash.expected} value={money(dash.expected)} />
+          <StatCard label={copy.billing.dash.expected} value={money(dash.expected)} tone="brand" />
           <StatCard label={copy.billing.dash.received} value={money(dash.received)} tone="ok" />
           <StatCard label={copy.billing.dash.outstanding} value={money(dash.outstanding)} tone="danger" />
         </div>

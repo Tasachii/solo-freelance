@@ -4,7 +4,7 @@ import { professionById, fillVocab } from '../professions'
 import { copy } from '../copy'
 import { STYLES, scenarioForStyle } from '../core/style'
 import type { WorkStyle } from '../core/types'
-import { DemoBadge } from '../app/components'
+import { DemoBadge, Icon } from '../app/components'
 
 /**
  * หน้าแรกก่อนเข้าใช้ — เลือกว่าเก็บเงินแบบไหน แตะเดียวเข้าแอป
@@ -29,7 +29,7 @@ export default function StylePicker() {
     <div className="land start">
       <header className="land__hero land__hero--sm">
         <div className="land__bar">
-          <Link className="land__brand" to="/">‹ {copy.brand.name}</Link>
+          <Link className="land__brand" to="/">‹ <span className="mark"><Icon name="spark" size={16} /></span>{copy.brand.name}</Link>
           {!real && <DemoBadge />}
         </div>
         <h1 className="land__h1">{copy.start.title}</h1>

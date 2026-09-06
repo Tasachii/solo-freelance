@@ -5,9 +5,10 @@ const KEY = 'solo-theme'
 export function readTheme(): Theme {
   try {
     const v = localStorage.getItem(KEY)
-    return v === 'light' || v === 'dark' ? v : 'system'
+    // โฉม Navy เป็นธีมมืดโดยตั้งใจ — ผู้ใช้เลือก สว่าง/ตามเครื่อง ได้จากเมนู
+    return v === 'light' || v === 'dark' || v === 'system' ? v : 'dark'
   } catch {
-    return 'system'
+    return 'dark'
   }
 }
 
@@ -17,8 +18,7 @@ export function applyTheme(t: Theme): void {
   if (t === 'system') root.removeAttribute('data-theme')
   else root.setAttribute('data-theme', t)
   try {
-    if (t === 'system') localStorage.removeItem(KEY)
-    else localStorage.setItem(KEY, t)
+    localStorage.setItem(KEY, t)
   } catch {
     /* โหมดส่วนตัวเขียนไม่ได้ — ไม่เป็นไร ธีมยังใช้ได้ในหน้านี้ */
   }

@@ -80,17 +80,18 @@ export default function Today() {
 
   return (
     <div className="pane">
-      <h1 className="h1">{dateThaiFull(state.today)}</h1>
+      {state.provider.name && <p className="greet">{copy.today.greet} {state.provider.name}</p>}
+      <h1 className="h1 h1--tight">{dateThaiFull(state.today)}</h1>
 
       <div className="stats">
-        <StatCard label={copy.today.statUnits} value={`${units.length} ${v.units}`} />
+        <StatCard label={copy.today.statUnits} value={`${units.length} ${v.units}`} tone="brand" />
         <StatCard label={copy.today.statDone} value={String(done)} tone="ok" />
         <StatCard label={copy.today.statLeft} value={String(units.length - done)} tone={units.length - done ? 'warn' : undefined} />
       </div>
 
       {units.length === 0 ? (
         <EmptyState
-          icon="☕" title={`${copy.today.emptyTitle}`}
+          icon="☕" art title={`${copy.today.emptyTitle}`}
           desc={nextDay ? `${copy.today.emptyNext}: ${dateThai(nextDay)}` : undefined}
           action={<button className="btn btn--secondary" onClick={() => setAdding(true)}>+ {copy.today.addUnit}</button>}
         />

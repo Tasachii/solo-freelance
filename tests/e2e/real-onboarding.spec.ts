@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
 
 /**
  * เส้นทางของครูตัวจริง (ผู้หญิง): เริ่มใช้จริง → กรอกชื่อ เลือก ค่ะ → รายชื่อ → เช็คชื่อ → ปิดยอด

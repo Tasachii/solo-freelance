@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
 
 async function realInvoice(page: Page, destination = '0812345678') {
   await page.goto('?scenario=empty#/app/onboarding')
@@ -81,4 +81,25 @@ test('missing payment destination prevents sending and keeps queue empty', async
   await page.getByRole('button', { name: 'ส่งใน LINE', exact: true }).first().click()
   await expect(page.locator('.toast')).toContainText('พร้อมเพย์ที่ถูกต้อง')
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('solo-demo-v3')!).sending)).toBeUndefined()
+})
+
+test('issued receipt keeps the original payee after profile changes and reload', async ({ page }) => {
+  await realInvoice(page)
+  await openPayment(page)
+  await page.getByRole('button', { name: 'ยอดตรง รับเงินแล้ว' }).click()
+  const receipt = await page.evaluate(() => JSON.parse(localStorage.getItem('solo-demo-v3')!).receipts[0])
+  expect(receipt.snapshot.provider).toBe('ผู้ให้บริการทดสอบ')
+  await page.getByRole('button', { name: 'เมนู' }).click()
+  await page.getByRole('dialog', { name: 'เมนู' }).getByRole('button', { name: 'ชื่อและบัญชีรับเงิน' }).click()
+  const profile = page.getByRole('dialog', { name: 'ชื่อและบัญชีรับเงิน' })
+  await profile.locator('input').first().fill('ผู้รับเงินชื่อใหม่')
+  await profile.locator('input').nth(1).fill('0899999999')
+  await profile.getByRole('button', { name: 'บันทึก', exact: true }).click()
+  await page.goto(`#/receipt/${receipt.id}`)
+  await expect(page.locator('.paper__meta')).toContainText('ผู้ให้บริการทดสอบ')
+  await expect(page.locator('.paper__meta')).toContainText('0812345678')
+  await expect(page.locator('.paper')).not.toContainText('ผู้รับเงินชื่อใหม่')
+  await page.reload()
+  await expect(page.locator('.paper__meta')).toContainText('ผู้ให้บริการทดสอบ')
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('solo-demo-v3')!).receipts[0].snapshot)).toEqual(receipt.snapshot)
 })

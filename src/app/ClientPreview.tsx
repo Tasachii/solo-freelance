@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useStore } from '../core/store'
 import { copy } from '../copy'
@@ -15,6 +16,7 @@ export default function ClientPreview() {
   const client = clientById(state, clientId)
   const period = periodOf(state.today)
   const real = state.mode === 'real'
+  const [invoiceView, setInvoiceView] = useState<'outstanding' | 'history'>('outstanding')
 
   if (!client) {
     return (
@@ -31,7 +33,8 @@ export default function ClientPreview() {
   const history = state.invoices.filter(i => i.clientId === clientId && i.status !== 'draft')
     .sort((a, b) => Number(a.status === 'paid') - Number(b.status === 'paid') || a.period.localeCompare(b.period))
   const unpaid = history.filter(i => i.status !== 'paid')
-  const billed = unpaid.length ? unpaid : history
+  const effectiveInvoiceView = unpaid.length === 0 ? 'history' : invoiceView
+  const billed = effectiveInvoiceView === 'history' ? history : unpaid
   const total = billed.reduce((n, i) => n + i.total, 0)
   const paid = billed.reduce((n, i) => n + paidAmount(state, i.id), 0)
   const due = billed.reduce((n, i) => n + balanceDue(state, i.id), 0)
@@ -52,6 +55,16 @@ export default function ClientPreview() {
 
       <h1 className="cv__h1">{copy.clientView.invoiceTitle}</h1>
       <p className="cv__who">{client.name} · {shownPeriods || periodThai(period)}</p>
+      {history.length > 0 && (
+        <div className="chips" role="group" aria-label="เลือกบิลที่แสดง">
+          <button className={`chip${effectiveInvoiceView === 'outstanding' ? ' chip--on' : ''}`}
+            aria-pressed={effectiveInvoiceView === 'outstanding'} disabled={unpaid.length === 0}
+            onClick={() => setInvoiceView('outstanding')}>ยอดที่ยังต้องชำระ ({unpaid.length})</button>
+          <button className={`chip${effectiveInvoiceView === 'history' ? ' chip--on' : ''}`}
+            aria-pressed={effectiveInvoiceView === 'history'} onClick={() => setInvoiceView('history')}>ประวัติบิลทั้งหมด ({history.length})</button>
+        </div>
+      )}
+      {unpaid.length === 0 && history.length > 0 && <p className="hint" role="status">ชำระครบแล้ว รายการด้านล่างเป็นประวัติบิลที่ผ่านมา</p>}
 
       {billed.length === 0 ? (
         <EmptyState icon="🧾" title={copy.clientView.noInvoice} desc={copy.clientView.noInvoiceHint} />

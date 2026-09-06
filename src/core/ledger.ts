@@ -78,6 +78,7 @@ export function snapshotLegacyPrices(s: AppState, onlySubjectId?: string): AppSt
 
 export interface PackageStatus {
   total: number; used: number; remaining: number; overBy: number; price: number
+  purchasedUnits: number; carriedCredits: number; entitlementTotal: number
   purchasedAt: string; state: 'ok' | 'low' | 'exhausted'
 }
 
@@ -90,12 +91,15 @@ export function packageStatus(s: AppState, subject: Subject): PackageStatus | nu
   const b = subject.billing
   if (b.mode !== 'package') return null
   const carried = new Set(b.carriedUnitIds ?? [])
+  const carriedCredits = b.carriedCredits ?? 0
+  const entitlementTotal = b.total + carriedCredits
   const used = completionsOfSubject(s, subject.id)
     .filter((c) => occurredAt(s, c) >= b.purchasedAt && !carried.has(c.unitId)).length
-  const remaining = Math.max(b.total - used, 0)
-  const overBy = Math.max(used - b.total, 0)
+  const remaining = Math.max(entitlementTotal - used, 0)
+  const overBy = Math.max(used - entitlementTotal, 0)
   const state = overBy > 0 || remaining === 0 ? 'exhausted' : remaining <= 2 ? 'low' : 'ok'
-  return { total: b.total, used, remaining, overBy, price: b.price, purchasedAt: b.purchasedAt, state }
+  return { total: entitlementTotal, purchasedUnits: b.total, carriedCredits, entitlementTotal,
+    used, remaining, overBy, price: b.price, purchasedAt: b.purchasedAt, state }
 }
 
 /**
@@ -103,9 +107,10 @@ export function packageStatus(s: AppState, subject: Subject): PackageStatus | nu
  * คาบที่เรียนไปแล้ว "วันนี้" ถูกแพ็กเก่านับ (และอาจคิดเป็นส่วนเกินไปแล้ว)
  * จึงจดไว้ใน carriedUnitIds ไม่ให้แพ็กใหม่นับซ้ำ
  */
-export function renewPackage(s: AppState, subjectId: string): AppState {
+export function renewPackage(s: AppState, subjectId: string, carriedCredits?: number): AppState {
   const subject = subjectById(s, subjectId)
   if (!subject || subject.billing.mode !== 'package') return s
+  const previous = packageStatus(s, subject)
   const carried = completionsOfSubject(s, subjectId)
     .filter((c) => occurredAt(s, c) >= s.today)
     .map((c) => c.unitId)
@@ -113,7 +118,8 @@ export function renewPackage(s: AppState, subjectId: string): AppState {
     ...s,
     subjects: s.subjects.map((x) =>
       x.id === subjectId && x.billing.mode === 'package'
-        ? { ...x, billing: { ...x.billing, purchasedAt: s.today, carriedUnitIds: carried } }
+        ? { ...x, billing: { ...x.billing, purchasedAt: s.today,
+            carriedCredits: carriedCredits ?? previous?.remaining ?? 0, carriedUnitIds: carried } }
         : x),
   }
 }

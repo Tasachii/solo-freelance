@@ -16,12 +16,12 @@ describe('UI billing validation', () => {
       rate: '400', flat: '3000', packageTotal: '12', packagePrice: '4200',
     }, {
       mode: 'package', total: 10, price: 3500, purchasedAt: '2026-09-01',
-      carriedUnitIds: ['u-1', 'u-2'],
+      carriedCredits: 3, carriedUnitIds: ['u-1', 'u-2'],
     }, '2026-09-06')
 
     expect(billing).toEqual({
       mode: 'package', total: 12, price: 4200, purchasedAt: '2026-09-01',
-      carriedUnitIds: ['u-1', 'u-2'],
+      carriedCredits: 3, carriedUnitIds: ['u-1', 'u-2'],
     })
   })
 

@@ -1,5 +1,5 @@
 import type { AppState, Invoice } from './types'
-import { balanceDue, completionsIn, packageStatus, packageUnitPrice } from './ledger'
+import { balanceDue, completionsIn, completionsOfSubject, occurredAt, packageStatus, packageUnitPrice } from './ledger'
 import { daysOverdue, invoiceFor } from './billing'
 import { periodOf } from './format'
 
@@ -12,13 +12,16 @@ export interface Dashboard {
 /** ตัวเลขทุกตัวคำนวณจาก ledger เท่านั้น — ห้าม hard-code (หลักการข้อ 2) */
 export function dashboard(state: AppState, period: string): Dashboard {
   let expected = 0
-  for (const inv of state.invoices) if (inv.period === period && inv.kind === 'monthly') expected += inv.total
+  for (const inv of state.invoices) if (inv.period === period) expected += inv.total
   for (const s of state.subjects) {
-    if (!s.active) continue
     if (s.billing.mode === 'package') continue
     if (invoiceFor(state, s.id, period)) continue
     if (s.billing.mode === 'flat_monthly') expected += s.billing.amount
-    else expected += completionsIn(state, s.id, period).length * s.billing.rate
+    else {
+      const rate = s.billing.rate
+      expected += completionsIn(state, s.id, period)
+        .reduce((sum, completion) => sum + (completion.unitPrice ?? rate), 0)
+    }
   }
 
   const received = state.payments
@@ -28,7 +31,7 @@ export function dashboard(state: AppState, period: string): Dashboard {
   // จ่ายบางส่วนแล้วต้องเหลือค้างเท่าส่วนที่ยังไม่ได้ ไม่ใช่เต็มใบ
   // ไม่งั้นเงิน 1,000 ที่รับมาจะถูกนับทั้งใน 'เข้าแล้ว' และ 'ค้าง' พร้อมกัน
   const outstanding = state.invoices
-    .filter((i) => i.status === 'sent' || i.status === 'overdue')
+    .filter((i) => i.period === period && (i.status === 'sent' || i.status === 'overdue'))
     .reduce((n, i) => n + balanceDue(state, i.id), 0)
 
   // 1) บิลที่เก็บได้หลังเคยทวง
@@ -37,7 +40,8 @@ export function dashboard(state: AppState, period: string): Dashboard {
     if (inv.status !== 'paid') continue
     const reminded = state.messages.some(
       (m) => m.kind === 'reminder' && m.status === 'sent' && m.meta?.invoiceId === inv.id)
-    if (reminded) dunned += inv.total
+    if (reminded) dunned += state.payments.filter(payment => payment.invoiceId === inv.id
+      && periodOf(payment.paidAt) === period).reduce((sum, payment) => sum + payment.amount, 0)
   }
   // 2) ครั้งที่นับได้ในระบบเดือนนี้ (รายครั้ง)
   let counted = 0
@@ -52,7 +56,13 @@ export function dashboard(state: AppState, period: string): Dashboard {
   for (const s of state.subjects) {
     const pk = packageStatus(state, s)
     if (!pk || pk.overBy === 0) continue
-    overflow += pk.overBy * packageUnitPrice(pk)
+    const carried = s.billing.mode === 'package' ? new Set(s.billing.carriedUnitIds ?? []) : new Set<string>()
+    const overageInPeriod = completionsOfSubject(state, s.id)
+      .filter(completion => occurredAt(state, completion) >= pk.purchasedAt && !carried.has(completion.unitId))
+      .sort((a, b) => occurredAt(state, a).localeCompare(occurredAt(state, b)))
+      .slice(pk.entitlementTotal)
+      .filter(completion => periodOf(occurredAt(state, completion)) === period).length
+    overflow += overageInPeriod * packageUnitPrice({ total: pk.purchasedUnits, price: pk.price })
   }
 
   return { expected, received, outstanding, recovered: dunned + counted + overflow, breakdown: { dunned, counted, overflow } }
@@ -82,12 +92,12 @@ export const clientsWithChats = (state: AppState): string[] => {
  * ทั้งที่ยอด "ค้าง" ยังนับมันอยู่ — ครูจะเก็บเงินก้อนนั้นไม่ได้เลย
  */
 export function invoiceToActOn(state: AppState, subjectId: string, period: string): Invoice | undefined {
-  const mine = state.invoices.filter((i) => i.subjectId === subjectId && i.kind === 'monthly')
+  const mine = state.invoices.filter((i) => i.subjectId === subjectId && i.kind === 'monthly' && i.period === period)
   const rank = (i: Invoice): number =>
     i.status === 'overdue' ? 0
       : i.status === 'sent' ? 1
         : i.status === 'paid' ? 4               // จ่ายแล้วไม่ต้องลงมือทำอะไร ไปท้ายสุด
-          : i.period === period ? 2 : 3
+          : 2
   return [...mine].sort((a, b) =>
     rank(a) - rank(b) || b.period.localeCompare(a.period))[0]
 }

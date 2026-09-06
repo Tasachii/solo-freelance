@@ -41,9 +41,14 @@ export function invoiceDocument(state: AppState, invoiceId: string): SharedDocum
 }
 export function receiptDocument(state: AppState, receiptId: string): SharedDocument | null {
   const rc = state.receipts.find(r => r.id === receiptId)
-  const pay = rc && state.payments.find(p => p.id === rc.paymentId)
-  const doc = pay && invoiceDocument(state, pay.invoiceId)
-  return rc && doc ? { ...doc, kind: 'receipt', asOf: rc.issuedAt, number: rc.number } : null
+  if (!rc) return null
+  const snapshot = rc.snapshot
+  return {
+    v: 1, kind: 'receipt', asOf: rc.issuedAt, provider: snapshot.provider,
+    destination: snapshot.destination, payer: snapshot.payer, subject: snapshot.subject,
+    period: snapshot.period, lines: snapshot.lines.map(line => ({ ...line })),
+    total: snapshot.total, paid: snapshot.paid, number: rc.number,
+  }
 }
 export function documentUrl(doc: SharedDocument): string {
   if (!valid(doc)) throw new Error('ข้อมูลเอกสารไม่ครบหรือยอดไม่ตรงกัน')

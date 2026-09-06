@@ -39,6 +39,8 @@ export default function Onboarding() {
   const [packTotal, setPackTotal] = useState('10')
   const [packPrice, setPackPrice] = useState('3500')
   const [promptpayError, setPromptpayError] = useState(false)
+  const [confirmBadRows, setConfirmBadRows] = useState(false)
+  const [packageIntent, setPackageIntent] = useState<'opening_balance' | 'paid_purchase'>('opening_balance')
   const normalizedPromptpay = normalizePaymentDestination(pp)
   const promptpayOk = pp.trim() === '' || isPaymentDestination(pp)
   const priceOk = mode === 'per_unit' ? parseMoneyInput(rate) !== null
@@ -47,16 +49,22 @@ export default function Onboarding() {
 
   const rows = useMemo(() => parseRoster(text), [text])
   const good = rows.filter((r) => !r.error)
+  const badCount = rows.length - good.length
 
   const finish = () => {
     if (!priceOk || !promptpayOk) return
-    if (!dispatch({ type: 'setProvider', name: name.trim() || state.provider.name, promptpayId: normalizedPromptpay ?? '', particle })) return
     const billing: BillingMode =
       mode === 'per_unit' ? { mode: 'per_unit', rate: parseMoneyInput(rate)! }
         : mode === 'flat_monthly' ? { mode: 'flat_monthly', amount: parseMoneyInput(flat)! }
           : { mode: 'package', total: parseMoneyInput(packTotal)!, price: parseMoneyInput(packPrice)!, purchasedAt: state.today }
-    if (good.length && !dispatch({ type: 'bulkAddSubjects', rows: good.map(({ name: n, clientName, lineId }) => ({ name: n, clientName, lineId })), billing })) return
-    if (!dispatch({ type: 'onboarded' })) return
+    if (badCount > 0 && !confirmBadRows) { setConfirmBadRows(true); return }
+    if (!dispatch({
+      type: 'finishOnboarding',
+      provider: { name: name.trim() || state.provider.name, promptpayId: normalizedPromptpay ?? '', particle },
+      rows: good.map(({ name: n, clientName, lineId }) => ({ name: n, clientName, lineId })),
+      billing,
+      ...(mode === 'package' ? { packageIntent } : {}),
+    })) return
     track('onboarding_finish', { count: good.length })
     nav('/app/today')
   }
@@ -85,10 +93,11 @@ export default function Onboarding() {
           <label className="fld">
             <span className="fld__l">{copy.onboarding.promptpay}</span>
             <input className="inp" inputMode="numeric" value={pp} aria-invalid={promptpayError || undefined}
+              aria-describedby={promptpayError ? 'promptpay-error' : 'promptpay-hint'}
               onChange={(e) => { setPp(e.target.value); setPromptpayError(false) }} />
             {promptpayError
-              ? <span className="fld__err">ใส่เบอร์มือถือไทย 10 หลัก หรือเลขบัตรประชาชน 13 หลักที่ถูกต้อง</span>
-              : <span className="hint">{copy.onboarding.promptpayHint}</span>}
+              ? <span id="promptpay-error" className="fld__err">ใส่เบอร์มือถือไทย 10 หลัก หรือเลขบัตรประชาชน 13 หลักที่ถูกต้อง</span>
+              : <span id="promptpay-hint" className="hint">{copy.onboarding.promptpayHint}</span>}
           </label>
           <button className="btn btn--primary btn--block" disabled={!name.trim() || !particle} onClick={() => {
             if (!promptpayOk) { setPromptpayError(true); return }
@@ -102,7 +111,7 @@ export default function Onboarding() {
           <label className="fld">
             <span className="fld__l">{copy.onboarding.pasteLabel}</span>
             <textarea className="inp inp--area" rows={7} value={text} placeholder={copy.onboarding.pasteHint}
-              onChange={(e) => setText(e.target.value)} />
+              onChange={(e) => { setText(e.target.value); setConfirmBadRows(false) }} />
             <span className="hint">{copy.onboarding.pasteHint}</span>
           </label>
 
@@ -128,7 +137,7 @@ export default function Onboarding() {
             <span className="fld__l">{copy.onboarding.defaultMode}</span>
             <div className="chips">
               {(['per_unit', 'flat_monthly', 'package'] as BillingMode['mode'][]).map((m) => (
-                <button key={m} className={`chip${mode === m ? ' chip--on' : ''}`} onClick={() => setMode(m)}>
+                <button key={m} className={`chip${mode === m ? ' chip--on' : ''}`} aria-pressed={mode === m} onClick={() => setMode(m)}>
                   {copy.waitlist.modeLabels[m]}
                 </button>
               ))}
@@ -149,30 +158,50 @@ export default function Onboarding() {
             </label>
           )}
           {mode === 'package' && (
-            <div className="fld2">
-              <label className="fld">
-                <span className="fld__l">{copy.subjects.fieldPackTotal}</span>
-                <input className="inp" inputMode="numeric" value={packTotal} onChange={(e) => setPackTotal(e.target.value)} />
-              </label>
-              <label className="fld">
-                <span className="fld__l">{copy.subjects.fieldPackPrice}</span>
-                <input className="inp" inputMode="numeric" value={packPrice} onChange={(e) => setPackPrice(e.target.value)} />
-              </label>
-            </div>
+            <>
+              <div className="fld" role="group" aria-label="ที่มาของสิทธิ์แพ็ก">
+                <span className="fld__l">สิทธิ์แพ็กนี้มาจากไหน</span>
+                <div className="chips">
+                  <button type="button" className={`chip${packageIntent === 'opening_balance' ? ' chip--on' : ''}`}
+                    aria-pressed={packageIntent === 'opening_balance'} onClick={() => setPackageIntent('opening_balance')}>ยอดยกมา ยังไม่บันทึกรับเงิน</button>
+                  <button type="button" className={`chip${packageIntent === 'paid_purchase' ? ' chip--on' : ''}`}
+                    aria-pressed={packageIntent === 'paid_purchase'} onClick={() => setPackageIntent('paid_purchase')}>รับเงินแล้ว ออกใบเสร็จ</button>
+                </div>
+              </div>
+              <div className="fld2">
+                <label className="fld">
+                  <span className="fld__l">{copy.subjects.fieldPackTotal}</span>
+                  <input className="inp" inputMode="numeric" value={packTotal} onChange={(e) => setPackTotal(e.target.value)} />
+                </label>
+                <label className="fld">
+                  <span className="fld__l">{copy.subjects.fieldPackPrice}</span>
+                  <input className="inp" inputMode="numeric" value={packPrice} onChange={(e) => setPackPrice(e.target.value)} />
+                </label>
+              </div>
+            </>
           )}
           <span className="hint">{copy.subjects.priceHint}</span>
 
           {!priceOk && <span className="hint hint--bad">{copy.common.numberPositive}</span>}
+          {badCount > 0 && <p className="warnbar" role="alert">มี {badCount} แถวข้อมูลไม่ครบ ระบบจะไม่นำเข้าแถวเหล่านี้ กดอีกครั้งเพื่อยืนยัน</p>}
           <button className="btn btn--primary btn--block" disabled={good.length === 0 || !priceOk || !promptpayOk} onClick={finish}>
-            {copy.onboarding.finish} ({good.length})
+            {confirmBadRows && badCount > 0 ? `ยืนยันข้าม ${badCount} แถว` : copy.onboarding.finish} ({good.length})
           </button>
           {/* ครูที่ไม่มีลิสต์อยู่ในมือ ต้องออกไปเพิ่มทีละคนได้ ไม่ใช่ถูกขังหรือถูกพากลับเดโม */}
           <button className="linkbtn" onClick={() => {
             if (!promptpayOk) { setStep(1); setPromptpayError(true); return }
-            if (!dispatch({ type: 'setProvider', name: name.trim() || state.provider.name, promptpayId: normalizedPromptpay ?? '', particle })) return
-            if (!dispatch({ type: 'onboarded' })) return
+            if (!dispatch({
+              type: 'finishOnboarding',
+              provider: { name: name.trim() || state.provider.name, promptpayId: normalizedPromptpay ?? '', particle },
+              rows: [],
+              billing: mode === 'per_unit' ? { mode: 'per_unit', rate: parseMoneyInput(rate)! }
+                : mode === 'flat_monthly' ? { mode: 'flat_monthly', amount: parseMoneyInput(flat)! }
+                  : { mode: 'package', total: parseMoneyInput(packTotal)!, price: parseMoneyInput(packPrice)!, purchasedAt: state.today },
+              ...(mode === 'package' ? { packageIntent } : {}),
+            })) return
             track('onboarding_skip'); nav('/app/subjects')
           }}>{copy.onboarding.skip}</button>
+          <button className="linkbtn" onClick={() => setStep(1)}>{copy.common.back}แก้ข้อมูลผู้ให้บริการ</button>
           {state.mode !== 'real' && (
             <button className="linkbtn" onClick={() => { resetDemo('default'); nav('/app/today') }}>
               {copy.onboarding.useSample}

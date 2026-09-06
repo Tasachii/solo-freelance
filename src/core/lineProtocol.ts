@@ -1,4 +1,4 @@
-import type { MessageKind } from './types'
+import type { MessageKind } from './types.ts'
 
 /**
  * โปรโตคอลฝั่ง LINE — แปล webhook · ประกอบ request ที่จะยิง · ตัดสินว่าจะลองใหม่ไหม
@@ -16,10 +16,10 @@ export const LINE_TEXT_MAX = 5000
 // ── webhook ─────────────────────────────────────────
 
 export type LineEvent =
-  | { type: 'follow'; userId: string; replyToken?: string }
-  | { type: 'unfollow'; userId: string }
-  | { type: 'message'; userId: string; text: string; replyToken?: string }
-  | { type: 'other' }
+  | { type: 'follow'; userId: string; replyToken?: string; eventId?: string }
+  | { type: 'unfollow'; userId: string; eventId?: string }
+  | { type: 'message'; userId: string; text: string; replyToken?: string; eventId?: string }
+  | { type: 'other'; eventId?: string }
 
 export interface Webhook { destination: string; events: LineEvent[] }
 
@@ -37,18 +37,21 @@ export function parseWebhook(raw: string): Webhook | null {
   }
   if (!body || typeof body !== 'object') return null
   const b = body as { destination?: unknown; events?: unknown }
-  if (typeof b.destination !== 'string' || !Array.isArray(b.events)) return null
+  if (typeof b.destination !== 'string' || !b.destination.trim() || !Array.isArray(b.events)) return null
   const events = b.events.map((e): LineEvent => {
-    const ev = e as { type?: unknown; source?: { userId?: unknown }; message?: { type?: unknown; text?: unknown }; replyToken?: unknown }
+    if (!e || typeof e !== 'object') return { type: 'other' }
+    const ev = e as { type?: unknown; webhookEventId?: unknown; source?: { userId?: unknown }; message?: { type?: unknown; text?: unknown }; replyToken?: unknown }
     const userId = typeof ev.source?.userId === 'string' ? ev.source.userId : ''
     const replyToken = typeof ev.replyToken === 'string' ? ev.replyToken : undefined
-    if (!userId) return { type: 'other' }
-    if (ev.type === 'follow') return { type: 'follow', userId, replyToken }
-    if (ev.type === 'unfollow') return { type: 'unfollow', userId }
+    const eventId = typeof ev.webhookEventId === 'string' ? ev.webhookEventId : undefined
+    const eventMeta = eventId ? { eventId } : {}
+    if (!userId) return { type: 'other', ...eventMeta }
+    if (ev.type === 'follow') return { type: 'follow', userId, ...(replyToken ? { replyToken } : {}), ...eventMeta }
+    if (ev.type === 'unfollow') return { type: 'unfollow', userId, ...eventMeta }
     if (ev.type === 'message' && ev.message?.type === 'text' && typeof ev.message.text === 'string') {
-      return { type: 'message', userId, text: ev.message.text, replyToken }
+      return { type: 'message', userId, text: ev.message.text, ...(replyToken ? { replyToken } : {}), ...eventMeta }
     }
-    return { type: 'other' }
+    return { type: 'other', ...eventMeta }
   })
   return { destination: b.destination, events }
 }
@@ -78,6 +81,7 @@ export function planWebhookEvent(event: LineEvent, linked: boolean): WebhookPlan
   if (event.type === 'follow') return { kind: 'register', userId: event.userId, reply: 'ask-code' }
   if (event.type === 'unfollow') return { kind: 'unfollow', userId: event.userId }
   if (event.type !== 'message') return { kind: 'ignore' }
+  if (!event.text.trim()) return { kind: 'ignore' }
   if (isOptOut(event.text)) return { kind: 'opt-out', userId: event.userId, reply: 'opted-out' }
   const digits = event.text.replace(/\D/g, '')
   if (!linked && digits.length === 6) return { kind: 'link', userId: event.userId, code: digits, reply: 'linked' }
@@ -88,12 +92,19 @@ export function planWebhookEvent(event: LineEvent, linked: boolean): WebhookPlan
 
 export interface LineRequest { url: string; init: { method: 'POST'; headers: Record<string, string>; body: string } }
 
-export function pushRequest(accessToken: string, to: string, text: string): LineRequest {
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+export function pushRequest(accessToken: string, to: string, text: string, retryKey: string): LineRequest {
+  if (!UUID.test(retryKey)) throw new Error('LINE retry key must be a UUID')
   return {
     url: LINE_PUSH_URL,
     init: {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+        'X-Line-Retry-Key': retryKey,
+      },
       body: JSON.stringify({ to, messages: [{ type: 'text', text: text.slice(0, LINE_TEXT_MAX) }] }),
     },
   }
@@ -118,6 +129,8 @@ export type PushOutcome = 'sent' | 'retry' | 'invalid-token' | 'blocked' | 'fail
  * 429/5xx = ลองใหม่ได้ · 4xx อื่นคือคำขอผิด ลองใหม่ไปก็เท่าเดิม
  */
 export function classifyPush(status: number, body = ''): PushOutcome {
+  // LINE returns 409 when this persisted retry key was already accepted.
+  if (status === 409) return 'sent'
   if (status >= 200 && status < 300) return 'sent'
   if (status === 401 || status === 403) return 'invalid-token'
   if (status === 429 || status >= 500) return 'retry'

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
 
 /**
  * เดินเส้นทางเดโมทั้งเส้นบน build จริง
@@ -76,6 +76,7 @@ test('ปิดยอดเดือนนี้สร้างบิลให�
 
 test('สลิปตรงยอด ยืนยันแล้วได้ใบเสร็จ', async ({ page }) => {
   await open(page, '/app/billing')
+  await page.locator('.period-picker select').selectOption('2025-08')
   await page.locator('.srow').filter({ hasText: 'น้องภูมิ' })
     .getByRole('button', { name: /แนบสลิป/ }).click()
 
@@ -182,6 +183,8 @@ test('เลื่อนคาบแล้วยอดบิลไม่ขย�
 })
 
 test('สำรองข้อมูลแล้วได้ไฟล์ที่กู้คืนได้', async ({ page }) => {
+  // Exercise the download fallback; native share sheets are checked through their file contract separately.
+  await page.addInitScript(() => Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => false }))
   await open(page, '/app/today')
   await page.locator('.shell__menu').click()
   const [dl] = await Promise.all([
@@ -199,7 +202,7 @@ test('สำรองข้อมูลแล้วได้ไฟล์ที�
   const file = JSON.parse(text)
   expect(file.format).toBe('solo-backup-1')
   expect(file.app.subjects.length).toBeGreaterThan(0)
-  expect(file.app.schemaVersion).toBe(4)
+  expect(file.app.schemaVersion).toBe(5)
 })
 
 test('ส่งสรุปให้ผู้ปกครองเปิด LINE พร้อมจำนวนครั้งจริง', async ({ page }) => {
@@ -235,7 +238,8 @@ test('ทุกทางเข้าพาไปใช้งานได้เ�
   await expect(ctas).toHaveCount(4)
   for (let i = 0; i < 4; i++) await expect(ctas.nth(i)).toHaveAttribute('href', /\/start$/)
   await expect(page.getByText('Concierge')).toHaveCount(0)
-  await expect(page.getByText('10 คนแรก เราตั้งระบบให้ฟรี')).toBeVisible()
+  await expect(page.getByText('สนใจร่วมทดลองใช้', { exact: true })).toBeVisible()
+  await expect(page.getByText('แพ็กเกจเหล่านี้เป็นแนวคิดสำหรับเดโม ยังไม่เปิดขายหรือรับชำระเงิน')).toBeVisible()
   await expect(page.locator('.plan__amt').nth(3)).toHaveText(/2,490/)
 
   // กดแล้วเลือกแบบหนึ่งแตะเดียว ถึงหน้าใช้งานโดยไม่ต้องกรอกอะไร

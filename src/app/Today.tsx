@@ -3,21 +3,25 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../core/store'
 import { professionById } from '../professions'
 import { copy } from '../copy'
-import { cancelledText, mkMessage, movedText } from '../core/messages'
 import { addDays } from '../core/format'
 import { isCompleted, packageStatus, subjectById, unitsOn } from '../core/ledger'
 import { dateThaiFull, dateThai } from '../core/format'
 import { BottomSheet, ConfirmSheet, EmptyState, Skeleton, StatCard } from './components'
 import { useToast } from './components/Toast'
+import type { AppState } from '../core/types'
+
+export function overlappingUnits(state: AppState, date: string, time: string, excludeId?: string) {
+  return state.units.filter((unit) => unit.id !== excludeId && !unit.cancelled && unit.scheduledAt === date && unit.time === time)
+}
 
 export default function Today() {
-  const { state, dispatch, track, hydrated } = useStore()
+  const { state, dispatch, track, hydrated, persistenceError } = useStore()
   const prof = professionById(state.professionId)
   const v = prof.vocab
   const toast = useToast()
   const nav = useNavigate()
   const [adding, setAdding] = useState(false)
-  const [newUnit, setNewUnit] = useState({ subjectId: '', time: '17:00', label: '' })
+  const [newUnit, setNewUnit] = useState({ subjectId: '', date: state.today, time: '17:00', label: '' })
 
   const units = useMemo(() => unitsOn(state, state.today), [state])
   // คาบที่งดไปแล้ววันนี้ — โชว์แยกไว้ให้กู้คืนได้ ไม่ใช่หายไปเฉย ๆ
@@ -44,26 +48,17 @@ export default function Today() {
     setMoving(unitId); setMDate(addDays(state.today, 1)); setMTime(time)
   }
 
-  /** เลื่อน/งดคาบ แล้วร่างข้อความแจ้ง — ครูกดส่งเองที่แท็บแอดมิน */
-  const draftNotice = (unitId: string, kind: 'moved' | 'cancelled', to?: { date: string; time: string }) => {
-    const u = state.units.find((x) => x.id === unitId)
-    const subject = u && subjectById(state, u.subjectId)
-    if (!u || !subject) return
-    const text = kind === 'moved' && to
-      ? movedText(state, subject, { date: u.scheduledAt }, to)
-      : cancelledText(state, subject, u.scheduledAt)
-    const key = `${kind}:${unitId}:${to ? `${to.date}${to.time}` : u.scheduledAt}`
-    dispatch({ type: 'addMessage', message: mkMessage(state, kind, subject.clientId, subject.id, text, key, { unitId }) })
-  }
-
   const onComplete = (unitId: string, subjectId: string) => {
-    if (!dispatch({ type: 'complete', unitId })) return
+    if (!dispatch({ type: 'complete', unitId })) {
+      toast.push({ text: persistenceError ?? 'แก้คาบนี้ไม่ได้ เพราะรอบบิลถูกปิดแล้วหรือข้อมูลยังไม่พร้อม', tone: 'danger' })
+      return
+    }
     track('complete_unit', { subjectId })
     const subject = subjectById(state, subjectId)
     if (!subject) return
     // คำนวณสถานะแพ็กหลังบวกครั้งนี้แล้ว เพื่อบอกผลทันทีไม่ต้องรอสิ้นเดือน
     const pk = packageStatus({ ...state, completions: [...state.completions, { unitId, completedAt: state.today }] }, subject)
-    const undo = { label: copy.common.undo, run: () => dispatch({ type: 'uncomplete', unitId }) }
+    const undo = { label: copy.common.undo, run: () => { onUncomplete(unitId) } }
 
     if (!pk) { toast.push({ text: copy.toast.completed, tone: 'ok', action: undo }); return }
     if (pk.overBy >= 1) {
@@ -76,6 +71,12 @@ export default function Today() {
     } else {
       toast.push({ text: copy.toast.completed, tone: 'ok', action: undo })
     }
+  }
+
+  const onUncomplete = (unitId: string) => {
+    if (dispatch({ type: 'uncomplete', unitId })) return true
+    toast.push({ text: persistenceError ?? 'แก้การยืนยันคาบไม่ได้ เพราะรอบบิลถูกปิดแล้วหรือข้อมูลยังไม่พร้อม', tone: 'danger' })
+    return false
   }
 
   return (
@@ -113,13 +114,13 @@ export default function Today() {
                   </span>
                 </span>
                 {isDone ? (
-                  <button className="btn btn--ghost btn--sm" onClick={() => dispatch({ type: 'uncomplete', unitId: u.id })}>
+                  <button className="btn btn--ghost btn--sm" onClick={() => onUncomplete(u.id)}>
                     {copy.today.fixLabel}
                   </button>
                 ) : (
                   <>
                     <button className="btn btn--ghost btn--sm urow__move" aria-label={`${copy.today.move} ${s.name}`}
-                      onClick={() => openMove(u.id, u.time)}>{copy.today.move}</button>
+                      onClick={(event) => { event.currentTarget.focus(); openMove(u.id, u.time) }}>{copy.today.move}</button>
                     <button className="btn btn--primary btn--tap" onClick={() => onComplete(u.id, u.subjectId)}>
                       {v.completion}
                     </button>
@@ -138,8 +139,10 @@ export default function Today() {
           footer={
             <div className="btnrow">
               <button className="btn btn--primary" disabled={!mDate || !mTime || mDate < state.today} onClick={() => {
-                draftNotice(movingUnit.id, 'moved', { date: mDate, time: mTime })
-                if (!dispatch({ type: 'rescheduleUnit', unitId: movingUnit.id, date: mDate, time: mTime })) return
+                if (!dispatch({ type: 'rescheduleUnit', unitId: movingUnit.id, date: mDate, time: mTime })) {
+                  toast.push({ text: persistenceError ?? 'เลื่อนคาบไม่ได้ โปรดโหลดข้อมูลล่าสุดแล้วลองอีกครั้ง', tone: 'danger' })
+                  return
+                }
                 track('unit_rescheduled')
                 setMoving(null); toast.push({ text: copy.today.moveDone, tone: 'ok' })
               }}>{copy.today.move}</button>
@@ -152,6 +155,9 @@ export default function Today() {
             <input className="inp" type="date" min={state.today} value={mDate}
               onChange={(e) => setMDate(e.target.value)} />
           </label>
+          {overlappingUnits(state, mDate, mTime, movingUnit.id).length > 0 && (
+            <p className="hint hint--warn" role="status">เวลานี้มีนัดอื่นอยู่แล้ว คุณยังบันทึกได้หากเป็นงานกลุ่ม</p>
+          )}
           <label className="fld">
             <span className="fld__l">{copy.today.moveTime}</span>
             <input className="inp" type="time" value={mTime} onChange={(e) => setMTime(e.target.value)} />
@@ -172,7 +178,10 @@ export default function Today() {
                   <span className="urow__meta">{copy.today.cancelledTag}</span>
                 </span>
                 <button className="btn btn--secondary btn--sm" onClick={() => {
-                  if (!dispatch({ type: 'restoreUnit', unitId: u.id })) return
+                  if (!dispatch({ type: 'restoreUnit', unitId: u.id })) {
+                    toast.push({ text: persistenceError ?? 'คืนคาบไม่ได้ เพราะรอบบิลถูกปิดแล้วหรือข้อมูลยังไม่พร้อม', tone: 'danger' })
+                    return
+                  }
                   track('unit_restored')
                   toast.push({ text: copy.today.restoreDone, tone: 'ok' })
                 }}>{copy.today.restoreUnit}</button>
@@ -189,8 +198,10 @@ export default function Today() {
           confirmLabel={copy.today.cancelUnit} danger
           onClose={() => setConfirmCancel(false)}
           onConfirm={() => {
-            draftNotice(movingUnit.id, 'cancelled')
-            if (!dispatch({ type: 'cancelUnit', unitId: movingUnit.id })) return false
+            if (!dispatch({ type: 'cancelUnit', unitId: movingUnit.id })) {
+              toast.push({ text: persistenceError ?? 'งดคาบไม่ได้ โปรดโหลดข้อมูลล่าสุดแล้วลองอีกครั้ง', tone: 'danger' })
+              return false
+            }
             track('unit_cancelled')
             setMoving(null); toast.push({ text: copy.today.cancelDone, tone: 'warn' })
             return true
@@ -206,9 +217,12 @@ export default function Today() {
           title={`+ ${copy.today.addUnit}`} onClose={() => setAdding(false)}
           footer={
             <button className="btn btn--primary btn--block"
-              disabled={!newUnit.subjectId}
+              disabled={!newUnit.subjectId || !newUnit.date || !newUnit.time}
               onClick={() => {
-                if (!dispatch({ type: 'addUnit', subjectId: newUnit.subjectId, time: newUnit.time, label: newUnit.label || undefined })) return
+                if (!dispatch({ type: 'addUnit', subjectId: newUnit.subjectId, date: newUnit.date, time: newUnit.time, label: newUnit.label || undefined })) {
+                  toast.push({ text: persistenceError ?? copy.common.saveFailed, tone: 'danger' })
+                  return
+                }
                 setAdding(false); toast.push({ text: copy.toast.saved, tone: 'ok' })
               }}>
               {copy.common.save}
@@ -223,9 +237,16 @@ export default function Today() {
             </select>
           </label>
           <label className="fld">
+            <span className="fld__l">วันที่</span>
+            <input className="inp" type="date" value={newUnit.date} onChange={(e) => setNewUnit({ ...newUnit, date: e.target.value })} />
+          </label>
+          <label className="fld">
             <span className="fld__l">{copy.today.fieldTime}</span>
             <input className="inp" type="time" value={newUnit.time} onChange={(e) => setNewUnit({ ...newUnit, time: e.target.value })} />
           </label>
+          {overlappingUnits(state, newUnit.date, newUnit.time).length > 0 && (
+            <p className="hint hint--warn" role="status">เวลานี้มีนัดอื่นอยู่แล้ว คุณยังบันทึกได้หากเป็นงานกลุ่ม</p>
+          )}
           <label className="fld">
             <span className="fld__l">{copy.today.fieldItem}</span>
             <input className="inp" value={newUnit.label} onChange={(e) => setNewUnit({ ...newUnit, label: e.target.value })} />

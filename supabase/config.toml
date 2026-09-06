@@ -1,0 +1,11 @@
+# Gateway auth must allow LINE-signed webhooks and cron-secret requests to reach their handlers.
+# Each handler then performs the verification documented below.
+[functions.line-webhook]
+verify_jwt = false
+
+[functions.line-send]
+verify_jwt = false
+
+# Browser connect calls carry a Supabase JWT; the handler also resolves it with auth.getUser().
+[functions.line-connect]
+verify_jwt = true

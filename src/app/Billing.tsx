@@ -16,14 +16,26 @@ import { useToast } from './components/Toast'
 import SlipSheet from './SlipSheet'
 import ShareCard from './components/ShareCard'
 import type { Invoice } from '../core/types'
+import type { AppState } from '../core/types'
+
+export function availableBillingPeriods(state: AppState): string[] {
+  const periods = new Set<string>([periodOf(state.today)])
+  state.invoices.forEach((invoice) => periods.add(invoice.period))
+  state.completions.forEach((completion) => {
+    const unit = state.units.find((candidate) => candidate.id === completion.unitId)
+    if (unit) periods.add(periodOf(unit.scheduledAt))
+  })
+  return [...periods].sort((a, b) => b.localeCompare(a))
+}
 
 export default function Billing() {
-  const { state, dispatch, track, hydrated } = useStore()
+  const { state, dispatch, track, hydrated, persistenceError } = useStore()
   const prof = professionById(state.professionId)
   const v = prof.vocab
   const nav = useNavigate()
   const toast = useToast()
-  const period = periodOf(state.today)
+  const periods = useMemo(() => availableBillingPeriods(state), [state])
+  const [period, setPeriod] = useState(() => periodOf(state.today))
   const [confirmClose, setConfirmClose] = useState(false)
   const [slipFor, setSlipFor] = useState<Invoice | null>(null)
   const [share, setShare] = useState(false)
@@ -31,7 +43,10 @@ export default function Billing() {
   const dash = useMemo(() => dashboard(state, period), [state, period])
   const closable = useMemo(() => closableSubjects(state, period), [state, period])
 
-  const monthly = state.subjects.filter((s) => s.billing.mode !== 'package' && (s.active || state.invoices.some(i => i.subjectId === s.id && i.status !== 'paid')))
+  const closableIds = new Set(closable.map(({ subject }) => subject.id))
+  const monthly = state.subjects.filter((s) => s.billing.mode !== 'package' && (
+    s.active || closableIds.has(s.id) || state.invoices.some(i => i.subjectId === s.id && i.status !== 'paid')
+  ))
   const packs = state.subjects
     .filter((s) => s.active)
     .map((s) => ({ s, pk: packageStatus(state, s) }))
@@ -39,7 +54,9 @@ export default function Billing() {
 
   if (!hydrated) return <div className="pane"><Skeleton rows={5} /></div>
 
-  const nothingToDo = state.invoices.length === 0 && closable.length === 0
+  const nothingToDo = state.invoices.length === 0
+    && !periods.some((candidate) => closableSubjects(state, candidate).length > 0)
+    && packs.length === 0
   if (nothingToDo) {
     return (
       <div className="pane">
@@ -60,6 +77,12 @@ export default function Billing() {
             : copy.billing.backupNever}
         </p>
       )}
+      <label className="fld period-picker">
+        <span className="fld__l">รอบบิลที่ต้องการดู</span>
+        <select className="inp" value={period} onChange={(event) => setPeriod(event.target.value)}>
+          {periods.map((value) => <option key={value} value={value}>{periodThaiFull(value)}</option>)}
+        </select>
+      </label>
       <section className="card card--brand">
         <h2 className="h2">{periodThaiFull(period)}</h2>
         <div className="stats">
@@ -134,7 +157,10 @@ export default function Billing() {
         <BottomSheet title={copy.billing.closeMonth} sub={`${copy.billing.closeConfirm} ${closable.length}`} onClose={() => setConfirmClose(false)}
           footer={
             <button className="btn btn--primary btn--block" onClick={() => {
-              if (!dispatch({ type: 'closeMonth', period })) return
+              if (!dispatch({ type: 'closeMonth', period })) {
+                toast.push({ text: persistenceError ?? 'ปิดยอดรอบนี้ไม่ได้ โปรดตรวจสถานะบิลหรือโหลดข้อมูลล่าสุด', tone: 'danger' })
+                return
+              }
               track('close_month', { period, count: closable.length })
               setConfirmClose(false)
               toast.push({ text: `${copy.toast.invoicesCreated} ${closable.length}`, tone: 'ok', action: { label: copy.toast.goSend, run: () => nav('/app/admin?tab=drafts') } })

@@ -5,6 +5,8 @@ export type BillingMode =
   | { mode: 'per_unit'; rate: Money }
   | { mode: 'flat_monthly'; amount: Money }
   | { mode: 'package'; total: number; price: Money; purchasedAt: ISODate // used = derive จาก completions
+      /** สิทธิ์คงเหลือจากแพ็กก่อนหน้า แยกจากจำนวนที่ซื้อรอบนี้เพื่อไม่ให้ยอดบิลพอง */
+      carriedCredits?: number
       /** unitId ที่แพ็กก่อนหน้านับไปแล้ว — กันคาบวันต่อแพ็กถูกคิดเงินสองรอบ */
       carriedUnitIds?: string[] }
 
@@ -36,7 +38,12 @@ export interface Payment {
   id: string; invoiceId: string; amount: Money; paidAt: ISODate
   slipVerified: boolean; slipAmount?: Money
 }
-export interface Receipt { id: string; paymentId: string; number: string; issuedAt: ISODate }
+export interface ReceiptSnapshot {
+  provider: string; destination: string; payer: string; subject: string; period: string
+  lines: InvoiceLine[]; total: Money; paid: Money; slipVerified: boolean
+  slipAmount?: Money; legacyBackfill?: true
+}
+export interface Receipt { id: string; paymentId: string; number: string; issuedAt: ISODate; snapshot: ReceiptSnapshot }
 
 export type MessageKind = 'invoice' | 'reminder' | 'renewal' | 'renewal_exhausted' | 'receipt' | 'faq_reply'
   | 'moved' | 'cancelled' | 'summary'
@@ -58,7 +65,9 @@ export interface EventLog { at: string; name: string; props?: Record<string, unk
 export type AppMode = 'demo' | 'real'
 
 export interface AppState {
-  schemaVersion: 4
+  schemaVersion: 5
+  /** เพิ่มทีละครั้งเมื่อ commit ลง storage สำเร็จ ใช้ตรวจ writer รุ่นเก่าหรือข้อมูล stale */
+  revision: number
   mode: AppMode
   professionId: string
   scenarioId: string

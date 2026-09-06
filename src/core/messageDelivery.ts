@@ -29,6 +29,8 @@ export function financialRevision(state: AppState, message: Message): string | n
 }
 
 export function messageSendIssue(state: AppState, message: Message): string | null {
+  if (!message.draft.trim()) return 'กรุณาเขียนข้อความก่อนส่ง'
+  if (!state.clients.some(client => client.id === message.clientId)) return 'ไม่พบผู้รับข้อความ กรุณาโหลดข้อมูลล่าสุดแล้วลองใหม่'
   if (message.draft.length > LINE_TEXT_LIMIT) return 'ข้อความยาวเกินที่ LINE รับได้ กรุณาย่อข้อความหรือส่งเอกสาร PDF แยกก่อนส่ง'
   if (state.mode !== 'real') return null
   if (isFinancialMessage(message) && message.meta?.financialRevision !== financialRevision(state, message)) {

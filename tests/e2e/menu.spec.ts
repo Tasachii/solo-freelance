@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 /** เมนู 3 หมวด: ใช้คีย์บอร์ดล้วนได้ · 4 ธีม · ป้ายเต็มจอตามสถานะ */
 test('the menu works from the keyboard: arrows move focus and switch tabs', async ({ page }) => {

@@ -6,6 +6,17 @@ import { professionById } from '../professions'
 export const invoiceFor = (s: AppState, subjectId: string, period: string): Invoice | undefined =>
   s.invoices.find((i) => i.subjectId === subjectId && i.period === period && i.kind === 'monthly')
 
+export const isFinalizedPeriod = (state: AppState, subjectId: string, period: string): boolean =>
+  state.mode === 'real' && state.invoices.some(invoice => invoice.subjectId === subjectId
+    && invoice.period === period && invoice.kind === 'monthly' && invoice.status !== 'draft')
+
+export function mutationTouchesFinalizedPeriod(state: AppState, unitId: string, nextDate?: string): boolean {
+  const unit = state.units.find(row => row.id === unitId)
+  if (!unit) return false
+  return isFinalizedPeriod(state, unit.subjectId, periodOf(unit.scheduledAt))
+    || (nextDate !== undefined && isFinalizedPeriod(state, unit.subjectId, periodOf(nextDate)))
+}
+
 export const dueDaysOf = (s: AppState): number => professionById(s.professionId).dueDays ?? 3
 
 export type BillingChangeIssue = 'unbilled-mode-change' | 'unbilled-flat-price-change' | 'package-history-mode-change'
@@ -111,12 +122,36 @@ export function ladderFor(state: AppState, inv: Invoice): 'soft' | 'clear' | 'fi
 export function closableSubjects(state: AppState, period: string): { subject: Subject; invoice: Invoice }[] {
   const out: { subject: Subject; invoice: Invoice }[] = []
   for (const subject of state.subjects) {
-    if (!subject.active) continue
+    if (!subject.active && completionsIn(state, subject.id, period).length === 0) continue
     if (invoiceFor(state, subject.id, period)) continue
     const inv = buildInvoice(subject, period, state)
     if (inv) out.push({ subject, invoice: inv })
   }
   return out
+}
+
+/** Periods with real work that still has no monthly invoice, including archived subjects. */
+export function closablePeriods(state: AppState): string[] {
+  const periods = new Set(state.completions.map(completion => {
+    const unit = state.units.find(row => row.id === completion.unitId)
+    return unit && !unit.cancelled ? periodOf(unit.scheduledAt) : null
+  }).filter((period): period is string => !!period))
+  return [...periods].filter(period => closableSubjects(state, period).length > 0).sort()
+}
+
+/** Rebuild drafts from ledger after every relevant mutation. Issued history is never touched. */
+export function reconcileDraftInvoices(state: AppState): AppState {
+  let changed = false
+  const invoices = state.invoices.flatMap(invoice => {
+    if (invoice.kind !== 'monthly' || invoice.status !== 'draft') return [invoice]
+    const subject = state.subjects.find(row => row.id === invoice.subjectId)
+    const fresh = subject && buildInvoice(subject, invoice.period, state)
+    if (!fresh) { changed = true; return [] }
+    if (JSON.stringify(fresh.lines) === JSON.stringify(invoice.lines) && fresh.total === invoice.total) return [invoice]
+    changed = true
+    return [{ ...invoice, lines: fresh.lines, total: fresh.total }]
+  })
+  return changed ? { ...state, invoices } : state
 }
 
 export function sendInvoice(state: AppState, invoiceId: string): AppState {

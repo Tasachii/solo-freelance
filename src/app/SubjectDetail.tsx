@@ -12,11 +12,14 @@ import { dateThai, money, periodOf, periodThai } from '../core/format'
 import { modeThai } from '../copy/tutor'
 import { BottomSheet, EmptyState, ProgressBar, BackLink } from './components'
 import { useToast } from './components/Toast'
-import SubjectSheet from './SubjectSheet'
+import SubjectSheet, { parseMoneyInput } from './SubjectSheet'
 import type { AppState } from '../core/types'
 
 export const mustArchiveSubject = (state: AppState, subjectId: string): boolean =>
-  state.mode === 'real' && state.invoices.some((invoice) => invoice.subjectId === subjectId)
+  state.mode === 'real' && (
+    state.invoices.some((invoice) => invoice.subjectId === subjectId)
+    || state.units.some((unit) => unit.subjectId === subjectId)
+  )
 export const canRenewSubject = (subject: AppState['subjects'][number]): boolean =>
   subject.active && subject.billing.mode === 'package'
 
@@ -29,6 +32,9 @@ export default function SubjectDetail() {
   const toast = useToast()
   const [editing, setEditing] = useState(false)
   const [buying, setBuying] = useState(false)
+  const [purchaseTotal, setPurchaseTotal] = useState('')
+  const [purchasePrice, setPurchasePrice] = useState('')
+  const [purchaseError, setPurchaseError] = useState('')
   const [stopping, setStopping] = useState(false)
   const [removing, setRemoving] = useState(false)
   const [limit, setLimit] = useState(20)
@@ -77,23 +83,35 @@ export default function SubjectDetail() {
             tone={pk.state === 'ok' ? 'ok' : pk.state === 'low' ? 'warn' : 'danger'} />
           <div className="kv"><span>{copy.detail.usedOfTotal}</span><b className="num">{pk.used}/{pk.total}</b></div>
           <div className="kv"><span>{copy.clientView.packRemain}</span><b className="num">{pk.remaining}{pk.overBy ? ` (เกิน ${pk.overBy})` : ''}</b></div>
+          {pk.carriedCredits > 0 && <div className="kv"><span>สิทธิ์ยกมาจากแพ็กเดิม</span><b className="num">{pk.carriedCredits} ครั้ง</b></div>}
+          <div className="kv"><span>ซื้อแพ็กรอบนี้</span><b className="num">{pk.purchasedUnits} ครั้ง · {money(pk.price)} {copy.common.baht}</b></div>
           <div className="kv"><span>{copy.detail.boughtAt}</span><b>{dateThai(pk.purchasedAt)}</b></div>
           {canRenewSubject(s) && (
-            <button className="btn btn--secondary btn--block" onClick={() => setBuying(true)}>{copy.detail.buyPackage}</button>
+            <button className="btn btn--secondary btn--block" onClick={() => {
+              setPurchaseTotal(String(pk.purchasedUnits)); setPurchasePrice(String(pk.price))
+              setPurchaseError(''); setBuying(true)
+            }}>{copy.detail.buyPackage}</button>
           )}
         </section>
       )}
 
       <div className="btnrow">
-        <button className="btn btn--primary btn--sm" onClick={() => {
+        <button className="btn btn--primary btn--sm" onClick={async () => {
           // ตอบ "ลูกเรียนไปกี่ครั้งแล้ว" กลางเดือนได้ทันที ไม่ต้องรอสิ้นเดือน
           const text = summaryText(state, s, period)
-          if (!openLine(text)) { void copyText(text); toast.push({ text: copy.admin.lineBlocked, tone: 'warn' }) }
+          if (!openLine(text)) {
+            const copied = await copyText(text)
+            toast.push({ text: copied ? copy.toast.copied : 'เปิด LINE และคัดลอกข้อความไม่สำเร็จ กรุณาลองอีกครั้ง', tone: copied ? 'ok' : 'danger' })
+          }
           track('send_summary')
         }}>{copy.detail.sendSummary}</button>
         <button className="btn btn--secondary btn--sm" onClick={() => nav(`/client/${s.clientId}`)}>{copy.detail.clientView}</button>
         <button className="btn btn--secondary btn--sm" onClick={() => nav(`/app/admin?tab=chat&chat=${s.clientId}`)}>{copy.detail.openChat}</button>
         {s.active && <button className="btn btn--ghost btn--sm" onClick={() => setStopping(true)}>{copy.subjects.stop}</button>}
+        {!s.active && <button className="btn btn--primary btn--sm" onClick={() => {
+          if (!dispatch({ type: 'reactivateSubject', subjectId: s.id })) return
+          toast.push({ text: 'กลับมาใช้งานรายการนี้แล้ว', tone: 'ok' })
+        }}>กลับมาใช้งาน</button>}
       </div>
 
       {/* แยกปุ่มลบออกมาท้ายหน้า — เดิมอยู่ติด "หยุดเรียน" และเงียบกว่าปุ่มข้าง ๆ จึงกดพลาดง่าย */}
@@ -121,15 +139,25 @@ export default function SubjectDetail() {
       {editing && <SubjectSheet subject={s} onClose={() => setEditing(false)} />}
 
       {buying && pk && canRenewSubject(s) && (
-        <BottomSheet title={copy.detail.buyConfirm} sub={`${pk.total} ครั้ง · ${money(pk.price)} ${copy.common.baht}`} onClose={() => setBuying(false)}
+        <BottomSheet title={copy.detail.buyConfirm} sub={`สิทธิ์เดิมที่ยกมา ${pk.remaining} ครั้ง`} onClose={() => setBuying(false)}
           footer={
             <button className="btn btn--primary btn--block" onClick={() => {
-              if (!dispatch({ type: 'renewPackage', subjectId: s.id })) return
+              const total = parseMoneyInput(purchaseTotal)
+              const price = parseMoneyInput(purchasePrice)
+              if (total === null || price === null) { setPurchaseError('ใส่จำนวนครั้งและราคาที่เป็นจำนวนเต็มมากกว่า 0'); return }
+              if (!dispatch({ type: 'renewPackage', subjectId: s.id, total, price, slipVerified: false })) {
+                setPurchaseError('บันทึกไม่สำเร็จ ข้อมูลที่กรอกยังอยู่ โปรดตรวจสิทธิ์เขียนของแท็บนี้แล้วลองอีกครั้ง'); return
+              }
               track('renew_package', { subjectId: s.id })
               setBuying(false); toast.push({ text: copy.toast.receiptIssued, tone: 'ok' })
             }}>{copy.common.confirm}</button>
           }>
-          <p className="p">บันทึกว่าได้รับเงินค่าแพ็กใหม่แล้ว จะออกใบเสร็จและร่างข้อความแจ้ง{client?.name}ให้</p>
+          <label className="fld"><span className="fld__l">จำนวนครั้งที่ซื้อใหม่</span>
+            <input className="inp" inputMode="numeric" value={purchaseTotal} onChange={event => setPurchaseTotal(event.target.value)} /></label>
+          <label className="fld"><span className="fld__l">ราคาแพ็กใหม่ (บาท)</span>
+            <input className="inp" inputMode="numeric" value={purchasePrice} onChange={event => setPurchasePrice(event.target.value)} /></label>
+          {purchaseError && <p className="fld__err" role="alert">{purchaseError}</p>}
+          <p className="p">บันทึกว่าได้รับเงินค่าแพ็กใหม่ด้วยการยืนยันด้วยตนเอง ระบบจะเก็บสิทธิ์เดิมที่เหลือ ออกใบเสร็จ และร่างข้อความแจ้ง{client?.name}ให้</p>
         </BottomSheet>
       )}
 

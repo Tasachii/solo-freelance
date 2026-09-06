@@ -13,7 +13,7 @@
 
 /** สถานะของ OA ที่ครูเชื่อมไว้ — undefined = ยังไม่เคยเชื่อม */
 export interface LineChannelState {
-  status: 'active' | 'invalid' | 'disabled'
+  status: 'pending' | 'active' | 'setup_failed' | 'invalid' | 'disabled'
   quotaUsed: number
   quotaLimit: number
 }
@@ -31,7 +31,8 @@ export type Channel = 'oa' | 'share'
  * ทุกค่าที่ไม่ใช่ 'ok' แปลว่ากลับไปใช้ share link แบบเดิม (แผนข้อ 10)
  */
 export type ChannelReason =
-  | 'ok' | 'no-channel' | 'channel-invalid' | 'channel-disabled'
+  | 'ok' | 'no-channel' | 'channel-pending' | 'channel-setup-failed'
+  | 'channel-invalid' | 'channel-disabled'
   | 'not-linked' | 'unfollowed' | 'quota-exhausted' | 'quota-auto-paused'
 
 export interface ChannelChoice { channel: Channel; reason: ChannelReason }
@@ -51,6 +52,8 @@ export function chooseChannel(
 ): ChannelChoice {
   const share = (reason: ChannelReason): ChannelChoice => ({ channel: 'share', reason })
   if (!channel) return share('no-channel')
+  if (channel.status === 'pending') return share('channel-pending')
+  if (channel.status === 'setup_failed') return share('channel-setup-failed')
   if (channel.status === 'invalid') return share('channel-invalid')
   if (channel.status === 'disabled') return share('channel-disabled')
   if (!recipient || !recipient.linked) return share('not-linked')
@@ -73,6 +76,31 @@ export function quotaLevel(channel: LineChannelState): QuotaLevel {
 
 export const LINK_CODE_TTL_MS = 24 * 60 * 60 * 1000
 export const LINK_CODE_MAX_ATTEMPTS = 5
+
+export type LineSendAuthority =
+  | { ok: true; mode: 'interactive'; providerId: string; auto: false }
+  | { ok: true; mode: 'cron'; providerId?: string; auto: true }
+  | { ok: false; reason: 'unauthorized' }
+
+/**
+ * Keep request routing testable without a live Supabase or LINE account.
+ * The caller-provided provider ID is honored only after the separate cron secret is verified.
+ */
+export function authorizeLineSend(input: {
+  hasCronHeader: boolean
+  cronSecretValid: boolean
+  verifiedUserId?: string
+  requestedProviderId?: string
+}): LineSendAuthority {
+  if (input.hasCronHeader) {
+    return input.cronSecretValid
+      ? { ok: true, mode: 'cron', providerId: input.requestedProviderId, auto: true }
+      : { ok: false, reason: 'unauthorized' }
+  }
+  return input.verifiedUserId
+    ? { ok: true, mode: 'interactive', providerId: input.verifiedUserId, auto: false }
+    : { ok: false, reason: 'unauthorized' }
+}
 
 export interface LinkCode {
   code: string

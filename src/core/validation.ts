@@ -26,6 +26,8 @@ export function isBillingMode(value: unknown): value is BillingMode {
   if (billing.mode !== 'package') return false
   if (!Number.isSafeInteger(billing.total) || Number(billing.total) <= 0) return false
   if (!isMoney(billing.price) || Math.round(billing.price / Number(billing.total)) <= 0 || !isISODate(billing.purchasedAt)) return false
+  if (billing.carriedCredits !== undefined
+    && (!Number.isSafeInteger(billing.carriedCredits) || Number(billing.carriedCredits) < 0)) return false
   return billing.carriedUnitIds === undefined
     || (Array.isArray(billing.carriedUnitIds) && billing.carriedUnitIds.every((id) => typeof id === 'string' && id.length > 0))
 }
@@ -57,7 +59,8 @@ export function validateState(value: unknown): StateValidation {
   if (errors.length) return { ok: false, errors }
 
   const state = value as unknown as AppState
-  if (state.schemaVersion !== 4) errors.push('schemaVersion: ไม่รองรับ')
+  if (state.schemaVersion !== 5) errors.push('schemaVersion: ไม่รองรับ')
+  if (!Number.isSafeInteger(state.revision) || state.revision < 0) errors.push('revision: ต้องเป็นจำนวนเต็มไม่ติดลบ')
   if (state.mode !== 'demo' && state.mode !== 'real') errors.push('mode: ไม่ถูกต้อง')
   if (!isString(state.professionId) || !state.professionId) errors.push('professionId: ไม่ถูกต้อง')
   if (!isString(state.scenarioId)) errors.push('scenarioId: ไม่ถูกต้อง')
@@ -146,7 +149,7 @@ export function validateState(value: unknown): StateValidation {
     if ((isISODate(row.sentAt) && row.sentAt < row.createdAt)
       || (isISODate(row.dueAt) && (!isISODate(row.sentAt) || row.dueAt < row.sentAt))) errors.push(`invoices[${index}]: ลำดับเวลาไม่ถูกต้อง`)
     if (!Array.isArray(row.lines) || row.lines.length === 0 || row.lines.some((line) =>
-      !isRecord(line) || !isString(line.description) || !Number.isSafeInteger(line.qty) || Number(line.qty) <= 0 || !isMoney(line.unitPrice) || !isMoney(line.amount))) {
+      !isRecord(line) || !isString(line.description) || !line.description.trim() || !Number.isSafeInteger(line.qty) || Number(line.qty) <= 0 || !isMoney(line.unitPrice) || !isMoney(line.amount))) {
       errors.push(`invoices[${index}].lines: ไม่ถูกต้อง`)
     } else if (!isMoney(row.total) || row.lines.reduce((sum, line) => sum + line.amount, 0) !== row.total) {
       errors.push(`invoices[${index}].total: ไม่ตรงกับรายการ`)
@@ -164,11 +167,37 @@ export function validateState(value: unknown): StateValidation {
     if (!isRecord(row)) { errors.push(`receipts[${index}]: ต้องเป็น object`); return }
     if (!paymentIds.has(row.paymentId)) errors.push(`receipts[${index}].paymentId: ไม่พบการชำระ`)
     if (!isString(row.number) || !isISODate(row.issuedAt)) errors.push(`receipts[${index}]: เลขหรือวันที่ไม่ถูกต้อง`)
+    const snapshot = row.snapshot
+    if (!isRecord(snapshot) || !isString(snapshot.provider) || !isString(snapshot.destination)
+      || !isString(snapshot.payer) || !isString(snapshot.subject)
+      || !isString(snapshot.period) || !/^\d{4}-(?:0[1-9]|1[0-2])$/.test(snapshot.period)
+      || !Array.isArray(snapshot.lines) || snapshot.lines.length === 0
+      || !snapshot.payer.trim() || !snapshot.subject.trim()
+      || snapshot.lines.some(line => !isRecord(line) || !isString(line.description) || !line.description.trim()
+        || !Number.isSafeInteger(line.qty) || Number(line.qty) <= 0 || !isMoney(line.unitPrice) || !isMoney(line.amount))
+      || !isMoney(snapshot.total) || snapshot.lines.reduce((sum, line) => sum + Number(line.amount), 0) !== snapshot.total
+      || !isMoney(snapshot.paid) || snapshot.paid !== snapshot.total || typeof snapshot.slipVerified !== 'boolean'
+      || (snapshot.slipAmount !== undefined && !isNonNegativeMoney(snapshot.slipAmount))
+      || (snapshot.legacyBackfill !== undefined && snapshot.legacyBackfill !== true)) {
+      errors.push(`receipts[${index}].snapshot: ไม่ถูกต้อง`)
+    }
     const payment = paymentsById.get(String(row.paymentId))
     const invoice = payment && invoicesById.get(payment.invoiceId)
+    const invoicePayments = invoice ? paymentsByInvoiceId.get(invoice.id) ?? [] : []
+    const aggregateVerified = invoicePayments.length > 0 && invoicePayments.every(candidate => candidate.slipVerified)
+    const aggregateSlipAmount = invoicePayments.length > 0 && invoicePayments.every(candidate => candidate.slipAmount !== undefined)
+      ? invoicePayments.reduce((sum, candidate) => sum + candidate.slipAmount!, 0)
+      : undefined
+    if (payment && isRecord(snapshot) && (snapshot.slipVerified !== aggregateVerified
+      || snapshot.slipAmount !== aggregateSlipAmount)) {
+      errors.push(`receipts[${index}].snapshot: หลักฐานตรวจยอดไม่ตรงกับการชำระ`)
+    }
+    if (invoice && isRecord(snapshot) && (snapshot.period !== invoice.period || snapshot.total !== invoice.total
+      || JSON.stringify(snapshot.lines) !== JSON.stringify(invoice.lines))) {
+      errors.push(`receipts[${index}].snapshot: รายการไม่ตรงกับบิลที่ออก`)
+    }
     if (invoice?.status !== 'paid') errors.push(`receipts[${index}]: ออกได้เมื่อบิลชำระครบแล้วเท่านั้น`)
     if (payment && row.issuedAt !== payment.paidAt) errors.push(`receipts[${index}].issuedAt: ต้องตรงกับการชำระที่ปิดยอด`)
-    const invoicePayments = invoice ? paymentsByInvoiceId.get(invoice.id) ?? [] : []
     if (invoicePayments.some((candidate) => candidate.paidAt > row.issuedAt)
       || (invoicePayments.length > 0 && invoicePayments.at(-1)?.id !== row.paymentId)) {
       errors.push(`receipts[${index}]: ไม่ได้ผูกกับการชำระครั้งสุดท้าย`)
@@ -188,7 +217,7 @@ export function validateState(value: unknown): StateValidation {
     if (isString(row.subjectId) && subjectsById.get(row.subjectId)?.clientId !== row.clientId) errors.push(`messages[${index}].clientId: ไม่ใช่ผู้จ่ายของรายการนี้`)
     if (!['invoice', 'reminder', 'renewal', 'renewal_exhausted', 'receipt', 'faq_reply', 'moved', 'cancelled', 'summary'].includes(row.kind)
       || !['draft', 'sent', 'skipped'].includes(row.status) || !isISODate(row.createdAt)
-      || !isString(row.draft) || !isString(row.dedupeKey)) errors.push(`messages[${index}]: สถานะหรือข้อมูลไม่ถูกต้อง`)
+      || !isString(row.draft) || !row.draft.trim() || !isString(row.dedupeKey) || !row.dedupeKey.trim()) errors.push(`messages[${index}]: สถานะหรือข้อมูลไม่ถูกต้อง`)
     if ((row.sentAt !== undefined && !isISODate(row.sentAt)) || (row.edited !== undefined && typeof row.edited !== 'boolean')
       || (row.meta !== undefined && !isRecord(row.meta))) errors.push(`messages[${index}]: ข้อมูลเสริมไม่ถูกต้อง`)
     if ((row.kind === 'invoice' || row.kind === 'reminder')
@@ -215,22 +244,24 @@ export function validateState(value: unknown): StateValidation {
       }
     }
   })
+  if (new Set(state.messages.map(message => message.dedupeKey)).size !== state.messages.length) errors.push('messages: dedupeKey ต้องไม่ซ้ำ')
   state.chats.forEach((row, index) => {
     if (!isRecord(row)) { errors.push(`chats[${index}]: ต้องเป็น object`); return }
     if (!clientIds.has(row.clientId) || !['client', 'provider'].includes(row.from)
-      || !isString(row.text) || !isISODate(row.at)) errors.push(`chats[${index}]: ไม่ถูกต้อง`)
+      || !isString(row.text) || !row.text.trim() || !isISODate(row.at)) errors.push(`chats[${index}]: ไม่ถูกต้อง`)
     if (row.viaAdmin !== undefined && typeof row.viaAdmin !== 'boolean') errors.push(`chats[${index}].viaAdmin: ไม่ถูกต้อง`)
   })
   state.waitlist.forEach((row, index) => {
     if (!isRecord(row)) { errors.push(`waitlist[${index}]: ต้องเป็น object`); return }
-    if (!isString(row.professionId) || !isString(row.name) || !isString(row.contact) || !isISODate(row.at)) errors.push(`waitlist[${index}]: ไม่ถูกต้อง`)
+    if (!isString(row.professionId) || !row.professionId.trim() || !isString(row.name) || !row.name.trim()
+      || !isString(row.contact) || !row.contact.trim() || !isISODate(row.at)) errors.push(`waitlist[${index}]: ไม่ถูกต้อง`)
     if ((row.size !== undefined && !isString(row.size))
       || (row.modes !== undefined && (!Array.isArray(row.modes) || row.modes.some((mode) => !isString(mode))))
       || (row.concierge !== undefined && typeof row.concierge !== 'boolean')) errors.push(`waitlist[${index}]: ข้อมูลเสริมไม่ถูกต้อง`)
   })
   state.events.forEach((row, index) => {
     if (!isRecord(row)) { errors.push(`events[${index}]: ต้องเป็น object`); return }
-    if (!isString(row.at) || Number.isNaN(Date.parse(row.at)) || !isString(row.name)
+    if (!isString(row.at) || Number.isNaN(Date.parse(row.at)) || !isString(row.name) || !row.name.trim()
       || (row.props !== undefined && !isRecord(row.props))) errors.push(`events[${index}]: ไม่ถูกต้อง`)
   })
   const paidByInvoice = new Map<string, number>()

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   LINK_CODE_MAX_ATTEMPTS, LINK_CODE_TTL_MS, QUOTA_AUTO_STOP_AT, QUOTA_WARN_AT,
-  chooseChannel, newLinkCode, quotaLevel, redeemLinkCode, safeEqual, verifyLineSignature,
+  authorizeLineSend, chooseChannel, newLinkCode, quotaLevel, redeemLinkCode, safeEqual, verifyLineSignature,
   type LineChannelState, type LineRecipientState,
 } from '../../src/core/lineDelivery'
 
@@ -19,6 +19,8 @@ describe('เลือกช่องทางส่ง — ทุกกรณ�
     expect(chooseChannel(undefined, linked())).toEqual({ channel: 'share', reason: 'no-channel' })
     expect(chooseChannel(active({ status: 'invalid' }), linked()).channel).toBe('share')
     expect(chooseChannel(active({ status: 'disabled' }), linked()).channel).toBe('share')
+    expect(chooseChannel(active({ status: 'pending' }), linked()).reason).toBe('channel-pending')
+    expect(chooseChannel(active({ status: 'setup_failed' }), linked()).reason).toBe('channel-setup-failed')
   })
 
   it('ผู้ปกครองยังไม่จับคู่ หรือบล็อกไปแล้ว → share link', () => {
@@ -114,5 +116,25 @@ describe('ลายเซ็น webhook', () => {
     expect(safeEqual('abc', 'abc')).toBe(true)
     expect(safeEqual('abc', 'abd')).toBe(false)
     expect(safeEqual('abc', 'ab')).toBe(false)
+  })
+})
+
+describe('สิทธิ์เรียกตัวส่ง LINE', () => {
+  it('คำขอจากผู้ใช้ใช้ provider จาก JWT และไม่เชื่อ providerId ใน body', () => {
+    expect(authorizeLineSend({
+      hasCronHeader: false,
+      cronSecretValid: false,
+      verifiedUserId: 'provider-from-jwt',
+      requestedProviderId: 'forged-provider',
+    })).toEqual({ ok: true, mode: 'interactive', providerId: 'provider-from-jwt', auto: false })
+  })
+
+  it('cron แยก secret จาก JWT และ fail closed เมื่อ secret ผิด', () => {
+    expect(authorizeLineSend({
+      hasCronHeader: true, cronSecretValid: false, requestedProviderId: 'p1',
+    })).toEqual({ ok: false, reason: 'unauthorized' })
+    expect(authorizeLineSend({
+      hasCronHeader: true, cronSecretValid: true, requestedProviderId: 'p1',
+    })).toEqual({ ok: true, mode: 'cron', providerId: 'p1', auto: true })
   })
 })

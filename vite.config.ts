@@ -7,6 +7,7 @@ export default defineConfig({
   base: '/solo-freelance/',
   test: {
     environment: 'jsdom',
+    setupFiles: ['tests/setup.ts'],
     include: ['tests/unit/**/*.test.ts', 'tests/unit/**/*.test.tsx'],
     // ผู้ใช้อยู่ไทย (UTC+7) — รันเทสใน UTC จะมองไม่เห็นบั๊ก
     // ที่ 00:30 ตามเครื่องกลายเป็นเมื่อวานถ้าเผลอใช้ toISOString

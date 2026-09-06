@@ -1,71 +1,157 @@
-/**
- * ส่งคิวใน message_outbox ออกทาง LINE — ยังไม่ deploy
- * เรียกจากปุ่มส่งในแอป หรือจาก pg_cron สำหรับข้อความตามเวลา
- */
-import { classifyPush, pushRequest, retryDelayMs, withinSendWindow, nextSendWindow } from '../../../src/core/lineProtocol.ts'
-import { chooseChannel } from '../../../src/core/lineDelivery.ts'
-import { admin, open, ok } from '../_shared/db.ts'
+/** Atomically claim and deliver LINE outbox rows. Intentionally undeployed. */
+import { classifyPush, nextSendWindow, pushRequest, retryDelayMs, withinSendWindow } from '../../../src/core/lineProtocol.ts'
+import { authorizeLineSend, chooseChannel } from '../../../src/core/lineDelivery.ts'
+import { admin, isCronRequest, jsonBody, jsonError, ok, open, requireUserId, serveErrors, withCors } from '../_shared/db.ts'
 
-Deno.serve(async (req) => {
-  const { providerId, auto = false } = await req.json() as { providerId: string; auto?: boolean }
+interface ClaimedRow {
+  id: string
+  recipient_id: string
+  body: string
+  attempts: number
+  retry_key: string
+  claim_token: string
+  line_user_id: string
+  client_id: string | null
+  unfollowed_at: string | null
+}
+
+type ChannelRow = {
+  status: 'pending' | 'active' | 'setup_failed' | 'invalid' | 'disabled'
+  quota_used: number
+  quota_limit: number
+}
+
+/** A returned claim already owns DB-reserved quota; only recipient/token state remains to check. */
+export function chooseClaimedDelivery(
+  channel: ChannelRow,
+  row: Pick<ClaimedRow, 'client_id' | 'unfollowed_at'>,
+  auto: boolean,
+  tokenInvalid: boolean,
+) {
+  return chooseChannel(
+    {
+      status: tokenInvalid ? 'invalid' : channel.status,
+      quotaUsed: 0,
+      quotaLimit: 1,
+    },
+    { linked: !!row.client_id, unfollowed: !!row.unfollowed_at },
+    { auto },
+  )
+}
+
+export async function authenticatedSendAuthority(
+  req: Request,
+  body: Record<string, unknown>,
+  deps: { cron: typeof isCronRequest; userId: typeof requireUserId } = {
+    cron: isCronRequest, userId: requireUserId,
+  },
+) {
+  const hasCronHeader = req.headers.has('x-cron-secret')
+  const cron = hasCronHeader && deps.cron(req)
+  const verifiedUserId = hasCronHeader ? undefined : await deps.userId(req)
+  return authorizeLineSend({
+    hasCronHeader,
+    cronSecretValid: cron,
+    verifiedUserId,
+    requestedProviderId: typeof body.providerId === 'string' ? body.providerId : undefined,
+  })
+}
+
+export const handler = withCors(serveErrors(async (req) => {
+  if (req.method !== 'POST') return jsonError(405, 'method-not-allowed')
+  const body = await jsonBody(req)
+  const authority = await authenticatedSendAuthority(req, body)
+  if (!authority.ok) return jsonError(401, 'unauthorized')
+
   const db = admin()
-  const { data: channel } = await db.from('line_channels')
-    .select('access_token, status, quota_used, quota_limit').eq('provider_id', providerId).maybeSingle()
-  if (!channel) return ok({ ok: true, sent: 0, reason: 'no-channel' })
-
-  const now = new Date()
-  // ห้ามส่งนอกเวลา — เลื่อนไปรอบถัดไป ไม่ใช่ทิ้ง
-  if (auto && !withinSendWindow(now)) {
-    await db.from('message_outbox').update({ scheduled_at: nextSendWindow(now).toISOString() })
-      .eq('provider_id', providerId).eq('status', 'queued').lte('scheduled_at', now.toISOString())
-    return ok({ ok: true, sent: 0, reason: 'outside-window' })
+  let providerIds: string[]
+  if (authority.mode === 'cron') {
+    const requested = authority.providerId
+    if (requested) providerIds = [requested]
+    else {
+      const { data, error } = await db.from('line_channels').select('provider_id').eq('status', 'active')
+      if (error) throw error
+      providerIds = (data ?? []).map((row) => row.provider_id)
+    }
+  } else {
+    // Interactive sends always derive tenant identity from a verified JWT and cannot enable auto mode.
+    providerIds = [authority.providerId]
   }
 
-  const token = await open(channel.access_token)
-  const { data: queue } = await db.from('message_outbox')
-    .select('id, recipient_id, body, attempts').eq('provider_id', providerId).eq('status', 'queued')
-    .lte('scheduled_at', now.toISOString()).order('scheduled_at').limit(20)
-
   let sent = 0
-  let quotaUsed = channel.quota_used
-  for (const row of queue ?? []) {
-    const { data: recipient } = await db.from('line_recipients')
-      .select('line_user_id, client_id, unfollowed_at').eq('id', row.recipient_id).maybeSingle()
-    const choice = chooseChannel(
-      { status: channel.status, quotaUsed, quotaLimit: channel.quota_limit },
-      recipient ? { linked: !!recipient.client_id, unfollowed: !!recipient.unfollowed_at } : undefined,
-      { auto })
-    if (choice.channel !== 'oa') {
-      // ส่งทาง OA ไม่ได้ = ครูส่งเองทาง share link ตามเดิม ไม่ใช่ error
-      await db.from('message_outbox').update({ status: 'skipped', error: choice.reason }).eq('id', row.id)
+  for (const providerId of providerIds) {
+    const { data: channel, error: channelError } = await db.from('line_channels')
+      .select('access_token, status, quota_used, quota_limit, quota_month')
+      .eq('provider_id', providerId).maybeSingle()
+    if (channelError) throw channelError
+    if (!channel) continue
+
+    const now = new Date()
+    const auto = authority.auto
+    if (auto && !withinSendWindow(now)) {
+      const { error } = await db.from('message_outbox')
+        .update({ scheduled_at: nextSendWindow(now).toISOString() })
+        .eq('provider_id', providerId).eq('status', 'queued').lte('scheduled_at', now.toISOString())
+      if (error) throw error
       continue
     }
 
-    const request = pushRequest(token, recipient!.line_user_id, row.body)
-    const res = await fetch(request.url, request.init)
-    const outcome = classifyPush(res.status, await res.text().catch(() => ''))
+    const token = await open(channel.access_token)
+    const { data: claimed, error: claimError } = await db.rpc('claim_line_outbox', {
+      p_provider_id: providerId, p_limit: 20, p_auto: auto,
+    })
+    if (claimError) throw claimError
+    const queue = (claimed ?? []) as ClaimedRow[]
+    let tokenInvalid = channel.status === 'invalid'
 
-    if (outcome === 'sent') {
-      quotaUsed += 1
-      sent += 1
-      await db.from('message_outbox').update({ status: 'sent', sent_at: now.toISOString() }).eq('id', row.id)
-      await db.from('line_channels').update({ quota_used: quotaUsed }).eq('provider_id', providerId)
-    } else if (outcome === 'retry') {
-      const delay = retryDelayMs(row.attempts + 1)
-      await db.from('message_outbox').update(delay === null
-        ? { status: 'failed', attempts: row.attempts + 1, error: 'retry-exhausted' }
-        : { attempts: row.attempts + 1, scheduled_at: new Date(now.getTime() + delay).toISOString() })
-        .eq('id', row.id)
-    } else if (outcome === 'invalid-token') {
-      // token ใช้ไม่ได้แล้ว ปิด OA ทั้งบัญชี ทุกอย่างกลับไป share link เอง
-      await db.from('line_channels').update({ status: 'invalid' }).eq('provider_id', providerId)
-      break
-    } else {
-      await db.from('message_outbox').update({ status: 'failed', error: outcome }).eq('id', row.id)
-      if (outcome === 'blocked') {
-        await db.from('line_recipients').update({ unfollowed_at: now.toISOString() }).eq('id', row.recipient_id)
+    const finish = async (row: ClaimedRow, outcome: string, error: string | null = null, retryAt: Date | null = null) => {
+      const { data, error: finishError } = await db.rpc('finish_line_outbox', {
+        p_provider_id: providerId,
+        p_id: row.id,
+        p_claim_token: row.claim_token,
+        p_outcome: outcome,
+        p_error: error,
+        p_retry_at: retryAt?.toISOString() ?? null,
+      })
+      if (finishError) throw finishError
+      if (data !== true) throw new Error('Outbox claim was lost before settlement')
+    }
+
+    for (const row of queue) {
+      const choice = chooseClaimedDelivery(channel as ChannelRow, row, auto, tokenInvalid)
+      if (choice.channel !== 'oa') {
+        await finish(row, 'skipped', choice.reason)
+        continue
+      }
+
+      let response: Response
+      try {
+        const request = pushRequest(token, row.line_user_id, row.body, row.retry_key)
+        response = await fetch(request.url, { ...request.init, signal: AbortSignal.timeout(10_000) })
+      } catch {
+        const delay = retryDelayMs(row.attempts + 1)
+        await finish(row, delay === null ? 'failed' : 'retry', 'network',
+          delay === null ? null : new Date(now.getTime() + delay))
+        continue
+      }
+      const outcome = classifyPush(response.status, await response.text().catch(() => ''))
+      if (outcome === 'sent') {
+        await finish(row, 'sent')
+        sent += 1
+      } else if (outcome === 'retry') {
+        const delay = retryDelayMs(row.attempts + 1)
+        await finish(row, delay === null ? 'failed' : 'retry',
+          delay === null ? 'retry-exhausted' : 'retryable',
+          delay === null ? null : new Date(now.getTime() + delay))
+      } else if (outcome === 'invalid-token') {
+        await finish(row, 'invalid-token', 'invalid-token')
+        tokenInvalid = true
+      } else {
+        await finish(row, outcome, outcome)
       }
     }
   }
   return ok({ ok: true, sent })
-})
+}))
+
+if (import.meta.main) Deno.serve(handler)

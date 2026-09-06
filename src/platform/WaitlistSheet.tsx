@@ -8,6 +8,17 @@ import type { WaitlistEntry } from '../core/types'
 
 const MODES = ['per_unit', 'flat_monthly', 'package'] as const
 
+export const waitlistDate = (date = new Date()): string => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+export function waitlistDeliveryResult(endpoint: string, response: Pick<Response, 'ok' | 'type'> | null): 'local' | 'remote' {
+  return endpoint && response?.ok && response.type !== 'opaque' ? 'remote' : 'local'
+}
+
 export default function WaitlistSheet({ preselect, onClose }: { preselect?: string; onClose: () => void }) {
   const { dispatch, track } = useStore()
   const [professionId, setProfessionId] = useState(preselect ?? professions.find((p) => p.status === 'live')?.id ?? professions[0].id)
@@ -18,7 +29,8 @@ export default function WaitlistSheet({ preselect, onClose }: { preselect?: stri
   const [concierge, setConcierge] = useState(false)
   const [err, setErr] = useState<{ name?: string; contact?: string }>({})
   const [sending, setSending] = useState(false)
-  const [done, setDone] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const [done, setDone] = useState<'local' | 'remote' | null>(null)
 
   const toggleMode = (m: string) =>
     setModes((p) => (p.includes(m) ? p.filter((x) => x !== m) : [...p, m]))
@@ -31,15 +43,21 @@ export default function WaitlistSheet({ preselect, onClose }: { preselect?: stri
     if (Object.keys(e).length) return
 
     setSending(true)
+    setSaveError('')
     const entry: WaitlistEntry = {
       professionId, name: name.trim(), contact: contact.trim(),
       size: size || undefined, modes: modes.length ? modes : undefined,
       concierge: professionById(professionId).conciergeAvailable ? concierge : undefined,
-      at: new Date().toISOString(),
+      at: waitlistDate(),
     }
-    if (!dispatch({ type: 'waitlist', entry })) { setSending(false); return }
+    if (!dispatch({ type: 'waitlist', entry })) {
+      setSending(false)
+      setSaveError('บันทึกไม่สำเร็จ ข้อมูลที่กรอกยังอยู่ โปรดตรวจสิทธิ์เขียนของแท็บนี้แล้วลองอีกครั้ง')
+      return
+    }
     track('waitlist_submit', { professionId })
 
+    let delivery: 'local' | 'remote' = 'local'
     if (WAITLIST_ENDPOINT) {
       try {
         const body = new FormData()
@@ -47,20 +65,23 @@ export default function WaitlistSheet({ preselect, onClose }: { preselect?: stri
           const v = (entry as unknown as Record<string, unknown>)[k]
           if (v !== undefined && v !== null && v !== '') body.append(field, Array.isArray(v) ? v.join(', ') : String(v))
         }
-        await fetch(WAITLIST_ENDPOINT, { method: 'POST', mode: 'no-cors', body })
+        const response = await fetch(WAITLIST_ENDPOINT, { method: 'POST', body })
+        delivery = waitlistDeliveryResult(WAITLIST_ENDPOINT, response)
       } catch (error) {
         console.warn('[solo] waitlist post failed, kept locally', error)
       }
     }
     setSending(false)
-    setDone(true)
+    setDone(delivery)
   }
 
   if (done) {
     return (
-      <BottomSheet title={copy.waitlist.thanks} onClose={onClose}
+      <BottomSheet title={done === 'remote' ? 'ส่งข้อมูลให้ทีมแล้ว' : 'บันทึกข้อมูลไว้ในเครื่องแล้ว'} onClose={onClose}
         footer={<button className="btn btn--primary btn--block" onClick={onClose}>{copy.common.close}</button>}>
-        <p className="p">{copy.waitlist.privacy}</p>
+        <p className="p">{done === 'remote'
+          ? 'ระบบปลายทางยืนยันว่ารับข้อมูลแล้ว ทีมจะใช้ข้อมูลนี้เพื่อติดต่อกลับ'
+          : 'ยังไม่มีการยืนยันว่าทีมได้รับข้อมูล กรุณาเก็บข้อมูลติดต่อไว้และลองใหม่เมื่อเปิดช่องทางรับข้อมูลแล้ว'}</p>
       </BottomSheet>
     )
   }
@@ -74,6 +95,7 @@ export default function WaitlistSheet({ preselect, onClose }: { preselect?: stri
         </button>
       }
     >
+      {saveError && <p className="fld__err" role="alert">{saveError}</p>}
       <label className="fld">
         <span className="fld__l">{copy.waitlist.profession}</span>
         <select className="inp" value={professionId} onChange={(e) => setProfessionId(e.target.value)}>
@@ -83,14 +105,18 @@ export default function WaitlistSheet({ preselect, onClose }: { preselect?: stri
 
       <label className="fld">
         <span className="fld__l">{copy.waitlist.name}</span>
-        <input className="inp" value={name} onChange={(e) => setName(e.target.value)} />
-        {err.name && <span className="fld__err">{err.name}</span>}
+        <input className="inp" value={name} aria-invalid={!!err.name || undefined}
+          aria-describedby={err.name ? 'waitlist-name-error' : undefined}
+          onChange={(e) => { setName(e.target.value); setErr((old) => ({ ...old, name: undefined })) }} />
+        {err.name && <span id="waitlist-name-error" className="fld__err">{err.name}</span>}
       </label>
 
       <label className="fld">
         <span className="fld__l">{copy.waitlist.contact}</span>
-        <input className="inp" value={contact} onChange={(e) => setContact(e.target.value)} />
-        {err.contact && <span className="fld__err">{err.contact}</span>}
+        <input className="inp" value={contact} aria-invalid={!!err.contact || undefined}
+          aria-describedby={err.contact ? 'waitlist-contact-error' : undefined}
+          onChange={(e) => { setContact(e.target.value); setErr((old) => ({ ...old, contact: undefined })) }} />
+        {err.contact && <span id="waitlist-contact-error" className="fld__err">{err.contact}</span>}
       </label>
 
       <div className="fld">
@@ -123,7 +149,7 @@ export default function WaitlistSheet({ preselect, onClose }: { preselect?: stri
       )}
 
       <p className="hint">
-        {copy.waitlist.privacy}{!WAITLIST_ENDPOINT && ` · ${copy.waitlist.demoNote}`}
+        {copy.waitlist.privacy}{!WAITLIST_ENDPOINT && ' · ข้อมูลจะบันทึกในเครื่องนี้เท่านั้น ทีมยังไม่ได้รับข้อมูล'}
       </p>
     </BottomSheet>
   )

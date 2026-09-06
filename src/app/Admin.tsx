@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useStore } from '../core/store'
-import { professionById } from '../professions'
 import { copy } from '../copy'
 import { clientById } from '../core/ledger'
 import { sortDrafts, mkMessage } from '../core/messages'
@@ -17,11 +16,12 @@ import { isPaymentDestination } from '../core/paymentDestination'
 function MessageCard({ m, awaiting, left, onSend, onSent, onCancel, onSkipQueue, onCopy, onSkip, onEdit }: {
   m: Message; awaiting: boolean; left: number
   onSend: () => void; onSent: () => void; onCancel: () => void; onSkipQueue: () => void; onCopy: () => void
-  onSkip: () => void; onEdit: (t: string) => void
+  onSkip: () => void; onEdit: (t: string) => boolean
 }) {
   const { state, dispatch } = useStore()
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(m.draft)
+  const [editError, setEditError] = useState('')
   const client = clientById(state, m.clientId)
   const issue = messageSendIssue(state, m)
 
@@ -33,7 +33,15 @@ function MessageCard({ m, awaiting, left, onSend, onSent, onCancel, onSkipQueue,
         {m.edited && <span className="tag-neutral">{copy.admin.editedTag}</span>}
       </div>
       {editing ? (
-        <textarea className="inp inp--area" value={text} rows={5} onChange={(e) => setText(e.target.value)} />
+        <>
+          <label className="fld">
+            <span className="fld__l">แก้ข้อความถึง {client?.name ?? 'ผู้จ่าย'}</span>
+            <textarea className="inp inp--area" value={text} rows={5} aria-invalid={!!editError || undefined}
+              aria-describedby={editError ? `message-${m.id}-error` : undefined}
+              onChange={(e) => { setText(e.target.value); setEditError(e.target.value.trim() ? '' : 'ข้อความต้องไม่ว่าง') }} />
+          </label>
+          {editError && <p id={`message-${m.id}-error`} className="fld__err" role="alert">{editError}</p>}
+        </>
       ) : (
         <p className="p msg__body">{m.draft}</p>
       )}
@@ -59,7 +67,11 @@ function MessageCard({ m, awaiting, left, onSend, onSent, onCancel, onSkipQueue,
       ) : (
         <div className="btnrow">
           {editing ? (
-            <button className="btn btn--secondary btn--sm" onClick={() => { onEdit(text); setEditing(false) }}>{copy.common.save}</button>
+            <button className="btn btn--secondary btn--sm" disabled={!text.trim()} onClick={() => {
+              if (!text.trim()) { setEditError('ข้อความต้องไม่ว่าง'); return }
+              if (onEdit(text.trim())) setEditing(false)
+              else setEditError('บันทึกไม่สำเร็จ ข้อความที่แก้ยังอยู่ กรุณาลองอีกครั้ง')
+            }}>{copy.common.save}</button>
           ) : (
             <button className="btn btn--ghost btn--sm" onClick={() => { setText(m.draft); setEditing(true) }}>{copy.common.edit}</button>
           )}
@@ -73,13 +85,17 @@ function MessageCard({ m, awaiting, left, onSend, onSent, onCancel, onSkipQueue,
 
 export default function Admin() {
   const { state, dispatch, track, hydrated } = useStore()
-  const prof = professionById(state.professionId)
-  const v = prof.vocab
   const toast = useToast()
   const [params, setParams] = useSearchParams()
   const tab = params.get('tab') === 'chat' ? 'chat' : 'drafts'
   const chatWith = params.get('chat') ?? ''
   const [input, setInput] = useState('')
+  const [actionError, setActionError] = useState('')
+  const commit = (action: Parameters<typeof dispatch>[0]): boolean => {
+    const saved = dispatch(action)
+    setActionError(saved ? '' : 'บันทึกไม่สำเร็จ ข้อมูลยังไม่ถูกแก้ไข โปรดตรวจสิทธิ์เขียนของแท็บนี้แล้วลองอีกครั้ง')
+    return saved
+  }
 
   const drafts = useMemo(() => state.messages.filter((m) => m.status === 'draft').sort(sortDrafts), [state.messages])
   const period = periodOf(state.today)
@@ -95,15 +111,18 @@ export default function Admin() {
   const nextDraft = (ids: string[]): Message | undefined =>
     ids.map(byId).find((m): m is Message => m?.status === 'draft')
 
-  const openFor = (m: Message, rest: string[] = queue) => {
+  const openFor = async (m: Message, rest: string[] = queue) => {
     const issue = messageSendIssue(state, m)
     if (issue) { toast.push({ text: issue, tone: 'warn' }); return }
     // Commit the queue while the tab is still active, before LINE can suspend it.
     if (!dispatch({ type: 'sendingStart', awaiting: m.id, queue: rest })) return
     if (!openLine(m.draft)) {
       // popup โดนบล็อก (มักบนเดสก์ท็อป) — คัดลอกให้แทน ครูวางเองได้
-      void copyText(m.draft)
-      toast.push({ text: copy.admin.lineBlocked, tone: 'warn' })
+      const copied = await copyText(m.draft)
+      toast.push({
+        text: copied ? 'เปิด LINE ไม่สำเร็จ แต่คัดลอกข้อความไว้แล้ว' : 'เปิด LINE และคัดลอกข้อความไม่สำเร็จ กรุณาลองอีกครั้ง',
+        tone: copied ? 'warn' : 'danger',
+      })
     }
     track('open_line', { kind: m.kind })
   }
@@ -118,7 +137,7 @@ export default function Admin() {
     const nextMsg = nextDraft(queue)
     if (nextMsg) {
       const rest = queue.slice(queue.indexOf(nextMsg.id) + 1)
-      openFor(nextMsg, rest)
+      void openFor(nextMsg, rest)
     } else {
       dispatch({ type: 'sendingStop' })
     }
@@ -127,7 +146,7 @@ export default function Admin() {
   /** ยังไม่ได้ส่งใบนี้ — ไปใบถัดไปในคิว ไม่ใช่ทิ้งทั้งคิวเงียบ ๆ */
   const skipInQueue = () => {
     const nextMsg = nextDraft(queue)
-    if (nextMsg) openFor(nextMsg, queue.slice(queue.indexOf(nextMsg.id) + 1))
+    if (nextMsg) void openFor(nextMsg, queue.slice(queue.indexOf(nextMsg.id) + 1))
     else dispatch({ type: 'sendingStop' })
   }
   const cancelSend = () => dispatch({ type: 'sendingStop' })
@@ -138,25 +157,26 @@ export default function Admin() {
   const room = state.chats.filter((c) => c.clientId === chatWith)
   const client = clientById(state, chatWith)
 
-  const simulate = (text: string) => {
-    if (!text.trim() || !chatWith) return
-    dispatch({ type: 'chat', clientId: chatWith, from: 'client', text: text.trim() })
+  const draftAnswer = (text: string) => {
+    if (!text.trim() || !chatWith || !clientById(state, chatWith)) return
+    if (state.mode === 'demo' && !commit({ type: 'chat', clientId: chatWith, from: 'client', text: text.trim() })) return
     const a = answer(state, chatWith, text)
     track('chat_sim', { answerFrom: a.source ?? 'fallback' })
     const key = `faq:${chatWith}:${Date.now()}`
-    dispatch({ type: 'addMessage', message: mkMessage(state, 'faq_reply', chatWith, undefined, a.text, key, { answerFrom: a.source, question: text }) })
+    if (!commit({ type: 'addMessage', message: mkMessage(state, 'faq_reply', chatWith, undefined, a.text, key, { answerFrom: a.source, question: text }) })) return
     setInput('')
   }
 
   return (
     <div className="pane">
+      {actionError && <p className="fld__err" role="alert">{actionError}</p>}
       {state.mode === 'real' && <p className="hint">ลิงก์เอกสารเป็นสำเนาตามวันที่ ผู้ที่ได้รับลิงก์อ่านข้อมูลได้ กรุณาตรวจผู้รับก่อนส่ง</p>}
       {state.mode === 'real' && !isPaymentDestination(state.provider.promptpayId) && <p className="warnbar">ยังไม่ได้ตั้งค่าพร้อมเพย์ที่ถูกต้อง <Link to="/app/onboarding">ตั้งค่าข้อมูลรับเงิน</Link></p>}
       <div className="chips">
-        <button className={`chip${tab === 'drafts' ? ' chip--on' : ''}`} onClick={() => setParams({ tab: 'drafts' })}>
+        <button className={`chip${tab === 'drafts' ? ' chip--on' : ''}`} aria-pressed={tab === 'drafts'} onClick={() => setParams({ tab: 'drafts' })}>
           {copy.admin.tabDrafts} {drafts.length ? <span className="chip__n">{drafts.length}</span> : null}
         </button>
-        <button className={`chip${tab === 'chat' ? ' chip--on' : ''}`} onClick={() => setParams({ tab: 'chat' })}>
+        <button className={`chip${tab === 'chat' ? ' chip--on' : ''}`} aria-pressed={tab === 'chat'} onClick={() => setParams({ tab: 'chat' })}>
           {copy.admin.tabChat}
         </button>
       </div>
@@ -176,7 +196,7 @@ export default function Admin() {
               <button className="btn btn--primary btn--block" disabled={awaiting !== null} onClick={() => {
                 const [first, ...rest] = drafts
                 if (!first) return
-                openFor(first, rest.map((m) => m.id))
+                void openFor(first, rest.map((m) => m.id))
               }}>{copy.admin.sendAll} ({drafts.length})</button>
               <ul className="msgs">
                 {drafts.map((m) => (
@@ -184,12 +204,12 @@ export default function Admin() {
                     awaiting={awaiting === m.id}
                     left={queue.filter((id) => byId(id)?.status === 'draft').length}
                     onSkipQueue={skipInQueue}
-                    onSend={() => openFor(m)}
+                    onSend={() => { void openFor(m) }}
                     onSent={confirmSent}
                     onCancel={cancelSend}
-                    onCopy={() => { void copyText(m.draft).then((ok) => ok && toast.push({ text: copy.toast.copied, tone: 'ok' })) }}
-                    onSkip={() => { dispatch({ type: 'skipMessage', id: m.id }); track('skip_message', { kind: m.kind }); toast.push({ text: copy.toast.messageSkipped }) }}
-                    onEdit={(t) => { dispatch({ type: 'editMessage', id: m.id, draft: t }); track('edit_message', { kind: m.kind }) }} />
+                    onCopy={() => { void copyText(m.draft).then((ok) => toast.push({ text: ok ? copy.toast.copied : 'คัดลอกไม่สำเร็จ กรุณาเลือกข้อความแล้วคัดลอกเอง', tone: ok ? 'ok' : 'danger' })) }}
+                    onSkip={() => { if (!commit({ type: 'skipMessage', id: m.id })) return; track('skip_message', { kind: m.kind }); toast.push({ text: copy.toast.messageSkipped }) }}
+                    onEdit={(t) => { if (!commit({ type: 'editMessage', id: m.id, draft: t })) return false; track('edit_message', { kind: m.kind }); return true }} />
                 ))}
               </ul>
             </>
@@ -218,6 +238,11 @@ export default function Admin() {
       )}
 
       {tab === 'chat' && chatWith && (
+        !client ? (
+          <EmptyState icon="🔍" title="ไม่พบผู้จ่ายในห้องแชทนี้"
+            desc="ลิงก์อาจเก่าหรือพิมพ์รหัสไม่ถูกต้อง ข้อมูลในระบบยังไม่ได้ถูกแก้ไข"
+            action={<button className="btn btn--primary" onClick={() => setParams({ tab: 'chat' })}>กลับไปรายชื่อผู้จ่าย</button>} />
+        ) : (
         <>
           <div className="rowhead">
             <h1 className="h1">{client?.name}</h1>
@@ -249,27 +274,29 @@ export default function Admin() {
                 </div>
               ) : (
                 <div className="btnrow">
-                  <button className="btn btn--primary btn--sm" onClick={() => openFor(m)}>{copy.admin.sendLine}</button>
-                  <button className="btn btn--ghost btn--sm" onClick={() => dispatch({ type: 'skipMessage', id: m.id })}>{copy.common.close}</button>
+                  <button className="btn btn--primary btn--sm" onClick={() => { void openFor(m) }}>{copy.admin.sendLine}</button>
+                  <button className="btn btn--ghost btn--sm" onClick={() => commit({ type: 'skipMessage', id: m.id })}>{copy.common.close}</button>
                 </div>
               )}
             </div>
           ))}
 
           <div className="simbar">
-            <span className="dim">{copy.admin.simTitle}{client?.name}</span>
-            <div className="chips">
+            <span className="dim">{state.mode === 'real' ? `พิมพ์คำถามจริงที่ ${client.name} ส่งมา เพื่อร่างคำตอบ` : `${copy.admin.simTitle}${client.name}`}</span>
+            {state.mode === 'demo' && <div className="chips">
               {copy.admin.sims.map((sm) => (
-                <button key={sm.chip} className="chip" onClick={() => simulate(sm.text)}>{sm.chip}</button>
+                <button key={sm.chip} className="chip" onClick={() => draftAnswer(sm.text)}>{sm.chip}</button>
               ))}
-            </div>
+            </div>}
             <div className="btnrow">
               <input className="inp" value={input} onChange={(e) => setInput(e.target.value)}
-                placeholder={`${copy.admin.sendAs}${client?.name ?? v.client}`} aria-label={copy.admin.simTitle} />
-              <button className="btn btn--secondary btn--sm" onClick={() => simulate(input)}>{copy.common.send}</button>
+                placeholder={state.mode === 'real' ? 'คำถามที่ได้รับจากลูกค้า' : `${copy.admin.sendAs}${client.name}`}
+                aria-label={state.mode === 'real' ? 'คำถามจริงจากลูกค้า' : copy.admin.simTitle} />
+              <button className="btn btn--secondary btn--sm" disabled={!input.trim()} onClick={() => draftAnswer(input)}>ร่างคำตอบ</button>
             </div>
           </div>
         </>
+        )
       )}
     </div>
   )

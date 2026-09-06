@@ -13,7 +13,7 @@
 
 | ไฟล์ | หน้าที่ |
 |---|---|
-| `migrations/0001_line.sql` | 4 ตาราง + RLS + view ที่ไม่มีคอลัมน์ความลับ |
+| `migrations/0001_line.sql` | prerequisite tenant schema + LINE tables + RLS + atomic RPCs |
 | `functions/line-connect` | ครูวาง secret/token → ตรวจกับ LINE → ตั้ง webhook → เก็บแบบเข้ารหัส |
 | `functions/line-webhook` | รับ follow / unfollow / ข้อความ → จับคู่ผู้ปกครอง → เก็บข้อความเข้าแชท |
 | `functions/line-send` | ส่งคิวใน `message_outbox` พร้อม retry · โควตา · กรอบเวลา |
@@ -25,13 +25,39 @@
 
 ## ตอน deploy จริงต้องทำอะไร
 
-1. `supabase link` แล้ว `supabase db push` เพื่อสร้างตาราง
-2. ตั้ง secrets: `SUPABASE_SERVICE_ROLE_KEY` (มีให้อยู่แล้ว) และ `LINE_SECRET_KEY` (คีย์เข้ารหัสของเราเอง ตั้งเอง)
+1. ตรวจ migration กับ schema จริงใน staging ก่อน แล้วจึง `supabase link` และ `supabase db push`
+2. ตั้ง secrets: `SUPABASE_SERVICE_ROLE_KEY`, `LINE_SECRET_KEY` (อย่างน้อย 32 ตัวอักษร),
+   `LINE_WEBHOOK_URL` (HTTPS URL ที่ควบคุมจาก server) และ `LINE_CRON_SECRET` (แยกจาก JWT ผู้ใช้)
+   รวมถึง `LINE_ALLOWED_ORIGIN` ซึ่งต้องเป็น origin ของเว็บจริงแบบเจาะจง เช่น GitHub Pages ของโปรเจกต์
 3. `supabase functions deploy line-connect line-webhook line-send`
 4. ถ้า CLI ไม่ยอม bundle การ import ข้าม `supabase/functions/` (`../../../src/core/…`)
    ให้คัดลอกสองไฟล์นั้นเข้า `functions/_shared/` ตอน deploy — **อย่าแก้สำเนา** ให้แก้ที่ `src/core/`
    แล้วคัดลอกทับ ไม่งั้นตรรกะสองชุดจะเพี้ยนกันโดยไม่มีใครรู้
 5. ตั้ง `pg_cron` เรียก `line-send` ทุกชั่วโมงสำหรับข้อความตามเวลา
+
+`auth.users` และ `auth.uid()` เป็นของ Supabase Auth migration นี้จึงไม่สร้างหรือแก้ schema `auth` เอง
+ชุดทดสอบใน `tests/sql/bootstrap_supabase.sql` สร้างเพียง stub ที่เข้ากันได้ใน PostgreSQL ชั่วคราว
+เพื่อทดสอบ clean migration/RLS เท่านั้น ไม่ใช่ระบบยืนยันตัวตนสำหรับ production
+
+คำขอ `line-connect` และการส่งแบบกดเองต้องมี Supabase bearer JWT ที่ตรวจด้วย
+`auth.getUser()` แล้ว provider จะมาจาก user ID ที่ตรวจแล้วเท่านั้น ค่า `providerId` ใน JSON ไม่มีสิทธิ์
+เปลี่ยน tenant การส่งตามเวลาใช้ `x-cron-secret` คนละช่องทาง และไม่มีการส่งจริงในชุดทดสอบ
+`config.toml` ปิด gateway JWT เฉพาะ `line-webhook` และ `line-send` เพื่อให้ LINE signature
+และ cron secret เข้าถึง handler ได้ จากนั้น handler ตรวจสิทธิ์เอง ส่วน `line-connect` คง gateway JWT ไว้
+
+## ทดสอบในเครื่อง
+
+```sh
+./scripts/test-db.sh
+./scripts/test-edge.sh
+npm test -- --run tests/unit/line-delivery.test.ts tests/unit/line-protocol.test.ts
+```
+
+คำสั่งแรกใช้ container `postgres:16-alpine` ชั่วคราว ตรวจ owner/other RLS, secret grants,
+composite tenant FK, field ที่ server เป็นเจ้าของ, atomic outbox claim/settle, monthly quota rollover,
+auto ceiling/หนึ่งข้อความต่อคนต่อวัน และ concurrent one-use redeem
+แล้วลบ container ทิ้งเมื่อจบ
+คำสั่งที่สองใช้ Deno container ตรวจสัญญา handler ด้วย dependency ปลอม จึงไม่เรียก Supabase หรือ LINE จริง
 
 ## ที่ยังไม่ได้ทำ
 

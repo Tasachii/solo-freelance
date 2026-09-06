@@ -30,6 +30,7 @@ export function ImportSheet({ onClose }: { onClose: () => void }) {
   const [err, setErr] = useState('')
   const [mode, setMode] = useState<BillingMode['mode']>(defaultBillingFor(state.style))
   const [price, setPrice] = useState('400')
+  const [confirmSkipped, setConfirmSkipped] = useState(false)
 
   const load = (g: Grid) => {
     if (g.length === 0) { setErr(c.empty); return }
@@ -61,6 +62,7 @@ export function ImportSheet({ onClose }: { onClose: () => void }) {
 
   const confirm = () => {
     if (!good.length || !priceOk) return
+    if (bad > 0 && !confirmSkipped) { setConfirmSkipped(true); return }
     const ok = dispatch({
       type: 'bulkAddSubjects',
       billing: billingFor() ?? { mode: 'per_unit', rate: priceNum },
@@ -79,7 +81,7 @@ export function ImportSheet({ onClose }: { onClose: () => void }) {
     <BottomSheet title={c.title} sub={c.sub} onClose={onClose}
       footer={grid
         ? <button className="btn btn--primary btn--block" disabled={!good.length || !priceOk} onClick={confirm}>
-            {c.confirm} ({good.length})
+            {confirmSkipped && bad > 0 ? `ยืนยันข้าม ${bad} แถว` : c.confirm} ({good.length})
           </button>
         : undefined}>
       {!grid && (
@@ -109,7 +111,7 @@ export function ImportSheet({ onClose }: { onClose: () => void }) {
               {FIELDS.map((f) => (
                 <label key={f} className="mapcell">
                   <span className="dim">{c.fields[f]}</span>
-                  <select className="inp" value={map[f]} onChange={(e) => setMap({ ...map, [f]: Number(e.target.value) })}>
+                  <select className="inp" value={map[f]} onChange={(e) => { setConfirmSkipped(false); setMap({ ...map, [f]: Number(e.target.value) }) }}>
                     <option value={-1}>{c.none}</option>
                     {(grid[0] ?? []).map((h, i) => (
                       <option key={i} value={i}>{map.header && h.trim() ? h : `${c.column} ${i + 1}`}</option>
@@ -119,7 +121,7 @@ export function ImportSheet({ onClose }: { onClose: () => void }) {
               ))}
             </div>
             <label className="check">
-              <input type="checkbox" checked={map.header} onChange={(e) => setMap({ ...map, header: e.target.checked })} />
+              <input type="checkbox" checked={map.header} onChange={(e) => { setConfirmSkipped(false); setMap({ ...map, header: e.target.checked }) }} />
               <span>{c.hasHeader}</span>
             </label>
           </div>
@@ -154,7 +156,7 @@ export function ImportSheet({ onClose }: { onClose: () => void }) {
               </table>
             </div>
             {rows.length > 8 && <span className="hint">{c.andMore} {rows.length - 8}</span>}
-            {bad > 0 && <span className="hint hint--bad">{c.skipped} {bad}</span>}
+            {bad > 0 && <span className="hint hint--bad" role="alert">{c.skipped} {bad} · กดนำเข้าอีกครั้งเพื่อยืนยันว่าจะข้าม</span>}
           </div>
 
           <button className="btn btn--ghost btn--sm" onClick={() => { setGrid(null); setMap(null) }}>{c.pickAnother}</button>

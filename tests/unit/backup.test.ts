@@ -35,9 +35,11 @@ describe('สำรองและกู้คืน', () => {
     expect(fromBackup(lookalike, SCHEMA)).toEqual({ ok: false, reason: 'wrongFile' })
   })
 
-  it('ไฟล์จากเวอร์ชันอื่นถูกปฏิเสธ', () => {
+  it('ไฟล์ v3 ถูก migrate โดยไม่ทิ้งข้อมูล', () => {
     const old = JSON.stringify({ format: BACKUP_FORMAT, exportedAt: 'x', app: { ...s0, schemaVersion: 3 } })
-    expect(fromBackup(old, SCHEMA)).toEqual({ ok: false, reason: 'wrongVersion' })
+    const restored = fromBackup(old, SCHEMA)
+    expect(restored.ok).toBe(true)
+    if (restored.ok) expect(restored.state).toMatchObject({ schemaVersion: 5, revision: 0 })
   })
 })
 

@@ -23,6 +23,12 @@ describe('อ่าน webhook', () => {
     ])
   })
 
+  it('เก็บ webhookEventId ไว้ใช้กัน event ที่ LINE ส่งซ้ำ', () => {
+    expect(parseWebhook(hook([
+      { type: 'message', webhookEventId: 'evt-1', source: { userId: 'U1' }, message: { type: 'text', text: 'hello' } },
+    ]))?.events[0]).toEqual({ type: 'message', eventId: 'evt-1', userId: 'U1', text: 'hello' })
+  })
+
   it('เหตุการณ์ที่ไม่รู้จักกลายเป็น other ไม่ใช่ทำให้ทั้งก้อนพัง — webhook ต้องตอบ 2xx เสมอ', () => {
     const w = parseWebhook(hook([
       { type: 'sticker', source: { userId: 'U1' } },
@@ -37,6 +43,8 @@ describe('อ่าน webhook', () => {
     expect(parseWebhook('null')).toBeNull()
     expect(parseWebhook('{"events":[]}')).toBeNull()
     expect(parseWebhook('{"destination":"U","events":"ไม่ใช่ array"}')).toBeNull()
+    expect(parseWebhook('{"destination":"U","events":[null,42]}')?.events)
+      .toEqual([{ type: 'other' }, { type: 'other' }])
   })
 })
 
@@ -62,6 +70,10 @@ describe('เหตุการณ์นี้ควรทำอะไร', () =
     expect(planWebhookEvent(msg('123456'), true)).toEqual({ kind: 'inbound', userId: 'U1', text: '123456' })
   })
 
+  it('ข้อความว่างถูกละทิ้งก่อนแตะฐานข้อมูล', () => {
+    expect(planWebhookEvent(msg('   '), true)).toEqual({ kind: 'ignore' })
+  })
+
   it('ขอหยุดรับข้อความต้องหยุดทันที ไม่ต้องรอครู', () => {
     for (const w of ['ยกเลิก', 'หยุด', ' STOP ', 'unsubscribe']) {
       expect(planWebhookEvent(msg(w), true), w).toEqual({ kind: 'opt-out', userId: 'U1', reply: 'opted-out' })
@@ -74,12 +86,15 @@ describe('เหตุการณ์นี้ควรทำอะไร', () =
 describe('ประกอบคำขอไปยัง LINE', () => {
   it('push แนบ token ใน header และตัดข้อความที่ยาวเกินเพดาน', () => {
     const long = 'ก'.repeat(LINE_TEXT_MAX + 50)
-    const r = pushRequest('tok', 'U1', long)
+    const retryKey = '123e4567-e89b-42d3-a456-426614174000'
+    const r = pushRequest('tok', 'U1', long, retryKey)
     expect(r.url).toBe(LINE_PUSH_URL)
     expect(r.init.headers.Authorization).toBe('Bearer tok')
+    expect(r.init.headers['X-Line-Retry-Key']).toBe(retryKey)
     const body = JSON.parse(r.init.body) as { to: string; messages: { text: string }[] }
     expect(body.to).toBe('U1')
     expect(body.messages[0].text).toHaveLength(LINE_TEXT_MAX)
+    expect(() => pushRequest('tok', 'U1', 'hello', 'unstable-key')).toThrow(/UUID/)
   })
 
   it('reply ใช้ replyToken ไม่ใช่ userId', () => {
@@ -91,6 +106,7 @@ describe('ประกอบคำขอไปยัง LINE', () => {
 describe('ผลจาก LINE แปลว่าอะไร', () => {
   it('สำเร็จ · ลองใหม่ได้ · token เสีย · เลิกลอง', () => {
     expect(classifyPush(200)).toBe('sent')
+    expect(classifyPush(409)).toBe('sent')
     expect(classifyPush(429)).toBe('retry')
     expect(classifyPush(500)).toBe('retry')
     expect(classifyPush(503)).toBe('retry')

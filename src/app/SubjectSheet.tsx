@@ -36,6 +36,9 @@ export function buildBilling(
     ...(current?.mode === 'package' && current.carriedUnitIds
       ? { carriedUnitIds: [...current.carriedUnitIds] }
       : {}),
+    ...(current?.mode === 'package' && current.carriedCredits !== undefined
+      ? { carriedCredits: current.carriedCredits }
+      : {}),
   }
 }
 
@@ -58,8 +61,11 @@ export default function SubjectSheet({ subject, onClose }: { subject?: Subject; 
   const v = prof.vocab
   const client = subject ? state.clients.find((c) => c.id === subject.clientId) : undefined
   const b = subject?.billing
+  const payerLocked = !!subject && (state.invoices.some(invoice => invoice.subjectId === subject.id)
+    || state.messages.some(message => message.subjectId === subject.id))
 
   const seq = useRef(0)
+  const [payerChoice, setPayerChoice] = useState(subject?.clientId ?? 'new')
   const [name, setName] = useState(subject?.name ?? '')
   const [clientName, setClientName] = useState(client?.name ?? '')
   const [lineId, setLineId] = useState(client?.lineId ?? '')
@@ -71,6 +77,7 @@ export default function SubjectSheet({ subject, onClose }: { subject?: Subject; 
   const [pkTotal, setPkTotal] = useState(String(b?.mode === 'package' ? b.total : 10))
   const [pkPrice, setPkPrice] = useState(String(b?.mode === 'package' ? b.price : 3500))
   const [err, setErr] = useState<Record<string, string>>({})
+  const [packageIntent, setPackageIntent] = useState<'opening_balance' | 'paid_purchase'>('opening_balance')
   const nextBilling = buildBilling(mode, {
     rate, flat, packageTotal: pkTotal, packagePrice: pkPrice,
   }, b, state.today)
@@ -91,7 +98,7 @@ export default function SubjectSheet({ subject, onClose }: { subject?: Subject; 
     // นับต่อท้ายด้วย เพราะเพิ่มสองคนติดกันในมิลลิวินาทีเดียว id จะชนกัน
     const stamp = `${Date.now().toString(36)}${(seq.current += 1).toString(36)}`
     const id = subject?.id ?? `s-${stamp}`
-    const clientId = subject?.clientId ?? `c-${stamp}`
+    const clientId = payerChoice === 'new' ? `c-${stamp}` : payerChoice
     if (!dispatch({
       type: 'upsertSubject',
       subject: {
@@ -99,8 +106,9 @@ export default function SubjectSheet({ subject, onClose }: { subject?: Subject; 
         label: subject?.label, active: subject?.active ?? true, createdAt: subject?.createdAt ?? state.today,
       },
       clientName: clientName.trim(),
-      lineId: lineId.trim() || undefined,
-    })) return
+      lineId: lineId.trim() || null,
+      ...(mode === 'package' && !subject ? { packageIntent } : {}),
+    })) { setErr({ save: 'บันทึกไม่สำเร็จ ข้อมูลที่กรอกยังอยู่ โปรดตรวจสิทธิ์เขียนของแท็บนี้แล้วลองอีกครั้ง' }); return }
     onClose()
   }
 
@@ -110,19 +118,38 @@ export default function SubjectSheet({ subject, onClose }: { subject?: Subject; 
       onClose={onClose}
       footer={<button className="btn btn--primary btn--block" disabled={!!changeIssue} onClick={save}>{copy.common.save}</button>}
     >
+      {err.save && <p className="fld__err" role="alert">{err.save}</p>}
       <label className="fld">
         <span className="fld__l">{copy.subjects.fieldName}</span>
-        <input className="inp" value={name} onChange={(e) => setName(e.target.value)} />
-        {err.name && <span className="fld__err">{err.name}</span>}
+        <input className="inp" aria-label={copy.subjects.fieldName} aria-invalid={!!err.name || undefined}
+          aria-describedby={err.name ? 'subject-name-error' : undefined} value={name} onChange={(e) => setName(e.target.value)} />
+        {err.name && <span id="subject-name-error" className="fld__err">{err.name}</span>}
+      </label>
+      <label className="fld">
+        <span className="fld__l">เลือกผู้จ่ายที่มีอยู่</span>
+        <select className="inp" aria-label="เลือกผู้จ่ายที่มีอยู่" disabled={payerLocked}
+          aria-describedby={payerLocked ? 'subject-payer-history' : undefined} value={payerChoice} onChange={(event) => {
+          const id = event.target.value
+          setPayerChoice(id)
+          const payer = state.clients.find((candidate) => candidate.id === id)
+          if (payer) { setClientName(payer.name); setLineId(payer.lineId ?? '') }
+          else { setClientName(''); setLineId('') }
+        }}>
+          <option value="new">เพิ่มผู้จ่ายใหม่</option>
+          {state.clients.map((payer) => <option key={payer.id} value={payer.id}>{payer.name}</option>)}
+        </select>
+        {payerLocked && <span id="subject-payer-history" className="hint">รายการนี้มีประวัติบิลแล้วหรือมีข้อความถึงผู้จ่าย หากต้องเปลี่ยนผู้จ่าย ให้หยุดรายการเดิมและเพิ่มรายการใหม่เพื่อเก็บประวัติให้ถูกต้อง</span>}
       </label>
       <label className="fld">
         <span className="fld__l">{copy.subjects.fieldClient}</span>
-        <input className="inp" value={clientName} onChange={(e) => setClientName(e.target.value)} />
-        {err.clientName && <span className="fld__err">{err.clientName}</span>}
+        <input className="inp" aria-label={copy.subjects.fieldClient} aria-invalid={!!err.clientName || undefined}
+          aria-describedby={err.clientName ? 'client-name-error' : undefined} value={clientName} onChange={(e) => setClientName(e.target.value)} />
+        {err.clientName && <span id="client-name-error" className="fld__err">{err.clientName}</span>}
       </label>
       <label className="fld">
         <span className="fld__l">{copy.subjects.fieldLine}</span>
-        <input className="inp" value={lineId} onChange={(e) => setLineId(e.target.value)} />
+        <input className="inp" aria-label={copy.subjects.fieldLine} value={lineId} onChange={(e) => setLineId(e.target.value)} />
+        <span className="hint">ปล่อยว่างเพื่อล้าง LINE ID เดิม</span>
       </label>
 
       <div className="fld">
@@ -154,19 +181,32 @@ export default function SubjectSheet({ subject, onClose }: { subject?: Subject; 
       )}
       {mode === 'package' && (
         <>
+          {!subject && (
+            <div className="fld" role="group" aria-label="ที่มาของสิทธิ์แพ็ก">
+              <span className="fld__l">สิทธิ์แพ็กนี้มาจากไหน</span>
+              <div className="chips">
+                <button type="button" className={`chip${packageIntent === 'opening_balance' ? ' chip--on' : ''}`}
+                  aria-pressed={packageIntent === 'opening_balance'} onClick={() => setPackageIntent('opening_balance')}>ยอดยกมา ยังไม่บันทึกรับเงิน</button>
+                <button type="button" className={`chip${packageIntent === 'paid_purchase' ? ' chip--on' : ''}`}
+                  aria-pressed={packageIntent === 'paid_purchase'} onClick={() => setPackageIntent('paid_purchase')}>รับเงินค่าแพ็กแล้ว</button>
+              </div>
+              <span className="hint">เลือกให้ตรงกับเงินจริง ระบบจะออกใบเสร็จเฉพาะรายการที่รับเงินแล้ว</span>
+            </div>
+          )}
           <div className="fld">
             <span className="fld__l">{copy.subjects.fieldPackTotal}</span>
             <div className="chips">
               {(prof.packagePresets ?? [10, 20]).map((n) => (
                 <button key={n} className={`chip${pkTotal === String(n) ? ' chip--on' : ''}`}
-                  aria-pressed={pkTotal === String(n)} onClick={() => setPkTotal(String(n))}>{n}</button>
+                  disabled={b?.mode === 'package'} aria-pressed={pkTotal === String(n)} onClick={() => setPkTotal(String(n))}>{n}</button>
               ))}
             </div>
-            <input className="inp" inputMode="numeric" value={pkTotal} onChange={(e) => setPkTotal(e.target.value)} />
+            <input className="inp" inputMode="numeric" disabled={b?.mode === 'package'} value={pkTotal} onChange={(e) => setPkTotal(e.target.value)} />
           </div>
           <label className="fld">
             <span className="fld__l">{copy.subjects.fieldPackPrice}</span>
-            <input className="inp" inputMode="numeric" value={pkPrice} onChange={(e) => setPkPrice(e.target.value)} />
+            <input className="inp" inputMode="numeric" disabled={b?.mode === 'package'} value={pkPrice} onChange={(e) => setPkPrice(e.target.value)} />
+            {b?.mode === 'package' && <span className="hint">จำนวนและราคานี้เป็นของแพ็กที่ซื้อแล้ว ตั้งจำนวนและราคาใหม่ได้ตอนต่อแพ็ก</span>}
             {err.pk && <span className="fld__err">{err.pk}</span>}
             {usedPack > 0 && (
               <span className="hint hint--bad">

@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../core/store'
 import { professionById } from '../professions'
 import { copy } from '../copy'
-import { clientById, subjectById } from '../core/ledger'
 import { dateThai, money } from '../core/format'
 import { DemoBadge, EmptyState } from './components'
 
@@ -22,7 +21,7 @@ export default function Receipt() {
   if (!rc || !pay || !inv) {
     return (
       <div className="page">
-        <DemoBadge />
+        {state.mode !== 'real' && <DemoBadge />}
         <EmptyState icon="🧾" title={copy.receipt.notFound}
           action={<button className="btn btn--primary" onClick={() => nav('/app/billing')}>{copy.common.back}</button>} />
       </div>
@@ -30,8 +29,7 @@ export default function Receipt() {
   }
 
   const real = state.mode === 'real'
-  const subject = subjectById(state, inv.subjectId)
-  const client = clientById(state, inv.clientId)
+  const snapshot = rc.snapshot
 
   return (
     <div className="page page--paper">
@@ -53,27 +51,28 @@ export default function Receipt() {
         </header>
 
         <dl className="paper__meta">
-          <div><dt>{copy.receipt.payee}</dt><dd>{state.provider.name} · {state.provider.promptpayId}</dd></div>
-          <div><dt>{copy.receipt.payer}</dt><dd>{client?.name ?? '—'}{subject ? ` (${subject.name})` : ''}</dd></div>
+          <div><dt>{copy.receipt.payee}</dt><dd>{snapshot.provider} · {snapshot.destination}</dd></div>
+          <div><dt>{copy.receipt.payer}</dt><dd>{snapshot.payer}{snapshot.subject ? ` (${snapshot.subject})` : ''}</dd></div>
           <div><dt>{copy.receipt.issuedAt}</dt><dd>{dateThai(rc.issuedAt)}</dd></div>
         </dl>
 
         <table className="paper__tbl">
           <thead><tr><th>{copy.receipt.item}</th><th className="r">{copy.receipt.amount}</th></tr></thead>
           <tbody>
-            {inv.lines.map((l, i) => (
+            {snapshot.lines.map((l, i) => (
               <tr key={i}><td>{l.description}</td><td className="r num">{money(l.amount)}</td></tr>
             ))}
           </tbody>
-          <tfoot><tr><td>{copy.receipt.total}</td><td className="r num">{money(inv.total)} {copy.common.baht}</td></tr></tfoot>
+          <tfoot><tr><td>{copy.receipt.total}</td><td className="r num">{money(snapshot.total)} {copy.common.baht}</td></tr></tfoot>
         </table>
 
         <p className="paper__ok">
-          {state.payments.filter(p => p.invoiceId === inv.id).every(p => p.slipVerified) ? copy.receipt.verified : `${copy.receipt.manual}${state.provider.name}`}
+          {snapshot.slipVerified ? copy.receipt.verified : `${copy.receipt.manual}${snapshot.provider}`}
         </p>
         <p className="paper__fine">
-          ออกโดย {copy.brand.name} ในนาม{state.provider.name} · {copy.receipt.footer}
+          ออกโดย {copy.brand.name} ในนาม{snapshot.provider} · {copy.receipt.footer}
         </p>
+        {snapshot.legacyBackfill && <p className="paper__fine">ใบเสร็จเดิม: ชื่อและข้อมูลผู้รับเงินบันทึกจากข้อมูลที่มีขณะอัปเกรด อาจต่างจากวันที่รับเงิน</p>}
         {!real && <p className="paper__fine">{copy.demoBadge} · {prof.name}</p>}
       </article>
 

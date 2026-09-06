@@ -1,12 +1,7 @@
-/**
- * รับ webhook จาก LINE — ยังไม่ deploy รอเงื่อนไขข้อ 0 ใน docs/line-oa-plan.md
- *
- * หน้าที่เดียวคือต่อสาย: ตรวจลายเซ็น → แปลเหตุการณ์ → ทำตามแผนที่ core ตัดสินให้
- * ทุกการตัดสินใจอยู่ใน src/core/lineProtocol.ts ซึ่งมีเทสครอบไว้แล้ว
- */
-import { verifyLineSignature, redeemLinkCode } from '../../../src/core/lineDelivery.ts'
+/** Verify and persist LINE webhook events. Intentionally undeployed. */
+import { verifyLineSignature } from '../../../src/core/lineDelivery.ts'
 import { parseWebhook, planWebhookEvent, replyRequest } from '../../../src/core/lineProtocol.ts'
-import { admin, open, ok } from '../_shared/db.ts'
+import { admin, ok, open, serveErrors } from '../_shared/db.ts'
 
 const REPLIES = {
   'ask-code': 'สวัสดีค่ะ ห้องนี้ใช้ส่งบิลและสรุปงาน — พิมพ์รหัส 6 หลักที่ได้รับมาเพื่อเชื่อมข้อมูลได้เลยค่ะ',
@@ -15,65 +10,92 @@ const REPLIES = {
   'opted-out': 'หยุดส่งข้อความให้แล้วค่ะ หากต้องการรับอีกครั้งแจ้งได้เลย',
 }
 
-Deno.serve(async (req) => {
+export const handler = serveErrors(async (req) => {
+  if (req.method !== 'POST') return new Response('method not allowed', { status: 405 })
   const raw = await req.text()
   const signature = req.headers.get('x-line-signature') ?? ''
-  const hook = parseWebhook(raw)
-  // ไม่รู้ว่าเป็นของใครก็ตอบ 200 แล้วทิ้ง — ห้ามบอก LINE ว่ามีหรือไม่มีบัญชีนั้น
-  if (!hook) return ok()
 
+  // Destination must be decoded to select the tenant secret. No event is processed before verification.
+  const hook = parseWebhook(raw)
+  if (!hook) return ok()
   const db = admin()
-  const { data: channel } = await db.from('line_channels')
+  const { data: channel, error: channelError } = await db.from('line_channels')
     .select('provider_id, channel_secret, access_token, status')
     .eq('bot_user_id', hook.destination).maybeSingle()
+  if (channelError) throw channelError
   if (!channel) return ok()
 
   const secret = await open(channel.channel_secret)
   if (!(await verifyLineSignature(raw, secret, signature))) {
     return new Response('bad signature', { status: 401 })
   }
+  if (channel.status !== 'active') return ok()
   const token = await open(channel.access_token)
+
   const reply = async (replyToken: string | undefined, key: keyof typeof REPLIES) => {
     if (!replyToken) return
-    const r = replyRequest(token, replyToken, REPLIES[key])
-    await fetch(r.url, r.init)
+    const request = replyRequest(token, replyToken, REPLIES[key])
+    // A reply is best-effort; persisted state remains authoritative if LINE rejects an expired token.
+    await fetch(request.url, { ...request.init, signal: AbortSignal.timeout(10_000) }).catch(() => undefined)
   }
 
   for (const event of hook.events) {
     const userId = 'userId' in event ? event.userId : ''
-    const { data: recipient } = await db.from('line_recipients')
-      .select('id, client_id, unfollowed_at')
-      .eq('provider_id', channel.provider_id).eq('line_user_id', userId).maybeSingle()
-    const plan = planWebhookEvent(event, !!recipient?.client_id)
+    const eventId = event.eventId
+    if (!userId || !eventId) continue
+    const { data: claimToken, error: claimError } = await db.rpc('claim_line_webhook_event', {
+      p_provider_id: channel.provider_id, p_event_id: eventId,
+    })
+    if (claimError) throw claimError
+    if (!claimToken) continue
 
-    if (plan.kind === 'register') {
-      // follow ซ้ำจากคนเดิมต้องไม่สร้างแถวใหม่ และต้องล้างสถานะบล็อกเดิม
-      await db.from('line_recipients').upsert(
-        { provider_id: channel.provider_id, line_user_id: plan.userId, unfollowed_at: null },
-        { onConflict: 'provider_id,line_user_id' })
-      await reply(event.type === 'follow' ? event.replyToken : undefined, 'ask-code')
-    } else if (plan.kind === 'unfollow' || plan.kind === 'opt-out') {
-      await db.from('line_recipients').update({ unfollowed_at: new Date().toISOString() })
-        .eq('provider_id', channel.provider_id).eq('line_user_id', plan.userId)
-      if (plan.kind === 'opt-out') await reply(event.type === 'message' ? event.replyToken : undefined, 'opted-out')
-    } else if (plan.kind === 'link') {
-      const { data: codes } = await db.from('line_link_codes')
-        .select('code, client_id, expires_at, used_at').eq('provider_id', channel.provider_id)
-      const result = redeemLinkCode(
-        (codes ?? []).map((c) => ({ code: c.code, clientId: c.client_id, expiresAt: Date.parse(c.expires_at), usedAt: c.used_at ? Date.parse(c.used_at) : undefined })),
-        plan.code, Date.now(), 0)
-      if (result.ok) {
-        await db.from('line_recipients').update({ client_id: result.clientId, linked_at: new Date().toISOString() })
+    try {
+      const { data: recipient, error: recipientError } = await db.from('line_recipients')
+        .select('id, client_id, unfollowed_at')
+        .eq('provider_id', channel.provider_id).eq('line_user_id', userId).maybeSingle()
+      if (recipientError) throw recipientError
+      const plan = planWebhookEvent(event, !!recipient?.client_id)
+
+      if (plan.kind === 'register') {
+        const { error } = await db.from('line_recipients').upsert(
+          { provider_id: channel.provider_id, line_user_id: plan.userId, unfollowed_at: null },
+          { onConflict: 'provider_id,line_user_id' })
+        if (error) throw error
+        await reply(event.type === 'follow' ? event.replyToken : undefined, 'ask-code')
+      } else if (plan.kind === 'unfollow' || plan.kind === 'opt-out') {
+        const { error } = await db.from('line_recipients').update({ unfollowed_at: new Date().toISOString() })
           .eq('provider_id', channel.provider_id).eq('line_user_id', plan.userId)
-        await db.from('line_link_codes').update({ used_at: new Date().toISOString() }).eq('code', plan.code)
+        if (error) throw error
+        if (plan.kind === 'opt-out') await reply(event.type === 'message' ? event.replyToken : undefined, 'opted-out')
+      } else if (plan.kind === 'link') {
+        const { data, error } = await db.rpc('redeem_line_link_code', {
+          p_provider_id: channel.provider_id, p_line_user_id: plan.userId, p_code: plan.code,
+        })
+        if (error) throw error
+        await reply(event.type === 'message' ? event.replyToken : undefined,
+          data?.[0]?.ok === true ? 'linked' : 'bad-code')
+      } else if (plan.kind === 'inbound' && recipient?.client_id) {
+        const { error } = await db.from('chats').upsert({
+          provider_id: channel.provider_id, client_id: recipient.client_id,
+          sender: 'client', body: plan.text, occurred_at: new Date().toISOString(),
+          source_event_id: eventId,
+        }, { onConflict: 'provider_id,source_event_id', ignoreDuplicates: true })
+        if (error) throw error
       }
-      await reply(event.type === 'message' ? event.replyToken : undefined, result.ok ? 'linked' : 'bad-code')
-    } else if (plan.kind === 'inbound' && recipient?.client_id) {
-      await db.from('chats').insert({
-        provider_id: channel.provider_id, client_id: recipient.client_id,
-        from: 'client', text: plan.text, at: new Date().toISOString().slice(0, 10),
+      const { data: finished, error: finishError } = await db.rpc('finish_line_webhook_event', {
+        p_provider_id: channel.provider_id, p_event_id: eventId,
+        p_claim_token: claimToken, p_success: true, p_error: null,
       })
+      if (finishError || finished !== true) throw finishError ?? new Error('Webhook claim lost')
+    } catch (error) {
+      await db.rpc('finish_line_webhook_event', {
+        p_provider_id: channel.provider_id, p_event_id: eventId,
+        p_claim_token: claimToken, p_success: false, p_error: 'handler-failed',
+      })
+      throw error
     }
   }
   return ok()
 })
+
+if (import.meta.main) Deno.serve(handler)

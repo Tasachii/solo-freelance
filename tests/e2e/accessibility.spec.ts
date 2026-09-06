@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
 
 async function open(page: Page, path: string) {
   const target = `?scenario=default#${path}`

@@ -1,10 +1,11 @@
 import type { AppState, Invoice, Message, Payment, Particle, WorkStyle } from './types'
 import { styleOfScenario } from './style'
 import { buildFromPlans, emptyBase, TODAY, type SubjectPlan } from '../mock/seed'
-import { receiptNumber } from './receipts'
+import { receiptNumber, receiptSnapshot } from './receipts'
 import { receiptText } from './messages'
 import { markOverdue } from './billing'
 import { todayISO } from './format'
+import { snapshotLegacyPrices } from './ledger'
 
 export const SCENARIOS = ['default', 'per-unit', 'flat-heavy', 'package-heavy', 'monthly-heavy', 'empty'] as const
 export type ScenarioId = (typeof SCENARIOS)[number]
@@ -63,7 +64,9 @@ function applySeedInvoices(state: AppState, seeds: SeedInvoice[]): AppState {
       const pay: Payment = { id: `pay-${sd.subjectId}-${sd.period}`, invoiceId: inv.id, amount: sd.total, paidAt: sd.paidAt, slipVerified: true }
       payments.push(pay)
       rc += 1
-      const receipt = { id: `rc-${rc}`, paymentId: pay.id, number: receiptNumber(rc, sd.paidAt), issuedAt: sd.paidAt }
+      const snapshot = receiptSnapshot({ ...s, invoices: [...invoices], payments: [...payments] }, pay)
+      if (!snapshot) throw new Error('seed receipt snapshot source missing')
+      const receipt = { id: `rc-${rc}`, paymentId: pay.id, number: receiptNumber(rc, sd.paidAt), issuedAt: sd.paidAt, snapshot }
       receipts.push(receipt)
       messages.push({
         id: `m-seed-rcp-${pay.id}`, clientId: subject.clientId, subjectId: subject.id, kind: 'receipt',
@@ -228,5 +231,5 @@ export function buildReal(keep?: { name: string; promptpayId: string; particle?:
 export function buildScenario(id: string): AppState {
   const key: ScenarioId = isScenario(id) ? id : 'default'
   // ชุดข้อมูลบอกรูปแบบการเก็บเงินของตัวเองเสมอ — หน้าเลือกและตัวกรองอ่านจากตรงนี้
-  return { ...BUILDERS[key](), style: styleOfScenario(key) }
+  return snapshotLegacyPrices({ ...BUILDERS[key](), style: styleOfScenario(key) })
 }

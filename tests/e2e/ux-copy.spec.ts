@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 /** ป้ายและหัวเรื่องที่เคยหลอกตา — ภาษาอังกฤษหลุด · เดือนผิด · ป้ายค้างไม่บอกว่ารวมเดือนก่อน */
 test('history speaks Thai, the parent sees the month of the bill, and ค้าง says it accumulates', async ({ page }) => {

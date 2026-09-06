@@ -44,7 +44,7 @@ describe('โหมดใช้จริง', () => {
   })
 })
 
-describe('ย้ายข้อมูลเก่า v3 → v4', () => {
+describe('ย้ายข้อมูลเก่า v3 → v5', () => {
   const asV3 = () => {
     const s = JSON.parse(JSON.stringify(buildScenario('default')))
     s.schemaVersion = 3
@@ -55,7 +55,8 @@ describe('ย้ายข้อมูลเก่า v3 → v4', () => {
   it('ข้อมูลเดิมต้องไม่หายแม้แต่แถวเดียว และถูกทำเครื่องหมายว่าเป็นเดโม', () => {
     const before = asV3()
     const after = migrate(before)!
-    expect(after.schemaVersion).toBe(4)
+    expect(after.schemaVersion).toBe(5)
+    expect(after.revision).toBe(0)
     expect(after.mode).toBe('demo')
     expect(after.subjects).toHaveLength(before.subjects.length)
     expect(after.invoices).toHaveLength(before.invoices.length)

@@ -1,9 +1,14 @@
 import { lineShareUrl } from '../core/share'
 
-/** เปิด LINE พร้อมข้อความ — คืน false ถ้าเบราว์เซอร์บล็อก popup */
+/** Requests a launch, not proof of delivery. noopener may return null even on success. */
 export function openLine(text: string): boolean {
-  const w = window.open(lineShareUrl(text), '_blank', 'noopener,noreferrer')
-  return w !== null
+  if (!text.trim()) return false
+  try {
+    window.open(lineShareUrl(text), '_blank', 'noopener,noreferrer')
+    return true
+  } catch {
+    return false
+  }
 }
 
 export async function copyText(text: string): Promise<boolean> {

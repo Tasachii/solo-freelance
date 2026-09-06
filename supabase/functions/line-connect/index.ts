@@ -1,36 +1,101 @@
-/**
- * ครูเชื่อม OA ของตัวเอง — ยังไม่ deploy
- * ตรวจ token กับ LINE ก่อนเก็บ ไม่เก็บค่าที่ใช้ไม่ได้ไว้ให้เข้าใจผิดว่าเชื่อมแล้ว
- */
-import { admin, seal, ok } from '../_shared/db.ts'
+/** Connect the authenticated provider's LINE OA. Intentionally undeployed. */
+import { admin, jsonBody, jsonError, ok, requireEnv, requireUserId, seal, serveErrors, withCors } from '../_shared/db.ts'
 
-Deno.serve(async (req) => {
-  const { providerId, channelSecret, accessToken, webhookUrl } =
-    await req.json() as { providerId: string; channelSecret: string; accessToken: string; webhookUrl: string }
+interface ConnectInput { providerId: string; channelSecret: string; accessToken: string }
 
+interface ConnectSetupDeps {
+  fetch: typeof fetch
+  seal: typeof seal
+  persistPending: (row: Record<string, unknown>) => Promise<void>
+  setStatus: (providerId: string, status: 'active' | 'setup_failed', verifiedAt?: string) => Promise<void>
+}
+
+export async function authenticatedConnectInput(
+  req: Request,
+  deps: { userId: typeof requireUserId; body: typeof jsonBody } = { userId: requireUserId, body: jsonBody },
+): Promise<ConnectInput | Response> {
+  const providerId = await deps.userId(req)
+  const body = await deps.body(req)
+  const channelSecret = typeof body.channelSecret === 'string' ? body.channelSecret.trim() : ''
+  const accessToken = typeof body.accessToken === 'string' ? body.accessToken.trim() : ''
+  if (!channelSecret || !accessToken) return jsonError(400, 'missing-credentials')
+  return { providerId, channelSecret, accessToken }
+}
+
+export async function configureLineChannel(
+  input: ConnectInput,
+  webhookUrl: string,
+  deps: ConnectSetupDeps,
+): Promise<Response> {
+  const { providerId, channelSecret, accessToken } = input
   const auth = { Authorization: `Bearer ${accessToken}` }
-  const info = await fetch('https://api.line.me/v2/bot/info', { headers: auth })
-  if (!info.ok) return ok({ ok: false, error: 'token' })
-  const bot = await info.json() as { userId: string; displayName?: string }
-
-  await fetch('https://api.line.me/v2/bot/channel/webhook/endpoint', {
-    method: 'PUT', headers: { ...auth, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ endpoint: webhookUrl }),
+  const info = await deps.fetch('https://api.line.me/v2/bot/info', {
+    headers: auth, signal: AbortSignal.timeout(10_000),
   })
-  const test = await fetch('https://api.line.me/v2/bot/channel/webhook/test', {
-    method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ endpoint: webhookUrl }),
-  })
-  if (!test.ok) return ok({ ok: false, error: 'webhook' })
+  if (!info.ok) return jsonError(400, 'token')
+  const bot = await info.json() as { userId?: unknown; displayName?: unknown }
+  if (typeof bot.userId !== 'string' || !bot.userId) return jsonError(502, 'line-response')
+  const displayName = typeof bot.displayName === 'string' ? bot.displayName : null
 
-  await admin().from('line_channels').upsert({
+  // Persist encrypted credentials in a non-deliverable state before mutating LINE configuration.
+  await deps.persistPending({
     provider_id: providerId,
     bot_user_id: bot.userId,
-    channel_secret: await seal(channelSecret),
-    access_token: await seal(accessToken),
-    display_name: bot.displayName ?? null,
-    status: 'active',
-    last_verified_at: new Date().toISOString(),
+    channel_secret: await deps.seal(channelSecret),
+    access_token: await deps.seal(accessToken),
+    display_name: displayName,
+    status: 'pending',
+    last_verified_at: null,
   })
-  return ok({ ok: true, displayName: bot.displayName })
-})
+
+  try {
+    const endpoint = await deps.fetch('https://api.line.me/v2/bot/channel/webhook/endpoint', {
+      method: 'PUT', headers: { ...auth, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint: webhookUrl }), signal: AbortSignal.timeout(10_000),
+    })
+    if (!endpoint.ok) {
+      await deps.setStatus(providerId, 'setup_failed')
+      return jsonError(502, 'webhook')
+    }
+    const test = await deps.fetch('https://api.line.me/v2/bot/channel/webhook/test', {
+      method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint: webhookUrl }), signal: AbortSignal.timeout(10_000),
+    })
+    if (!test.ok) {
+      await deps.setStatus(providerId, 'setup_failed')
+      return jsonError(502, 'webhook')
+    }
+  } catch (error) {
+    await deps.setStatus(providerId, 'setup_failed')
+    throw error
+  }
+  await deps.setStatus(providerId, 'active', new Date().toISOString())
+  return ok({ ok: true, displayName })
+}
+
+export const handler = withCors(serveErrors(async (req) => {
+  if (req.method !== 'POST') return jsonError(405, 'method-not-allowed')
+  const input = await authenticatedConnectInput(req)
+  if (input instanceof Response) return input
+  // The callback is server configuration, not a caller-selected URL.
+  const webhookUrl = requireEnv('LINE_WEBHOOK_URL')
+  const parsedWebhookUrl = new URL(webhookUrl)
+  if (parsedWebhookUrl.protocol !== 'https:') return jsonError(500, 'server-configuration')
+  const db = admin()
+  return configureLineChannel(input, webhookUrl, {
+    fetch,
+    seal,
+    persistPending: async (row) => {
+      const { error } = await db.from('line_channels').upsert(row)
+      if (error) throw error
+    },
+    setStatus: async (providerId, status, verifiedAt) => {
+      const changes: Record<string, unknown> = { status }
+      if (verifiedAt) changes.last_verified_at = verifiedAt
+      const { error } = await db.from('line_channels').update(changes).eq('provider_id', providerId)
+      if (error) throw error
+    },
+  })
+}))
+
+if (import.meta.main) Deno.serve(handler)

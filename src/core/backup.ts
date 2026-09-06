@@ -1,5 +1,6 @@
 import type { AppState } from './types'
 import { validateState } from './validation'
+import { migrateCanonical } from './migrations'
 
 export const BACKUP_FORMAT = 'solo-backup-1'
 
@@ -41,15 +42,17 @@ export function fromBackup(text: string, schema: number): RestoreResult {
   if (!f || f.format !== BACKUP_FORMAT || !f.app || typeof f.app !== 'object') {
     return { ok: false, reason: 'wrongFile' }
   }
-  if (f.app.schemaVersion !== schema) return { ok: false, reason: 'wrongVersion' }
+  if (![3, 4, schema].includes(Number(f.app.schemaVersion))) return { ok: false, reason: 'wrongVersion' }
   const app = f.app as unknown as Record<string, unknown>
   const requiredArrays = ['clients', 'subjects', 'units', 'completions', 'invoices', 'payments', 'receipts', 'messages', 'chats', 'waitlist', 'events']
   if (requiredArrays.some((key) => !Array.isArray(app[key]))
     || !app.counters || typeof app.counters !== 'object'
     || !app.provider || typeof app.provider !== 'object') return { ok: false, reason: 'wrongFile' }
-  const validation = validateState(f.app)
+  const migrated = migrateCanonical(f.app)
+  if (!migrated) return { ok: false, reason: 'wrongFile', details: ['ข้อมูลภายในไฟล์ไม่ครบหรือมีความสัมพันธ์ไม่ถูกต้อง'] }
+  const validation = validateState(migrated)
   if (!validation.ok) return { ok: false, reason: 'wrongFile', details: validation.errors }
-  return { ok: true, state: f.app }
+  return { ok: true, state: migrated }
 }
 
 /** วันที่ยังไม่ได้สำรอง — ไม่เคยสำรองเลยคืน Infinity */

@@ -12,7 +12,7 @@ describe('ลบคนออก', () => {
     expect(after.subjects.find((x) => x.id === 's2')?.active).toBe(false)
     expect(after.invoices.filter((i) => invoices.includes(i.id))).toHaveLength(invoices.length)
   })
-  it('ลบแล้วไม่เหลือแถวกำพร้าที่ทำหน้าจอพัง', () => {
+  it('รายการที่มีงานแล้วต้อง archive และความสัมพันธ์ยังครบ', () => {
     const before = s0()
     const sub = before.subjects.find((x) => x.id === 's2')!
     const invIds = before.invoices.filter((i) => i.subjectId === 's2').map((i) => i.id)
@@ -20,10 +20,9 @@ describe('ลบคนออก', () => {
 
     const s = reducer(before, { type: 'deleteSubject', subjectId: 's2' })
 
-    expect(s.subjects.some((x) => x.id === 's2')).toBe(false)
-    expect(s.units.some((u) => u.subjectId === 's2')).toBe(false)
-    expect(s.invoices.some((i) => i.subjectId === 's2')).toBe(false)
-    expect(s.messages.some((m) => m.subjectId === 's2')).toBe(false)
+    expect(s.subjects.find((x) => x.id === 's2')?.active).toBe(false)
+    expect(s.units.some((u) => u.subjectId === 's2')).toBe(true)
+    expect(s.invoices.some((i) => i.subjectId === 's2')).toBe(true)
     // ทุก completion ต้องยังชี้ไปยัง unit ที่มีจริง
     const unitIds = new Set(s.units.map((u) => u.id))
     expect(s.completions.every((c) => unitIds.has(c.unitId))).toBe(true)
@@ -36,7 +35,7 @@ describe('ลบคนออก', () => {
     expect(sub.clientId).toBeTruthy()
   })
 
-  it('ลบคนที่จ่ายเงินแล้ว ใบเสร็จต้องไม่ค้างเป็นแถวกำพร้า', () => {
+  it('archive คนที่จ่ายเงินแล้วต้องรักษาใบเสร็จ', () => {
     let s = s0()
     const inv = s.invoices.find((i) => i.subjectId === 's2' && i.status !== 'paid')!
     s = reducer(s, { type: 'recordPayment', invoiceId: inv.id, amount: inv.total, slipVerified: true })
@@ -46,12 +45,12 @@ describe('ลบคนออก', () => {
     s = reducer(s, { type: 'deleteSubject', subjectId: 's2' })
     const okPay = new Set(s.payments.map((p) => p.id))
     expect(s.receipts.every((r) => okPay.has(r.paymentId))).toBe(true)
-    expect(s.receipts.some((r) => r.id === rc[0].id)).toBe(false)
+    expect(s.receipts.some((r) => r.id === rc[0].id)).toBe(true)
   })
 
-  it('ผู้จ่ายที่ไม่เหลือคนเรียนแล้ว ถูกลบไปด้วย', () => {
+  it('ผู้จ่ายของรายการที่ archive ยังอยู่เพื่อรักษาประวัติ', () => {
     const s = reducer(s0(), { type: 'deleteSubject', subjectId: 's2' })
-    expect(s.clients.some((c) => c.id === 'c2')).toBe(false)
+    expect(s.clients.some((c) => c.id === 'c2')).toBe(true)
   })
 
   it('ผู้จ่ายที่ยังมีลูกอีกคน ต้องไม่ถูกลบ', () => {
@@ -64,7 +63,7 @@ describe('ลบคนออก', () => {
   it('คนอื่นไม่ถูกแตะ', () => {
     const before = s0()
     const s = reducer(before, { type: 'deleteSubject', subjectId: 's2' })
-    expect(s.subjects).toHaveLength(before.subjects.length - 1)
+    expect(s.subjects).toHaveLength(before.subjects.length)
     expect(s.subjects.some((x) => x.id === 's1')).toBe(true)
   })
 })

@@ -1,63 +1,66 @@
-name: Deploy to GitHub Pages
+name: Verify and deploy
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
-# ให้ deploy ทีละครั้ง ไม่ตัดงานที่กำลังปล่อยอยู่กลางคัน
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  # ประตูก่อน deploy — รัน typecheck, unit tests และเส้นทาง E2E ทั้งหมดก่อน build
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npx tsc --noEmit
+      - run: npm run check
       - run: npm test
+      - run: npm run test:db
+      - run: npm run test:edge
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
-      - if: failure()
+      - if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
-          path: playwright-report/
+          name: playwright-evidence
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
           retention-days: 7
 
   build:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .nvmrc
           cache: npm
-
       - run: npm ci
       - run: npm run build
-
-      - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
     needs: build
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -65,3 +68,11 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Verify deployed document and assets
+        env:
+          SOLO_SMOKE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: node scripts/smoke-deployment.mjs

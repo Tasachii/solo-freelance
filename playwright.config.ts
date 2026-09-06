@@ -9,14 +9,18 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? 'line' : 'list',
+  reporter: [[process.env.CI ? 'line' : 'list'], ['html', { open: 'never' }]],
   use: {
     baseURL,
-    trace: 'on-first-retry',
+    timezoneId: 'Asia/Bangkok',
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
   },
   projects: [
     { name: 'mobile', use: { ...devices['Pixel 7'] } },
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 900 } } },
+    ...(process.env.SOLO_CROSS_BROWSER === '1'
+      ? [{ name: 'webkit', use: { ...devices['iPhone 13'] } }] : []),
   ],
   webServer: {
     command: `npm run build && npx vite preview --port ${port} --strictPort`,

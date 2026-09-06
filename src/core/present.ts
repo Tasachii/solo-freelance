@@ -5,7 +5,9 @@ const KEY = 'solo-frame'
 /** phone = กรอบมือถือกลางจอ (เหมือนถือเครื่องอยู่) · web = เต็มความกว้าง */
 export function readFrame(): Frame {
   try {
-    return localStorage.getItem(KEY) === 'web' ? 'web' : 'phone'
+    const saved = localStorage.getItem(KEY)
+    if (saved === 'web' || saved === 'phone') return saved
+    return window.matchMedia?.('(min-width: 1024px)').matches ? 'web' : 'phone'
   } catch {
     return 'phone'
   }
@@ -16,8 +18,7 @@ export function applyFrame(f: Frame): void {
   if (f === 'phone') root.removeAttribute('data-frame')
   else root.setAttribute('data-frame', f)
   try {
-    if (f === 'phone') localStorage.removeItem(KEY)
-    else localStorage.setItem(KEY, f)
+    localStorage.setItem(KEY, f)
   } catch {
     /* โหมดส่วนตัวเขียนไม่ได้ */
   }

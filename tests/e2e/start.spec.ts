@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 /** หน้าแรก → เลือกรูปแบบ → เข้าแอปด้วยข้อมูลที่ตรงแบบ · เปลี่ยนจากเมนูได้ · โหมดจริงไม่ลบข้อมูล */
 test('picking a style shapes the demo, the filters and the add-sheet default; the menu can change it', async ({ page }) => {
